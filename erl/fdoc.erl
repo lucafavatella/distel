@@ -21,6 +21,7 @@
 
 %% Function-based interface
 -export([describe_file/1, file/1, string/1]).
+-export([describe2/1, describe2/2, describe2/3]).
 
 %% Internal server exports
 -export([init/0,loop/0]).
@@ -80,6 +81,33 @@ description(M, F, A) ->
     receive
 	{describe, Matches} -> {ok, Matches}
     end.
+
+%% This function does not use the cache
+describe2(M) ->
+    describe2(M, '_', '_').
+describe2(M, F) ->
+    describe2(M, F, '_').
+describe2(M, F, A) ->
+    case distel:find_source(M) of
+	{ok, Sourcefile} ->
+	    case file(Sourcefile) of
+		{ok, Docs} ->
+		    {ok, lists:zf(fun({Fn, Arity, DocStr}) when F=='_'; Fn==F ->
+					  if A == '_'; A == Arity ->
+						  {true, {M,Fn, Arity, DocStr}};
+					     true ->
+						  false
+					  end;
+				     (_) ->
+					  false
+				  end, Docs)};
+		Error ->
+		    Error
+	    end;
+	Error ->
+	    Error
+    end.
+
 
 %% Stop the fdoc server. You can use this to flush the database.
 stop() ->
@@ -144,22 +172,19 @@ loop() ->
     end.
 
 import_module(Mod) ->
-    case catch filename:find_src(Mod) of
-	{error, _} ->
-	    skipped;
-	{'EXIT', _} ->
-	    skipped;
-	{Sourcefile0, _} ->
-	    Sourcefile = Sourcefile0 ++ ".erl",
+    case distel:find_source(Mod) of
+	{ok, Sourcefile} ->
 	    case file(Sourcefile) of
 		{ok, Docs} ->
 		    foreach(fun({Fn, Arity, DocStr}) ->
 				    ets:insert(?MODULE,{Mod,Fn,Arity,DocStr})
 			    end,
 			    just_exports(Mod, Docs));
-		{error, Reason} ->
+		{error, _Reason} ->
 		    skipped
-	    end
+	    end;
+	error ->
+	    skipped
     end.
 
 just_exports(Mod, Docs) ->
@@ -219,7 +244,7 @@ scan_lines([], _) ->
 scan_lines(S0, Acc) when hd(S0) == $% ->
     {CommentLine, S1} = take_line(S0),
     scan_lines(S1, [CommentLine|Acc]);
-scan_lines("\n"++S, Acc) when hd(S) == $% ->
+scan_lines("\n"++S, _Acc) when hd(S) == $% ->
     %% Blank followed by a new comment: flush old comment
     scan_lines(S, []);
 scan_lines("\n"++S, Acc) ->
@@ -239,7 +264,11 @@ scan_function(S0, Comments) ->
 	    S2 = drop_line(S1),		% skip to next fresh line
 	    case parse_function_head(Head) of
 		{ok, Function, Arity} ->
-		    [{Function, Arity, Comments} | scan_lines(S2, [])];
+		    if Comments == [] ->
+			    scan_lines(S2, []);
+		       true ->
+			    [{Function, Arity, Comments} | scan_lines(S2, [])]
+		    end;
 		error ->
 		    scan_lines(S2, [])
 	    end;
@@ -296,10 +325,11 @@ drop_line(S0) ->
     S1.
 
 comments_to_doc([]) ->
+    [];
     %% FIXME: we should really generate nothing here, since zillions
     %% of these "undocumented" strings will match e.g. an apropos
     %% search for "documented" :-) -luke
-    "(undocumented)\n";
+%    "(undocumented)\n";
 comments_to_doc(Comments) ->
     flatten([Line || Line <- map(fun clean_comment/1, Comments),
 		     not boring_comment(Line)]).
