@@ -4,8 +4,8 @@
 @settitle Distel
 @c %**end of header
 
-@set EDITION 2.0
-@set UPDATED 21 April 2002
+@set EDITION 3.0
+@set UPDATED 29 August 2002
 
 @titlepage
 @title Distel: Distributed Emacs Lisp

@@ -1,4 +1,4 @@
-distel 3.0b -- Distributed Emacs Lisp for Erlang.
+distel 3.0 -- Distributed Emacs Lisp for Erlang.
 ------------------------------------------------------------
 
 Distel is a library for Emacs<->Erlang communication, plus a suite of
@@ -44,6 +44,9 @@ find this description:
 If you want to write new commands of your own, the programmer's manual
 tells you how. You can make a postscript copy with "make postscript",
 or an Info version with "make info" and "make info_install".
+
+For more background about the "Session" commands, have a look in
+README.ie-session.
 
 Hope you enjoy, and please send hacks or feedback to luke@bluetail.com!
 
