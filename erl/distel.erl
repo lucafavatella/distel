@@ -373,9 +373,13 @@ break_toggle(Mod, Line) ->
 %%          InterpretedMods = [Mod]
 %%          Breakpoints     = [{Mod, Line}]
 debug_subscribe(Pid) ->
+    %% NB: doing this before subscription to ensure that the debugger
+    %% server is started (int:subscribe doesn't do this, probably a
+    %% bug).
+    Interpreted = int:interpreted(),
     spawn_link(?MODULE, debug_subscriber_init, [self(), Pid]),
     receive ready -> ok end,
-    {int:interpreted(),
+    {Interpreted,
      [Break || {Break, _Info} <- int:all_breaks()],
      [{Proc,
        fmt("~p:~p/~p", [M,F,length(A)]),
