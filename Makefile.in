@@ -16,6 +16,8 @@ ERL_SRC_DIR = ${datadir}/distel/src
 ########################################
 ## Main part
 
+CC = @CC@
+
 ERL_SRC := $(wildcard erl/*.erl)
 ERL_OBJ := $(patsubst erl/%.erl,ebin/%.beam,${ERL_SRC})
 
@@ -41,11 +43,8 @@ erl: ${ERL_OBJ}
 ########################################
 ## Rules
 
-ebin:
-	mkdir $@
-
 ## Erlang
-ebin/%.beam: erl/%.erl ebin
+ebin/%.beam: erl/%.erl
 	erlc -W -o ebin +debug_info $<
 
 ## Elisp
