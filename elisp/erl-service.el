@@ -429,8 +429,10 @@ look in, with the following algorithm:
   Find the directory of the module's beam file (loading it if necessary).
   Look for the source file in:
     Same directory as the beam file
-    Directory with /ebin/ replaced with /src/
-    Directory with /ebin/ replaced with /erl/
+    Again with /ebin/ replaced with /src/
+    Again with /ebin/ replaced with /erl/
+    Directory where source file was originally compiled
+
   Otherwise, report that the file can't be found."
   (interactive (list (erl-read-nodename)))
   (let ((mfa (erl-get-call-mfa)))
