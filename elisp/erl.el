@@ -563,6 +563,13 @@ during the next `erl-schedule'."
 	  (t
 	   (erl-terminate rsn)))))
 
+(defun erl-nodedown-exit (local remote)
+  "Send an exit to LOCAL from REMOTE caused by a communications failure."
+  (when (erl-local-pid-alive-p local)
+    (with-erl-process local
+      (setq erl-links (remove remote erl-links))
+      (erl-deliver-exit remote local 'noconnection))))
+
 (defun impossible (&optional reason)
   "Raise an error because something \"impossible\" has happened."
   (if reason

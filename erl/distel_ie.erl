@@ -36,19 +36,13 @@
 
 %%
 %% ensure_registered/0
-
 ensure_registered() ->
-
     case whereis(distel_ie) of
-	
  	undefined -> start() ;
-	
  	Pid  ->
 	    group_leader(group_leader(), Pid),
 	    ok
-    
     end.
-
 
 %%
 %% start/0
@@ -68,16 +62,11 @@ start(Options) ->
 %% init/1
 
 init(Options) ->
-
     register(distel_ie, self()),
-
     Defs = ets:new(definitions, [set]),
     Line = 12,
-
     Bindings = [],
-
     State = {Defs, Line, Bindings},
-
     loop(State).
 
 
@@ -86,28 +75,22 @@ init(Options) ->
 
 loop({Defs, Line, Bindings}) ->
     receive 
-
 	{evaluate, Emacs, String} -> 
-	    {Result, {NL, NB}} = evaluate(String, {Defs, Line, Bindings}),
-	    Emacs ! Result,
-	    loop({Defs, NL, NB}) ;
-
-%	 {defined_functions, Emacs} ->
-%Funcs = ets:tab2list(Defs),
-%Emacs !
-%loop(Defs, Line, Bindings) ;
-
-%	{bindings, Emacs} ->
-%Emacs ! {bindings, Bindings},
-%loop(Defs, Line, Bindings) ; 
-
+	    case catch evaluate(String, {Defs, Line, Bindings}) of
+		{'EXIT', Rsn} ->
+		    Emacs ! {ok, list_to_binary(
+				   io_lib:format("EXIT: ~p", [Rsn]))},
+		    ?MODULE:loop({Defs, Line, Bindings});
+		{Result, {NL, NB}} ->
+		    Emacs ! Result,
+		    ?MODULE:loop({Defs, NL, NB})
+	    end;
 	forget_bindings ->
 	    put(distel_ie_bindings, []),
-	    loop({Defs, Line, []}) ;
-
+	    ?MODULE:loop({Defs, Line, []}) ;
 	Unknown ->
 	    io:format("distel_ie: unknown message recvd '~p'\n", [Unknown]),
-	    loop({Defs, Line, Bindings})
+	    ?MODULE:loop({Defs, Line, Bindings})
 
     end.
 
@@ -116,71 +99,59 @@ loop({Defs, Line, Bindings}) ->
 %% evaluate/2
 
 evaluate(String, {Defs, Line, Bindings}) ->
-
     case parse_expr(String) of
-
 	%% ok, so it is an expression :
 	{ok, Parse} ->
-
 	    RemoteParse = add_remote_call_info(Parse, Defs),
-
             case catch erl_eval:exprs(RemoteParse, Bindings) of
-
-                {value, V, NewBinds} -> {{ok, ?FMT(V)}, {Line, NewBinds}};
-
-                Error -> {?FMT(Error), {Line, Bindings}}
-
-	    end ;
-
+                {value, V, NewBinds} ->
+		    {{ok, ?FMT(V)}, {Line, NewBinds}};
+                Error ->
+		    {?FMT(Error), {Line, Bindings}}
+	    end;
 	%% try and treat it as a form / definition instead :
 	Other ->
-
 	    case parse_form(String) of
-		
 		{ok, Parse} -> 
-
 		    {ok, Name, Arity} = get_function_name(Parse),
 		    ets:insert(Defs, {Name, Parse}),
 		    FunTrees = lists:flatten(
 				 lists:reverse(ets:match(Defs,{'_', '$1'}))),
-
 		    %% Line isn't really used yet
 		    NewLine = Line,
 		    compile_load(FunTrees),
 		    Def = list_to_binary(atom_to_list(Name) ++ "/" ++ 
 					 integer_to_list(Arity)),
 		    {{ok, Def}, {NewLine, Bindings}} ;
-
-		Error -> {{error, ?FMT({Error, Other})}, {Line, Bindings}}
-
+		Error ->
+		    {{error, ?FMT({Error, Other})}, {Line, Bindings}}
 	    end
     end.
-
 
 %%
 %% parse_expr/1
 
 parse_expr(String) ->
     case erl_scan:string(String) of
-
 	{ok, Tokens, _} ->
 	    catch erl_parse:parse_exprs(Tokens) ;
-	
-	{error, Error, _} -> {error, Error}
-
+	{error, {_Line, erl_parse, Rsn}} ->
+	    {error, lists:flatten(Rsn)};
+	{error, Error, _} ->
+	    {error, Error}
     end.
-
 
 %%
 %% parse_form/1
 
 parse_form(String) ->
     case erl_scan:string(String) of
-
 	{ok, Tokens, _} ->
 	    catch erl_parse:parse_form(Tokens) ;
-
-	{error, Error, _} -> {error, Error}
+	{error, {_Line, erl_parse, Rsn}} ->
+	    {error, lists:flatten(Rsn)};
+	{error, Error, _} ->
+	    {error, Error}
     end.
 
 
@@ -188,7 +159,6 @@ parse_form(String) ->
 %% defun/1
 
 defun(String) ->
-
     {ok, Tokens, _} = erl_scan:string(String),
     {ok, Parse} = erl_parse:parse_form(Tokens),
     compile_load([Parse]).
@@ -219,77 +189,63 @@ compile_load(Parse) ->
 %% lists (cons) and tuples ... +more
 
 add_remote_call_info([], _Defs) -> [] ;
-
-add_remote_call_info({var, L, Var}, Defs) -> {var, L, Var} ;
-
-add_remote_call_info({atom, L, Atom}, Defs) -> {atom, L, Atom} ;
-
-add_remote_call_info({integer, L, Value}, Defs) -> {integer, L, Value} ;
-
-add_remote_call_info({string, L, String}, Defs) -> {string, L, String} ;
-    
+add_remote_call_info({var, L, Var}, Defs) ->
+    {var, L, Var} ;
+add_remote_call_info({atom, L, Atom}, Defs) ->
+    {atom, L, Atom} ;
+add_remote_call_info({integer, L, Value}, Defs) ->
+    {integer, L, Value} ;
+add_remote_call_info({string, L, String}, Defs) ->
+    {string, L, String} ;
 add_remote_call_info([{call, L, {atom, L2, Name}, Body} | Rs], Defs) ->
-
     B = add_remote_call_info(Body, Defs),
-
     IsBuiltin = erlang:is_builtin(erlang, Name, length(B)),
-
     Call = case IsBuiltin of 
-
 	       true ->
 		   {call, L, {atom, L2, Name}, B} ;
-
 	       false ->
 		   Arity = length(Body),
 		   case find_module(Name, Arity) of 
-
 		       {ok, Mod} ->
 	 		   {call, L, {remote, L2, 
 				      {atom, L2, Mod}, 
 				      {atom, L2, Name}}, B} ;
-
 		       {error, _} ->
 			   {call, L, {atom, L2, Name}, B}
 		   end
-		   
 	   end,
-
     [Call | add_remote_call_info(Rs, Defs)] ;
 
 add_remote_call_info([{tuple, L, Values} | Rs], Defs) ->
-
     F = fun(X) -> add_remote_call_info(X, Defs) end,
     [{tuple, L, lists:map(F, Values)} | add_remote_call_info(Rs, Defs)] ;
 
 
 add_remote_call_info([{Type, L, Hdr, Body} | Rs], Defs) when list(Body) ->
-
     B = add_remote_call_info(Body, Defs),
     [{Type, L, Hdr, B} | add_remote_call_info(Rs, Defs)] ;
 
 add_remote_call_info([{Type, L, Hd, Tl} | Rs], Defs) ->
-
     [{Type, L, Hd, Tl} | add_remote_call_info(Rs, Defs)] ;
 
 add_remote_call_info([R | Rs], Defs) ->
-    [add_remote_call_info(R, Defs) | add_remote_call_info(Rs, Defs) ].
+    [add_remote_call_info(R, Defs) | add_remote_call_info(Rs, Defs) ];
+
+add_remote_call_info(X, Defs) ->
+    X.
 
 
 %%
 %% find_module/2
 
 find_module(Function, Arity) ->
-
     Mods = [distel_ie_internal, distel_ie, c],
-    
     F = fun(M) -> not is_exported(Function, Arity, M) end,
-
     case lists:dropwhile(F, Mods) of
-
-	[] -> search_modules(Function, Arity, code:all_loaded()) ;
-
-	[M | _] -> {ok, M}
-    
+	[] ->
+	    search_modules(Function, Arity, code:all_loaded()) ;
+	[M | _] ->
+	    {ok, M}
     end.
 
 
@@ -297,35 +253,27 @@ find_module(Function, Arity) ->
 %% is_exported/3
 
 is_exported(Function, Arity, Module) ->
-
     case code:is_loaded(Module) of
-
-	false -> false ;
-	
+	false ->
+	    false;
 	_ ->
 	    Info = Module:module_info(),
 	    {value, {exports, Exports}} = lists:keysearch(exports, 1, Info),
-
 	    lists:member({Function, Arity}, Exports)
-
     end.
 
 
 %%
 %% search_modules/3
 
-search_modules(Function, Arity, []) -> {error, not_found} ;
-
+search_modules(Function, Arity, []) ->
+    {error, not_found};
 search_modules(Function, Arity, [{M, _} | Ms]) ->
-
     case is_exported(Function, Arity, M) of
-	
 	true ->
 	    {ok, M} ;
-
 	false ->
 	    search_modules(Function, Arity, Ms)
-
     end.
     
 

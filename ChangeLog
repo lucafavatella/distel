@@ -1,3 +1,28 @@
+2002-11-24  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/distel-ie.el: Changed keybindings. Now C-j evaluates the
+	expression behind the point and inserts the result in-line, and
+	C-M-x evaluates a function definition and shows the result as a
+	message. Based on suggestions from people at EUC.
+
+	* elisp/distel.el (distel): Added Distel customization group under
+	Programming->Tools, and put `distel-tags-compliant' and
+	`edb-popup-monitor-on-event' in there.
+
+	* elisp/erl-service.el (erl-complete): Added command to complete
+	module names and fully-qualified function names, with all the
+	fixin's (popup completion list etc). This is bound on M-TAB, and
+	_nice_!
+	(process-list-mode): Pressing "u" now updates the process list. A
+	bunch of small usability enhancements to process info viewing.
+
+2002-11-23  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/derl.el (derl-nodedown): Now delivering EXIT signals from
+	linked remote processes when we lose contact with their node. This
+	fixes some long standing problems, like the debug monitor hanging
+	if you restart the node it's talking to.
+
 2002-11-21  Martin Bjorklund  <mbj@bluetail.com>
 
 	* elisp/distel.el (distel-tags-compliant): New variable for making
