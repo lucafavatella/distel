@@ -1,5 +1,9 @@
 2002-07-29  Luke Gorrie  <luke@bluetail.com>
 
+	* everywhere: On-line documentation improvements, so that
+	'describe-mode' (C-h m) will tell you about all the funky features
+	of the various modes.
+	
 	* erlang-mode-ext.el: Switch keybindings prefix to "C-cC-d". Now
 	have an "erlang-extended-mode" minor mode, which includes all
 	extensions including edb.
