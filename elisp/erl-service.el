@@ -872,6 +872,11 @@ the node, version 1.2 (or perhaps later.)"
 ;; ------------------------------------------------------------
 ;; fdoc interface
 
+(defface erl-fdoc-name-face
+    '((t (:bold t)))
+  "Face for function names in `fdoc' results."
+  :group 'distel)
+
 (defun erl-fdoc-apropos (node regexp rebuild-db)
   (interactive (list (erl-read-nodename)
 		     (read-string "Regexp: ")
@@ -897,13 +902,15 @@ the node, version 1.2 (or perhaps later.)"
      (with-temp-buffer
        (dolist (match matches)
 	 (mlet [mod func arity doc] match
-	   (insert (propertize (format "%s:%s/%s" mod func arity)
-			       'face '(bold t))
-		   ":\n")
-	   (set-mark (point))
-	   (insert doc)
-	   (indent-rigidly (mark) (point) 2)
-	   (insert "\n")))
+	   (let ((entry (format "%s:%s/%s" mod func arity)))
+	     (put-text-property 0 (length entry)
+				'face 'erl-fdoc-name-face
+				entry)
+	     (insert entry ":\n"))
+	   (let ((start (point)))
+	     (insert doc)
+	     (indent-rigidly start (point) 2)
+	     (insert "\n"))))
        (buffer-string))
      "*Erlang fdoc results*")))
 
