@@ -1,6 +1,6 @@
 ;; -*- comment-column: 32 -*-
 
-(require 'cl)
+(eval-when-compile (require 'cl))
 
 (put 'mcase 'lisp-indent-function 1)
 (put 'pmatch 'lisp-indent-function 2)
@@ -21,11 +21,12 @@ error is signaled.
 See `mlet' for a description of pattern syntax."
   `(mcase* ,object ,(mcase-parse-clauses clauses)))
 
+(eval-and-compile
 (defun mcase-parse-clauses (clauses)
   `(list ,@(mapcar #'(lambda (clause)
 		       `(list ',(car clause)
 			      (lambda () ,@(cdr clause))))
-		   clauses)))
+		   clauses))))
 
 (defmacro pmatch (&rest args)
   "Deprecated; see `mlet'."
@@ -52,7 +53,7 @@ Wild card: _ (underscore)
 Sequence: (pat1 ...), [pat1 ...]
   Matches the \"shape\" of the pattern, as well as each individual
   subpattern."
-  (let ((var (gensym)))
+  (let ((var (make-symbol "var")))
     `(let ((,var ,object))	; so that we just eval `object' once
        (mcase ,var
 	 (,pattern ,@body)
@@ -84,6 +85,14 @@ Sequence: (pat1 ...), [pat1 ...]
 	    (list (car cell) (list 'quote (cdr cell))))
 	  alist))
 
+(defun pmatch-tail (seq)
+  (if (consp seq)
+      (cdr seq)
+    (let ((new (make-vector (1- (length seq)) nil)))
+      (dotimes (i (length new))
+	(aset new i (aref seq (1+ i))))
+      new)))
+
 (defun patmatch (pattern object &optional bindings)
   "Match OBJECT with PATTERN, and return an alist of bindings."
   (if (eq bindings 'fail)
@@ -100,7 +109,7 @@ Sequence: (pat1 ...), [pat1 ...]
 	   (if (equal pattern object) bindings 'fail))
 	  ((sequencep pattern)
 	   (if (eq (type-of pattern) (type-of object))
-	       (patmatch (subseq pattern 1) (subseq object 1)
+	       (patmatch (pmatch-tail pattern) (pmatch-tail object)
 		       (patmatch (elt pattern 0) (elt object 0) bindings))
 	     'fail))
 	  (t
@@ -157,6 +166,8 @@ Example: (QUOTE QUOTE)"
 	     bindings)
 	    (t
 	     'fail)))))
+
+(eval-when-compile (defvar pattern)) ; dynamic
 
 (defun pmatch-match-var (var object bindings)
   "Match the value of the Lisp variable VAR with OBJECT."
