@@ -9,12 +9,18 @@
 
 -author('luke@bluetail.com').
 
--import(lists, [flatten/1]).
+-include_lib("kernel/include/file.hrl").
 
--export([rpc_entry/3, eval_expression/1, process_list/0, process_summary/1,
-	 process_summary_and_trace/2, fprof/3]).
+-import(lists, [flatten/1, member/2]).
+
+-export([rpc_entry/3, eval_expression/1, find_source/1,
+	 process_list/0, process_summary/1,
+	 process_summary_and_trace/2, fprof/3,
+	 debug_toggle/1, break_toggle/2, debug_subscribe/1]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
+
+-compile(export_all).
 
 %% ----------------------------------------------------------------------
 %% RPC entry point, adapting the group_leader protocol.
@@ -52,8 +58,7 @@ gl_proxy(GL) ->
 %% ----------------------------------------------------------------------
 
 eval_expression(S) ->
-    {ok, Scan, _} = erl_scan:string(S),
-    case erl_parse:parse_exprs(Scan) of
+    case parse_expr(S) of
 	{ok, Parse} ->
 	    case catch erl_eval:exprs(Parse, []) of
 		{value, V, _} ->
@@ -64,6 +69,53 @@ eval_expression(S) ->
 	{error, {_, erl_parse, Err}} ->
 	    {error, Err}
     end.
+
+parse_expr(S) ->
+    {ok, Scan, _} = erl_scan:string(S),
+    erl_parse:parse_exprs(Scan).
+
+find_source(Mod) ->
+    case code:ensure_loaded(Mod) of
+	{module, Mod} ->
+	    case code:is_loaded(Mod) of
+		{file, preloaded} ->
+		    {error, preloaded};
+		{file, Name} ->
+		    case guess_source_file(Name) of
+			{ok, Fname} ->
+			    {ok, Fname};
+			false ->
+			    {error, cannot_guess_sourcefile}
+		    end
+	    end;
+	{error, What} ->
+	    {error, What}
+    end.
+
+guess_source_file(Beam) ->
+    case regexp:sub(Beam, "\\.beam\$", ".erl") of
+	{ok, Src1, _} ->
+	    case file:read_file_info(Src1) of
+		{ok, #file_info{type=regular}} ->
+		    {ok, Src1};
+		_ ->
+		    case regexp:sub(Src1, "/ebin/", "/src/") of
+			{ok, Src2, _} ->
+			    case file:read_file_info(Src2) of
+				{ok, #file_info{type=regular}} ->
+				    {ok, Src2};
+				_ ->
+				    false
+			    end;
+			_ ->
+			    false
+		    end
+	    end;
+	_ ->
+	    false
+    end.
+
+				    
 
 %% ----------------------------------------------------------------------
 %% Summarise all processes in the system.
@@ -145,7 +197,7 @@ tracer_format(Msg) ->
 
 %% ----------------------------------------------------------------------
 %% Profiling
-%% fprof(M, F, A) -> {ok, Preamble, Header, Entry}
+%% fprof_expr(E) -> {ok, Preamble, Header, Entry}
 %% Preamble = binary()
 %% Entry = {Tag, MFA, Text, Callers, Callees, Beamfile}
 %% Callers = Callees = [Tag]
@@ -154,10 +206,23 @@ tracer_format(Msg) ->
 %% Entry example,
 %%   {'foo:bar/2', "foo:bar/2  10 100 200", ['baz:beer/2'], [], "/foo.beam"}
 
-fprof(M, F, A) ->
+fprof(Expr) ->
+    case parse_expr(Expr) of
+	{ok, Parse} ->
+	    Z = fprof_fun(fun() -> erl_eval:exprs(Parse, []) end),
+	    io:format("~p~n", [Z]),
+	    Z;
+	{error, Rsn} ->
+	    {error, Rsn}
+    end.
+
+fprof(M,F,A) ->
+    fprof_fun(fun() -> apply(M,F,A) end).
+
+fprof_fun(F) ->
     GL = spawn_link(fun null_gl/0),
     group_leader(GL, self()),
-    fprof:apply(M, F, A),
+    fprof:apply(F, []),
     fprof:profile(),
     fprof:analyse({dest, "/tmp/fprof.analysis"}),
     GL ! die,
@@ -175,6 +240,7 @@ fprof_header() ->
     fmt("~sCalls\tACC\tOwn\n", [pad(50, "Function")]).
 
 fprof_entry(F) ->
+    erlang:display(F),
     {Up, This, Down} = F,
     {Name, _, _, _} = This,
     {fprof_tag(Name),
@@ -185,14 +251,14 @@ fprof_entry(F) ->
      fprof_beamfile(Name)}.
 
 fprof_tag({M,F,A}) ->
-    list_to_atom(lists:flatten(io_lib:format("~p:~p/~p", [M,F,A])));
+    list_to_atom(flatten(io_lib:format("~p:~p/~p", [M,F,A])));
 fprof_tag(Name) when  atom(Name) ->
     Name.
 
 fprof_mfa({M,F,A}) -> [M,F,A];
 fprof_mfa(_)       -> undefined.
 
-fprof_tag_name(X) -> lists:flatten(io_lib:format("~s", [fprof_tag(X)])).
+fprof_tag_name(X) -> flatten(io_lib:format("~s", [fprof_tag(X)])).
 
 fprof_text({Name, Cnt, Acc, Own}) ->
     fmt("~s~p\t~.3f\t~.3f\n",
@@ -225,4 +291,93 @@ null_gl() ->
 	    ok
     end.
 
+%% ----------------------------------------------------------------------
+%% Debugging
+%% ----------------------------------------------------------------------
+
+debug_toggle(Mod) ->
+    case member(Mod, int:interpreted()) of
+	true ->
+	    int:n(Mod),
+	    uninterpreted;
+	false ->
+	    case int:i(Mod) of
+		{module, Mod} ->
+		    interpreted;
+		error ->
+		    error
+	    end
+    end.
+
+break_toggle(Mod, Line) ->
+    case lists:any(fun({Point,_}) -> Point == {Mod,Line} end,
+		   int:all_breaks()) of
+	true ->
+	    ok = int:delete_break(Mod, Line),
+	    disabled;
+	false ->
+	    ok = int:break(Mod, Line),
+	    enabled
+    end.
+
+%% Returns: {Header, [{Pid, Text}]}
+debug_subscribe(Pid) ->
+    spawn_link(?MODULE, debug_subscriber_init, [self(), Pid]),
+    receive ready -> ok end,
+    [{Pid,
+      fmt("~p:~p/~p", [M,F,length(A)]),
+      fmt("~w", [Status]),
+      fmt("~w", [Info])}
+     || {Pid, {M,F,A}, Status, Info} <- int:snapshot()].
+
+debug_subscriber_init(Parent, Pid) ->
+    link(Pid),
+    int:subscribe(),
+    Parent ! ready,
+    debug_subscriber(Pid).
+
+debug_subscriber(Pid) ->
+    receive
+	{int, {new_status, P, Status, Info}} ->
+	    Pid ! [int, [new_status, P, fmt("~w",[Status]), fmt("~w",[Info])]];
+	{int, {new_process, {P, {M,F,A}, Status, Info}}} ->
+	    Pid ! [int, [new_process,
+			 [P,
+			  fmt("~p:~p/~p", [M,F,length(A)]),
+			  fmt("~w", [Status]),
+			  fmt("~w", [Info])]]];
+	X ->
+	    io:format("Unrecognised: ~p~n", [X])
+    end,
+    ?MODULE:debug_subscriber(Pid).
+
+debug_format(Pid, {M,F,A}, Status, Info) ->
+    debug_format_row(io_lib:format("~w", [Pid]),
+		     io_lib:format("~p:~p/~p", [M,F,length(A)]),
+		     io_lib:format("~w", [Status]),
+		     io_lib:format("~w", [Info])).
+
+debug_format_row(Pid, MFA, Status, Info) ->
+    fmt("~-12s ~-21s ~-9s ~-21s~n", [Pid, MFA, Status, Info]).
+
+debug_attach(Emacs, Pid) ->
+    spawn_link(?MODULE, debug_attach_init, [Emacs, Pid]).
+
+debug_attach_init(Emacs, Pid) ->
+    link(Emacs),
+    case int:attached(Pid) of
+	{ok, Meta} ->
+	    debug_attach_loop(Emacs, Meta);
+	error ->
+	    exit({error, {unable_to_attach, Pid}})
+    end.
+
+debug_attach_loop(Emacs, Meta) ->
+    receive
+	{Meta, Msg} ->
+	    Emacs ! {meta, Msg};
+	{emacs, meta, Cmd} ->
+	    int:meta(Meta, Cmd)
+    end,
+    debug_attach_loop(Emacs, Meta).
 
