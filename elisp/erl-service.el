@@ -41,6 +41,10 @@ elements of KARGS."
     (erl-rpc-receive k kargs)))
 
 (defun erl-send-rpc (node mod fun args)
+  "Send an RPC request on NODE to apply(MOD, FUN, ARGS).
+The reply will be sent back as an asynchronous message of the form:
+    [rex Result]
+On an error, Result will be [badrpc Reason]."
   (let ((m 'distel)
 	(f 'rpc_entry)
 	(a (list mod fun args)))
@@ -78,6 +82,7 @@ when ready."
 (defun erl-show-process-list (reply node)
   (with-current-buffer (get-buffer-create (format "*plist %S*" node))
     (process-list-mode)
+    (setq buffer-read-only t)
     (let ((buffer-read-only nil))
       (erase-buffer)
       (let ((header (tuple-elt reply 1))
@@ -126,6 +131,7 @@ When BURY is non-nil, buries the buffer instead of killing it."
 
 (when (null process-list-mode-map)
   (setq process-list-mode-map (make-sparse-keymap))
+  (define-key process-list-mode-map [?u] 'erl-process-list)
   (define-key process-list-mode-map [?q] 'erl-quit-viewer)
   (define-key process-list-mode-map [return] 'erl-show-process-info)
   (define-key process-list-mode-map [(control m)] 'erl-show-process-info)
@@ -139,6 +145,7 @@ When BURY is non-nil, buries the buffer instead of killing it."
 Available commands:
 
 \\[erl-quit-viewer]	- Quit the process listing viewer, restoring old window config.
+\\[erl-process-list]	- Update the process list.
 \\[erl-show-process-info]	- Show process_info for process at point.
 \\[erl-show-process-info-item]	- Show a piece of process_info for process at point.
 \\[erl-show-process-backtrace]	- Show a backtrace for the process at point.
@@ -189,6 +196,7 @@ truncate to fit on the screen."
       (with-current-buffer (get-buffer-create bufname)
 	(erase-buffer)
 	(insert msg)
+	(goto-char (point-min))
 	(let ((win (display-buffer (current-buffer))))
 	  (when select (select-window win))))
     ;; Print only the part before the newline (if there is
@@ -208,24 +216,34 @@ truncate to fit on the screen."
 ;; Single process viewer
 
 (defun erl-view-process (pid)
-  (erl-spawn
-    (process-view-mode)
-    (setq erl-old-window-configuration (current-window-configuration))
-    (setq viewed-pid pid)
-    (erl-send-rpc (erl-pid-node pid)
-		  'distel 'process_summary_and_trace (list erl-self pid))
-    (erl-rpc-receive #'erl-process-summary-init (list pid)))
-  (message "Sent async query.."))
+  (let ((buf (get-buffer (erl-process-view-buffer-name pid))))
+    (if buf
+	(select-window (display-buffer buf))
+      (erl-spawn
+	(process-view-mode)
+	(setq erl-old-window-configuration (current-window-configuration))
+	(setq viewed-pid pid)
+	(erl-send-rpc (erl-pid-node pid)
+		      'distel 'process_summary_and_trace (list erl-self pid))
+	(erl-receive (pid)
+	    ((['rex ['error reason]]
+	      (message "%s" reason))
+	     (['rex ['badrpc reason]]
+	      (message "Bad RPC: %s" reason))
+	     (['rex summary]
+	      (rename-buffer (erl-process-view-buffer-name pid))
+	      (erase-buffer)
+	      (insert summary)
+	      (setq buffer-read-only t)
+	      (goto-char (point-min))
+	      (select-window (display-buffer (current-buffer)))
+	      (&erl-process-trace-loop))
+	     (other
+	      (message "Unexpected reply: %S" other))))))))
 
-(defun erl-process-summary-init (summary pid)
-  (rename-buffer (generate-new-buffer-name
-		  (format "*pinfo %S on %S*"
-			  (erl-pid-id pid) (erl-pid-node pid))))
-  (erase-buffer)
-  (insert summary)
-  (goto-char (point-min))
-  (select-window (display-buffer (current-buffer)))
-  (erl-process-trace-loop))
+(defun erl-process-view-buffer-name (pid)
+  (format "*pinfo %S on %S*"
+	  (erl-pid-id pid) (erl-pid-node pid)))
 
 (defvar process-view-mode-map nil
   "Keymap for Process View mode.")
@@ -243,12 +261,13 @@ truncate to fit on the screen."
   (setq major-mode 'process-view)
   (run-hooks 'process-view-mode-hook))
 
-(defun erl-process-trace-loop ()
+(defun &erl-process-trace-loop ()
   (erl-receive ()
       ((['trace_msg text]
 	(goto-char (point-max))
-	(insert text)))
-    (erl-process-trace-loop)))
+	(let ((buffer-read-only nil))
+	  (insert text))))
+    (&erl-process-trace-loop)))
 
 ;; ---------------------------------------------------------------------
 ;; fprof
@@ -614,6 +633,105 @@ When FUNCTION is specified, the point is moved to its start."
     (if (string= s "")
 	nil
       (intern s))))
+
+;; ------------------------------------------------------------
+;; Completion of modules and functions
+
+(defun erl-complete (node)
+  "Complete the module or remote function name at point."
+  (interactive (list (erl-read-nodename)))
+  (let* ((end (point))
+	 (beg (save-excursion (backward-sexp 1)
+			      ;; FIXME: see erl-goto-end-of-call-name
+			      (when (eql (char-before) ?:)
+				(backward-sexp 1))
+			      (point)))
+	 (str (buffer-substring-no-properties beg end))
+	 (buf (current-buffer))
+	 (continuing (equal last-command (cons 'erl-complete str))))
+    (setq this-command (cons 'erl-complete str))
+    (if (string-match "^\\(.*\\):\\(.*\\)$" str)
+	;; completing function in module:function
+	(let ((mod (intern (match-string 1 str)))
+	      (pref (match-string 2 str))
+	      (beg (+ beg (match-beginning 2))))
+	  (erl-spawn
+	    (erl-send-rpc node 'distel 'functions (list mod pref))
+	    (&erl-receive-completions "function" beg end pref buf continuing)))
+      ;; completing just a module
+      (erl-spawn
+	(erl-send-rpc node 'distel 'modules (list str))
+	(&erl-receive-completions "module" beg end str buf continuing)))))
+
+(defun &erl-receive-completions (what beg end prefix buf continuing)
+  (let ((state (erl-async-state buf)))
+    (erl-receive (what state beg end prefix buf continuing)
+	((['rex ['ok completions]]
+	  (when (equal state (erl-async-state buf))
+	    (with-current-buffer buf
+	      (erl-complete-thing what continuing beg end prefix completions))))
+	 (['rex ['error reason]]
+	  (message "Error: %s" reason))
+	 (other
+	  (message "Unexpected reply: %S" other))))))
+
+(defun erl-async-state (buffer)
+  "Return an opaque state for BUFFER.
+This is for making asynchronous operations: if the state when we get a
+reply is not equal to the state when we started, then the user has
+done something - modified the buffer, or moved the point - so we may
+want to cancel the operation."
+  (with-current-buffer buffer
+    (cons (buffer-modified-tick)
+	  (point))))
+
+(defun erl-complete-thing (what scrollable beg end pattern completions)
+  "Complete a string in the buffer.
+WHAT is a string that says what we're completing.
+SCROLLABLE is a flag saying whether this is a repeated command that
+may scroll the completion list.
+BEG and END are the buffer positions around what we're completing.
+PATTERN is the string to complete from.
+COMPLETIONS is a list of potential completions (strings.)"
+  ;; This function, and `erl-maybe-scroll-completions', are basically
+  ;; cut and paste programming from `lisp-complete-symbol'. The fancy
+  ;; Emacs completion packages (hippie and pcomplete) looked too
+  ;; scary.
+  (or (and scrollable (erl-maybe-scroll-completions))
+      (let ((completion (try-completion pattern completions)))
+	(cond ((eq completion t)
+	       (message "Sole completion"))
+	      ((null completion)
+	       (message "Can't find completion for %s \"%s\"" what pattern)
+	       (ding))
+	      ((not (string= pattern completion))
+	       (delete-region beg end)
+	       (insert completion))
+	      (t
+	       (message "Making completion list...")
+	       (let ((list (all-completions pattern completions)))
+		 (setq list (sort list 'string<))
+		 (with-output-to-temp-buffer "*Completions*"
+		   (display-completion-list list)))
+	       (message "Making completion list...%s" "done"))))))
+
+(defun erl-maybe-scroll-completions ()
+  "Scroll the completions buffer if it is visible.
+Returns non-nil iff the window was scrolled."
+  (let ((window (get-buffer-window "*Completions*")))
+    (when (and window (window-live-p window) (window-buffer window)
+	       (buffer-name (window-buffer window)))
+      ;; If this command was repeated, and
+      ;; there's a fresh completion window with a live buffer,
+      ;; and this command is repeated, scroll that window.
+      (with-current-buffer (window-buffer window)
+	(if (pos-visible-in-window-p (point-max) window)
+	    (set-window-start window (point-min))
+	  (save-selected-window
+	    (select-window window)
+	    (scroll-up))))
+      t)))
+
 
 (provide 'erl-service)
 
