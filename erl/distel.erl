@@ -416,7 +416,7 @@ attach_loop(Att = #attach{emacs=Emacs, meta=Meta}) ->
 	    Emacs ! {status, Status},
 	    ?MODULE:attach_loop(Att#attach{status=Status,
 					   where=undefined});
-	{meta, Other} ->
+	{Meta, Other} ->
 	    %% FIXME: there are more messages to handle, like
 	    %% re_entry, exit_at
 	    ?MODULE:attach_loop(Att);
@@ -431,8 +431,8 @@ attach_meta_cmd(Att, Cmd) when Att#attach.status /= break ->
     Att#attach.emacs ! {message, <<"Not in break">>},    
     Att;
 attach_meta_cmd(Att = #attach{emacs=Emacs, meta=Meta, stack={Pos,Max}}, Cmd) ->
-    if
-	Cmd == up; Cmd == down ->
+    case Cmd of
+	_ when Cmd == up; Cmd == down ->
 	    case int:meta(Meta, stack_frame, {Cmd, Pos}) of
 		{NewPos, Mod, Line} ->
 		    attach_goto(Emacs, Meta, Mod, Line, NewPos, Max),
@@ -449,13 +449,24 @@ attach_meta_cmd(Att = #attach{emacs=Emacs, meta=Meta, stack={Pos,Max}}, Cmd) ->
 		    attach_goto(Emacs, Meta, Mod, Line, Max, Max),
 		    Att#attach{stack={Max, Max}}
 	    end;
-	true ->
+	{get_binding, Var} ->
+	    Bs = int:meta(Meta, bindings, Pos),
+	    case lists:keysearch(Var, 1, Bs) of
+		{value, Val} ->
+		    Emacs ! {show_variable, fmt("~p~n", [Val])};
+		false ->
+		    Emacs ! {message, fmt("No such variable: ~p",
+					  [Var])}
+	    end,
+	    Att;
+	_ ->
 	    int:meta(Meta, Cmd),
 	    Att
     end.
 
 attach_goto(Emacs, Meta, Mod, Line, Pos, Max) ->
     Bs = sort(int:meta(Meta, bindings, Pos)),
-    Vars = [fmt("~s = ~P", [pad(10, Name), Val, 9]) || {Name,Val} <- Bs],
+    Vars = [{Name, fmt("~s = ~P~n", [pad(10, Name), Val, 9])} ||
+	       {Name,Val} <- Bs],
     Emacs ! {variables, Vars},
     Emacs ! {location, Mod, Line, Pos, Max}.

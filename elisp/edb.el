@@ -204,7 +204,6 @@ Available commands:
      (erlang-mode)
      (edb-attach-mode t)
      (message "Entered debugger. Press 'h' for help.")
-     (save-excursion (edb-make-variables-window))
      (setq buffer-read-only t)
      (erl-send-rpc (erl-pid-node pid)
 		   'distel 'debug_attach (list erl-self pid))
@@ -212,7 +211,8 @@ Available commands:
 	 (([rex Pid]
 	   (assert (erl-pid-p pid))
 	   (setq edb-pid pid)
-	   (setq edb-node (erl-pid-node pid))))
+	   (setq edb-node (erl-pid-node pid))
+	   (save-excursion (edb-make-variables-window))))
        (&edb-attach-loop)))))
 
 ;; Variables listing window
@@ -221,7 +221,7 @@ Available commands:
   "Make a window and buffer for viewing variable bindings.
 The *Variables* buffer is killed with the current buffer."
   (split-window-vertically (edb-variables-window-height))
-  (let ((vars-buf (generate-new-buffer "*Variables*")))
+  (let ((vars-buf (edb-make-variables-buffer)))
     (setq edb-variables-buffer vars-buf)
     (make-local-variable 'kill-buffer-hook)
     (add-hook 'kill-buffer-hook
@@ -232,6 +232,36 @@ The *Variables* buffer is killed with the current buffer."
 
 (defun edb-variables-window-height ()
   (- (min (/ (window-height) 2) 12)))
+
+(defun edb-make-variables-buffer ()
+  "Create the edb variable list buffer."
+  (let ((meta-pid edb-pid))
+    (with-current-buffer (generate-new-buffer "*Variables*")
+      (edb-variables-mode)
+      (setq edb-pid meta-pid)
+      (current-buffer))))
+
+(defun edb-variables-mode ()
+  (kill-all-local-variables)
+  (setq major-mode 'edb-variables)
+  (setq mode-name "EDB Variables")
+  (setq buffer-read-only t)
+  (use-local-map edb-variables-mode-map))
+
+(defvar edb-variables-mode-map nil
+  "Keymap for EDB variables viewing.")
+
+(when (null edb-variables-mode-map)
+  (setq edb-variables-mode-map (make-sparse-keymap))
+  (define-key edb-variables-mode-map [?m]          'edb-show-variable)
+  (define-key edb-variables-mode-map [(control m)] 'edb-show-variable))
+
+(defun edb-show-variable ()
+  (interactive)
+  (let ((var (get-text-property (point) 'edb-variable-name)))
+    (if (null var)
+	(message "No variable at point")
+      (edb-attach-meta-cmd `[get_binding ,var]))))
 
 ;; Attach process states
 
@@ -253,13 +283,22 @@ The *Variables* buffer is killed with the current buffer."
 	;; {variables, [{Name, String}]}
 	(when (buffer-live-p edb-variables-buffer)
 	  (with-current-buffer edb-variables-buffer
-	    (erase-buffer)
-	    (mapc (lambda (b)
-		    (insert (format "%s\n" b)))
-		  vars)))
+	    (let ((buffer-read-only nil))
+	      (erase-buffer)
+	      (mapc (lambda (b)
+		      (let ((name   (tuple-elt b 1))
+			    (string (tuple-elt b 2)))
+			(put-text-property 0 (length string)
+					   'edb-variable-name name
+					   string)
+			(insert string)))
+		    vars))))
 	(&edb-attach-loop))
        ([message Msg]
 	(message msg)
+	(&edb-attach-loop))
+       ([show_variable Value]
+	(save-excursion (display-message-or-view value "*Variable Value*"))
 	(&edb-attach-loop))
        (Other
 	(message "Other: %S" other)
