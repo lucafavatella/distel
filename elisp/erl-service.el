@@ -46,8 +46,8 @@ elements of KARGS."
 	(a (list mod fun args)))
     (erl-send (tuple 'rex node)
 	      ;; {Who, {call, M, F, A, GroupLeader}}
-	      (tuple erl-self (tuple 'call m f a erl-group-leader)))))
-  
+	      (tuple erl-self (tuple 'call m f a (erl-group-leader))))))
+
 (defun erl-rpc-receive (k kargs)
   "Receive the reply to an `erl-rpc'."
   (erl-receive (k kargs)
