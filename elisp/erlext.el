@@ -37,6 +37,9 @@
 (eval-when-compile (require 'cl))
 (eval-when-compile (load "cl-extra"))
 
+;; These macros make the "ifdef" decisions at compile-time, so the
+;; resulting bytecode file won't be portable between GNU and XEmacs.
+
 (defmacro xemacs-only (&rest body)
   (when (featurep 'xemacs)
     (cons 'progn body)))
