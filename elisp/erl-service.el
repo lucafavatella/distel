@@ -10,6 +10,43 @@
 
 (require 'erlang)
 
+(add-hook 'erl-nodeup-hook 'erl-check-backend)
+
+(defun erl-check-backend (node _fsm)
+  "Check if we have the 'distel' module available on `node', and popup
+a warning if not."
+  (unless distel-inhibit-backend-check
+    (erl-spawn
+      (erl-send `[rex ,node]
+		`[,erl-self [call
+			     code ensure_loaded (distel)
+			     ,(erl-group-leader)]])
+      (erl-receive (node)
+	  ((['rex ['error _]]
+	    (with-current-buffer (get-buffer-create "*Distel Warning*")
+	      (erase-buffer)
+	      (insert (format "\
+Distel Warning: node `%s' can't seem to load the `distel' module.
+
+This means that most Distel commands won't function correctly, because
+the supporting library is not available. Please check your code path,
+and make sure that Distel's \"ebin\" directory is included.
+
+The most likely cause of this problem is either:
+
+  a) Your ~/.erlang file doesn't add Distel to your load path (the
+     Distel \"make config_install\" target can do this for you.)
+
+  b) Your system's boot script doesn't consult your ~/.erlang file to
+     read your code path setting.
+
+To disable this warning in future, set `distel-inhibit-backend-check' to t.
+
+"
+			      node))
+	      (display-buffer (current-buffer))))
+	   (other t))))))
+
 (defvar erl-nodename-cache nil
   "The name of the node most recently contacted, for reuse in future
 commands. Using C-u to bypasses the cache.")
@@ -509,33 +546,32 @@ When `distel-tags-compliant' is non-nil, or a numeric prefix argument
 is given, the user is prompted for the function to lookup (with a
 default.)"
   (interactive)
-  (let ((mfa (erl-get-call-mfa)))
-    (when (null mfa)
-      (error "Couldn't determine MFA of call"))
-    (if (or distel-tags-compliant
-	    (integerp current-prefix-arg))
-	(let* ((module (erlang-get-module))
-	       (str (cond ((null (caddr mfa))  ; no arity (e.g. an apply)
-			   (format "%s" (cadr mfa)))
-			  ((eq (intern module) (car mfa))
-			   (apply #'format (cons "%s/%s" (cdr mfa))))
-			  (t 
-			   (apply #'format (cons "%s:%s/%s" mfa)))))
-	       (mfastr 
-		(read-string (format "Find erlang function: (default %s) " str)
-			     nil nil str)))
-		(setq mfa (erl-get-call-mfa-from-string mfastr))))
+  (let* ((default-mfa (erl-get-call-mfa (erlang-get-module)))
+	 (mfa (if (or distel-tags-compliant
+		      (integerp current-prefix-arg)
+		      (null default-mfa))
+		  (erl-prompt-for-tag default-mfa)
+		default-mfa)))
     (apply #'erl-find-source mfa)))
 
-(defun erl-find-source-definition ()
-  (interactive)
-  (let ((distel-tags-compliant t))
-    (erl-find-source-under-point)))
+(defun erl-prompt-for-tag (mfa)
+  (let* ((default
+	   (if (null mfa)
+	       nil
+	     ;; [module:]function[/arity]
+	     (concat (if (first mfa)  (format "%s:" (first mfa)) "")
+		     (if (second mfa) (format "%s"  (second mfa)) "")
+		     (if (third mfa)  (format "/%S" (third mfa))))))
+	 (prompt (format "Find erlang function: %s"
+			 (if default
+			     (format "(default %s) " default)
+			   ""))))
+    (erl-get-call-mfa-from-string (erlang-get-module)
+				  (read-string prompt nil nil default))))
 
-(defun erl-get-call-mfa-from-string (str)
+(defun erl-get-call-mfa-from-string (module str)
   (with-temp-buffer
     (with-syntax-table erlang-mode-syntax-table
-      (switch-to-buffer (current-buffer))
       (insert str)
       (insert " ")
       (goto-char (point-min))
@@ -562,14 +598,16 @@ If there is no function call under point, returns nil.
 ARITY is returned NIL if it cannot be determined."
   (save-excursion
     (erl-goto-end-of-call-name)
-    (let ((arity (erl-get-arity)))
-      (let ((mf (erlang-get-function-under-point)))
-	(unless (null mf)
-	  (let ((module (intern (or (car mf)
-				    module
-				    (erlang-get-module))))
-		(function (intern (cadr mf))))
-	    (list module function arity)))))))
+    (let ((arity (erl-get-arity))
+	  (mf (erlang-get-function-under-point)))
+      (if (null mf)
+	  nil
+	;; (MODULE FUNCTION ARITY)
+	(list (if (or (car mf) module)
+		  (intern (or (car mf) module))
+		nil)
+	      (intern (cadr mf))
+	      arity)))))
 
 (defun erl-goto-end-of-call-name ()
   "Go to the end of the function or module:function part of a function call."
