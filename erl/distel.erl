@@ -652,9 +652,10 @@ free_vars(Text) ->
 
 free_vars(Text, StartLine) ->
     %% StartLine/EndLine may be useful in error messages.
-    {ok, Ts, EndLine} = erl_scan:string("begin " ++ Text ++ " end", StartLine),
-    Ts1 = lists:reverse([{dot, EndLine} | strip(lists:reverse(Ts))]),
-    case erl_parse:parse_exprs(Ts1) of
+    {ok, Ts, EndLine} = erl_scan:string(Text, StartLine),
+    Ts1 = lists:reverse(strip(lists:reverse(Ts))),
+    Ts2 = [{'begin', 1}] ++ Ts ++ [{'end', EndLine}, {dot, EndLine}],
+    case erl_parse:parse_exprs(Ts2) of
 	{ok, Es} ->
 	    E = erl_syntax:block_expr(Es),
 	    E1 = erl_syntax_lib:annotate_bindings(E, ordsets:new()),
