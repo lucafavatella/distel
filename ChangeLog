@@ -1,5 +1,10 @@
 2002-08-19  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/distel.el, elisp/erlang-mode-ext.el: Renamed
+	erlang-mode-ext.el to distel.el, so that it's obvious what the
+	"top level" is. Now you need to (require 'distel) in your init
+	file instead of (require 'erlang-mode-ext).
+
 	* elisp/erl-service.el, distel.erl (fprof): Fixed the fprof
 	interface to handle multiple processes. Used the compiler as a
 	test case.
