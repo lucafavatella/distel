@@ -792,9 +792,9 @@ SOLE is a function which is called when a single completion is selected."
 	(cond ((eq completion t)
 	       (message "Sole completion")
 	       (apply sole '()))
-	      ((null completion)
-	       (message "Can't find completion for %s \"%s\"" what pattern)
-	       (ding))
+	      ((null completion))
+;	       (message "Can't find completion for %s \"%s\"" what pattern)
+;	       (ding))
 	      ((not (string= pattern completion))
 	       (delete-region beg end)
 	       (insert completion)
@@ -963,32 +963,44 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 (defvar erl-mfa-regexp-function-match 3)
 (defvar erl-mfa-regexp-arity-match    5)
 
-(defun erl-fdoc-describe (node mfastr rebuild-db)
+(defun erl-fdoc-describe (node rebuild-db)
   (interactive
    (list (erl-read-nodename)
-	 (read-string "M[:F[/A]]: ")
 	 (integerp current-prefix-arg)))
-  (if (not (string-match erl-module-function-arity-regexp mfastr))
-      (error "Bad input.")
-    (let ((mod (match-string erl-mfa-regexp-module-match mfastr))
-	  (fun (ignore-errors (match-string erl-mfa-regexp-function-match mfastr)))
-	  (arity (ignore-errors (match-string erl-mfa-regexp-arity-match mfastr))))
-      (if (string= mod "")
-	  (error "Bad spec -- which module?")
-	(erl-spawn
-	  (erl-send-rpc node 'distel 'describe
-			(list (intern mod)
-			      (if fun (intern fun) '_)
-			      (if arity (string-to-int arity) '_)
-			      (if rebuild-db 'true 'false)))
-	  (message "Sent request; waiting for results..")
-	  (erl-receive ()
-	      ((['rex ['ok matches]]
-		(erl-show-fdoc-matches matches))
-	       (['rex ['badrpc rsn]]
-		(message "fdoc RPC failed: %S" rsn))
-	       (other
-		(message "fdoc unexpected result: %S" other)))))))))
+  (let* ((mfa (erl-get-call-mfa (erlang-get-module)))
+	 (defaultstr (if (null mfa)
+			 nil
+		       (concat (if (first mfa)  (format "%s:" (first mfa)) "")
+			       (if (second mfa) (format "%s"  (second mfa)) "")
+			       (if (third mfa)  (format "/%S" (third mfa))))))
+	 (prompt (format "M[:F[/A]]: %s"
+			 (if defaultstr
+			     (format "(default %s) " defaultstr)
+			   "")))
+	 (mfastr (read-string prompt nil nil defaultstr)))
+    (if (not (string-match erl-module-function-arity-regexp mfastr))
+	(error "Bad input.")
+      (let ((mod (match-string erl-mfa-regexp-module-match mfastr))
+	    (fun (ignore-errors (match-string erl-mfa-regexp-function-match mfastr)))
+	    (arity (ignore-errors (match-string erl-mfa-regexp-arity-match mfastr))))
+	(if (string= mod "")
+	    (error "Bad spec -- which module?")
+	  (erl-spawn
+	    (erl-send-rpc node 'distel 'describe
+			  (list (intern mod)
+				(if fun (intern fun) '_)
+				(if arity (string-to-int arity) '_)
+				(if rebuild-db 'true 'false)))
+	    (message "Sent request; waiting for results..")
+	    (erl-receive ()
+		((['rex ['ok matches]]
+		  (erl-show-fdoc-matches matches))
+		 (['rex ['badrpc rsn]]
+		  (message "fdoc RPC failed: %S" rsn))
+		 (['rex ['error rsn]]
+		  (message "fdoc failed: %S" rsn))
+		 (other
+		  (message "fdoc unexpected result: %S" other))))))))))
 
 
 (defun erl-format-mfa (&optional m f a)
