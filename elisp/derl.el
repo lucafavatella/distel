@@ -48,12 +48,17 @@ handshake, 4 when connected.")
 some time later, `erl-nodedown-hook' is run."
   (let ((name (derl-node-name node))
 	(host (derl-node-host node))
-	(buffer (get-buffer-create (derl-buffer-name node)))
+	(buffer (get-buffer-create (derl-buffer-name ',node)))
 	;; faking a closure with backtick. fun eh?
-	;; NB: (funcall '(lambda () 1)) => 1
-	(fail-cont `(lambda () (derl-nodedown ',node))))
+	;; NB: (funcall '(lambda () 1))
+	;;       => 1
+	;;     (let ((n 1)) `(lambda () ,n))
+	;;       => (lambda () 1)
+	(fail-cont `(lambda ()
+		      (kill-buffer ,buffer)
+		      (derl-nodedown ',node))))
     (epmd-port-please name host
-		      ;; and again..
+		      ;; success continuation
 		      `(lambda (port)
 			 (fsm-connect ,host port #'derl-state0 ',node
 				      nil
