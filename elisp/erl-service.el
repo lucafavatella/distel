@@ -194,8 +194,8 @@ truncate to fit on the screen."
     ;; Print only the part before the newline (if there is
     ;; one). Newlines in messages are displayed as "^J" in emacs20,
     ;; which is ugly
-    (string-match "[^\r\n]*" string)
-    (message (match-string 0 string))))
+    (string-match "[^\r\n]*" msg)
+    (message (match-string 0 msg))))
 
 (defun erl-show-process-messages ()
   (interactive)
