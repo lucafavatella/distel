@@ -820,8 +820,8 @@ I.e. deletes all old breakpoints, and re-applies them at the current line."
   "Creats an overlay at line"
   (save-excursion
     (goto-line line)
-    (let ((ov (make-overlay (point-at-bol)
-			    (line-beginning-position 2) ;could be (point-at-eol)
+    (let ((ov (make-overlay (line-beginning-position)
+			    (line-beginning-position 2)
 			    (current-buffer)
 			    t
 			    nil)))
