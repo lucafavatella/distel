@@ -817,7 +817,7 @@ the node, version 1.2 (or perhaps later.)"
 		(kill-new (with-temp-buffer
 			    (insert (format "%s%s ->\n%s.\n" name arglist body))
 			    (erlang-mode)
-			    (indent-region (point-min) (point-max))
+			    (indent-region (point-min) (point-max) nil)
 			    (buffer-string)))
 		(message "Saved `%s' definition on kill ring." name)))))))))
 
