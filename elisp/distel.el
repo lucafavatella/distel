@@ -103,6 +103,7 @@ sequence. For general information about Emacs' online help, use
     ("\C-c\C-df" . erl-refactor-subfunction)
     ("\C-c\C-dd" . erl-fdoc-describe)
     ("\C-c\C-da" . erl-fdoc-apropos)
+    ("("         . erl-openparen)
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'

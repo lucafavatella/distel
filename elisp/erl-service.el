@@ -978,5 +978,43 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 	((null a) (format "%s:%s" m f a))
 	(t        (format "%s:%s/%s" m f a))))
 
+;; ------------------------------------------------------------
+;; argument lists
+
+(defun erl-openparen (n node)
+  "Insert a '(' character and show arglist information."
+  (interactive (list (prefix-numeric-value current-prefix-arg)
+                     (erl-read-nodename)))
+  (let ((call (erlang-get-function-under-point)))
+    (self-insert-command n)
+    ;; Don't print arglists when we're defining a function (when the
+    ;; "call" is at the start of the line)
+    (unless (save-excursion
+              (skip-chars-backward "a-zA-Z0-9_:'(")
+              (bolp))
+      (let* ((call-mod (car call))
+             (mod (or call-mod (erlang-get-module)))
+             (fun (cadr call)))
+        (when fun
+          (erl-spawn
+            (erl-send-rpc node 'distel 'get_arglists
+                          (list mod fun))
+            (erl-receive (call-mod fun)
+                ((['rex 'error])
+                 (['rex arglists]
+                  (message (erl-format-arglists call-mod fun arglists)))))))))))
+
+(defun erl-format-arglists (module function arglists)
+  (setq arglists (sort* arglists '< :key 'length))
+  (format "%s%s: %s"
+          (if module (concat module ":") "")
+          function
+          (mapconcat 'identity
+                     (mapcar (lambda (arglist)
+                               (format "(%s)"
+                                       (mapconcat 'identity arglist ", ")))
+                             arglists)
+                     " | ")))
+
 (provide 'erl-service)
 
