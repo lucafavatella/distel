@@ -366,7 +366,7 @@ buffer.")
   (let ((msg (format "<< %s" (apply #'format (cons fmt args)))))
     (put-text-property 0 (length msg) 'face 'derl-trace-input-face msg)
     (derl-trace msg)))
-    
+
 (defun derl-trace (string)
   (with-current-buffer (get-buffer-create (format "*trace %S*" derl-connection-node))
     (goto-char (point-max))
