@@ -1,6 +1,7 @@
 
 ;;; Automatically inserted by Distel config_install
 
+(add-to-list 'load-path "@prefix@/share/@emacs@/site-lisp/distel")
 (require 'distel)
 (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)
 

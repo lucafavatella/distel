@@ -62,7 +62,7 @@ doc/distel.dvi: ${DOC_SRC}
 
 ## C
 c/dec32: c/dec32.c
-	gcc -o $@ $<
+	${CC} -g -o $@ $<
 
 ########################################
 
@@ -70,6 +70,9 @@ configure: configure.in Makefile.in
 	autoconf
 
 Makefile: Makefile.in config.status
+	./config.status
+
+config/emacs-init-snippet.el: config/emacs-init-snippet.el.in config.status
 	./config.status
 
 config.status: configure
