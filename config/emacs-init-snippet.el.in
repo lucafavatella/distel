@@ -1,7 +1,11 @@
 
 ;;; Automatically inserted by Distel config_install
 
-(add-to-list 'load-path "@prefix@/share/@emacs@/site-lisp/distel")
+(let ((distel-dir "@prefix@/share/@emacs@/site-lisp/distel"))
+  (unless (member distel-dir load-path)
+    ;; Add distel-dir to the end of load-path
+    (setq load-path (append load-path distel-dir))))
+
 (require 'distel)
 (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)
 
