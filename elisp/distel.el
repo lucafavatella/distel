@@ -47,7 +47,7 @@ cache, give a prefix argument with C-u before using the command.
 \\[erl-ie-copy-region-to-session]	- Create an interactive \"session\" buffer from region.
 "
   nil
-  (" EXT" (edb-module-interpreted ":interpreted" ""))
+  '(" EXT" (edb-module-interpreted ":interpreted" ""))
   '(("\C-c\C-di" . edb-toggle-interpret)
     ("\C-c\C-db" . edb-toggle-breakpoint)
     ("\C-c\C-dm" . edb-monitor)
