@@ -20,10 +20,14 @@ If a prefix argument is in effect, the cache in skipped."
   (if (and (not current-prefix-arg)
 	   erl-nodename-cache)
       erl-nodename-cache
-    (let ((name (intern (read-string "Node: "))))
-      (when (derl-node-p name)
-	(setq erl-nodename-cache name))
-      name)))
+    (let ((name-string (read-string "Node: ")))
+      (let ((name (intern (if (string-match "@" name-string)
+			      name-string
+			    (concat name-string
+				    "@" (erl-determine-hostname))))))
+	(when (derl-node-p name)
+	  (setq erl-nodename-cache name))
+	name))))
 
 ;; ------------------------------------------------------------
 ;; RPC

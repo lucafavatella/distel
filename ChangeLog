@@ -1,5 +1,9 @@
 2002-08-04  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/erl-service.el (erl-read-nodename): Now you can enter node
+	names without the @host part, and they're taken to refer to the
+	local host.
+
 	* README: OSX setup instructions care of David Wallin.
 
 	* elisp/edb.el, distel.erl: Added up/down motion through the
