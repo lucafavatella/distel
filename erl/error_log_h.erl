@@ -9,6 +9,9 @@
 %% $Id$
 %%
 %% $Log$
+%% Revision 1.1  2002/04/28 18:25:33  lukeg
+%% *** empty log message ***
+%%
 %%
 %%**
 %% 
@@ -41,14 +44,14 @@
 %%          Other
 %%----------------------------------------------------------------------
 init(Opts) ->
-  case disk_log:open(Opts) of
-    {ok, Log} ->
-      {ok, #state{log = Log}};
-    {repaired, Log, _, _} ->
-      {ok, #state{log = Log}};
-    Error ->
-      Error
-  end.
+    case disk_log:open(Opts) of
+	{ok, Log} ->
+	    {ok, #state{log = Log}};
+	{repaired, Log, _, _} ->
+	    {ok, #state{log = Log}};
+	Error ->
+	    Error
+    end.
 
 %%----------------------------------------------------------------------
 %% Func: handle_event/2
@@ -57,12 +60,12 @@ init(Opts) ->
 %%          remove_handler                              
 %%----------------------------------------------------------------------
 handle_event(Event, S) ->
-  case disk_log:alog(S#state.log, Event) of
-    ok ->
-      {ok, S};
-    Error ->
-      Error
-  end.
+    case disk_log:alog(S#state.log, Event) of
+	ok ->
+	    {ok, S};
+	Error ->
+	    Error
+    end.
 
 %%----------------------------------------------------------------------
 %% Func: handle_call/2
@@ -71,7 +74,7 @@ handle_event(Event, S) ->
 %%          {remove_handler, Reply}                            
 %%----------------------------------------------------------------------
 handle_call(info, S) ->
-  {ok, S, S}.
+    {ok, S, S}.
 
 %%----------------------------------------------------------------------
 %% Func: handle_info/2
@@ -88,7 +91,7 @@ handle_info(Info, S) ->
 %% Returns: any
 %%----------------------------------------------------------------------
 terminate(Arg, S) ->
-  disk_log:close(S#state.log).
+    disk_log:close(S#state.log).
 
 %%%----------------------------------------------------------------------
 %%% Internal functions

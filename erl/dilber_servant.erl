@@ -9,6 +9,9 @@
 %% $Id$
 %%
 %% $Log$
+%% Revision 1.1  2002/04/28 18:25:33  lukeg
+%% *** empty log message ***
+%%
 %%
 %%**
 %% 
@@ -49,7 +52,7 @@
 %% Description: Starts the server
 %%--------------------------------------------------------------------
 start_link(Args) ->
-  gen_server:start_link(?MODULE, Args, []).
+    gen_server:start_link(?MODULE, Args, []).
 
 %%====================================================================
 %% Server functions
@@ -64,18 +67,18 @@ start_link(Args) ->
 %%          {stop, Reason}
 %%--------------------------------------------------------------------
 init([Log, Opts, Master]) ->
-  process_flag(priority, low),
-  process_flag(trap_exit, true),
-  ChkOpts = check_show_opts(Opts, #state{}),
-  [User, Timeout, PgSize, Grep, Format] = [getopt:value(K, ChkOpts)
-                                           || K <- [user, tail, psize, grep, format]],
-  case User of
-    undefined -> ok;
-    _ when pid(User);atom(User) -> link(User);
-    _ -> ok
-  end,
-  {ok, #state{user=User, master=Master, log=Log,
-              tail=Timeout, psize=PgSize, grep=Grep, format=Format}}.
+    process_flag(priority, low),
+    process_flag(trap_exit, true),
+    ChkOpts = check_show_opts(Opts, #state{}),
+    [User, Timeout, PgSize, Grep, Format] = [getopt:value(K, ChkOpts)
+					     || K <- [user, tail, psize, grep, format]],
+    case User of
+	undefined -> ok;
+	_ when pid(User);atom(User) -> link(User);
+	_ -> ok
+    end,
+    {ok, #state{user=User, master=Master, log=Log,
+		tail=Timeout, psize=PgSize, grep=Grep, format=Format}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -88,24 +91,24 @@ init([Log, Opts, Master]) ->
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
 handle_call({show, Opts}, From, State) ->
-  {Reply, NewState} = (catch do_show(State, Opts)),
-  {reply, Reply, NewState};
+    {Reply, NewState} = (catch do_show(State, Opts)),
+    {reply, Reply, NewState};
 handle_call(rescan, From, State) ->
-  {Reply, NewState} = (catch do_show(State, [])),
-  {reply, Reply, NewState};
+    {Reply, NewState} = (catch do_show(State, [])),
+    {reply, Reply, NewState};
 
 handle_call(next, From, S=#state{tail=Tail, tail_ref=TRef}) when Tail /= false ->
-  cancel_timer(TRef),
-  {reply, [], S#state{tail_ref=erlang:start_timer(0, self(), next)}};
+    cancel_timer(TRef),
+    {reply, [], S#state{tail_ref=erlang:start_timer(0, self(), next)}};
 handle_call(next, From, State) ->
-  {Reply, NewState} = do_next(State),
-  {reply, Reply, NewState};
+    {Reply, NewState} = do_next(State),
+    {reply, Reply, NewState};
 
 handle_call(info, From, State) ->
-  {reply, State, State};
+    {reply, State, State};
 handle_call(Request, From, State) ->
-  Reply = ok,
-  {reply, Reply, State}.
+    Reply = ok,
+    {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_cast/2
@@ -115,9 +118,9 @@ handle_call(Request, From, State) ->
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
 handle_cast(close, S) ->
-  {stop, normal, S};
+    {stop, normal, S};
 handle_cast(Msg, State) ->
-  {noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_info/2
@@ -129,14 +132,14 @@ handle_cast(Msg, State) ->
 handle_info({'EXIT', Pid, Reson}, S=#state{user=User, master=Master})
   when Pid == User;
        Pid == Master ->
-  {stop, Reson, S};
+    {stop, Reson, S};
 handle_info({timeout, Ref, next}, S=#state{user=User, tail=Timeout, tail_ref=Ref}) when number(Timeout) ->
-  cancel_timer(Ref),
-  {Res, NewState} = do_next(S),
-  User ! {next, self(), Res},
-  {noreply, NewState#state{tail_ref=erlang:start_timer(Timeout, self(), next)}};
+    cancel_timer(Ref),
+    {Res, NewState} = do_next(S),
+    User ! {next, self(), Res},
+    {noreply, NewState#state{tail_ref=erlang:start_timer(Timeout, self(), next)}};
 handle_info(Info, State) ->
-  {noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% Function: terminate/2
@@ -144,7 +147,7 @@ handle_info(Info, State) ->
 %% Returns: any (ignored by gen_server)
 %%--------------------------------------------------------------------
 terminate(Reason, State) ->
-  ok.
+    ok.
 
 %%--------------------------------------------------------------------
 %% Func: code_change/3
@@ -152,44 +155,44 @@ terminate(Reason, State) ->
 %% Returns: {ok, NewState}
 %%--------------------------------------------------------------------
 code_change(OldVsn, State, Extra) ->
-  {ok, State}.
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
 do_show(S=#state{log=Log, tail_ref=TailRef, user=User}, Opts) ->
-  cancel_timer(TailRef),
-  ChkOpts = check_show_opts(Opts, S),
-  [Timeout, PgSize, Grep, Format] = [getopt:value(K, ChkOpts)
-                                   || K <- [tail, psize, grep, format]],
-  S1 = S#state{tail=Timeout, tail_ref=none,
-               pnum=0, cont=start, psize=PgSize, rest=[],
-               grep=Grep, format=Format},
+    cancel_timer(TailRef),
+    ChkOpts = check_show_opts(Opts, S),
+    [Timeout, PgSize, Grep, Format] = [getopt:value(K, ChkOpts)
+				       || K <- [tail, psize, grep, format]],
+    S1 = S#state{tail=Timeout, tail_ref=none,
+		 pnum=0, cont=start, psize=PgSize, rest=[],
+		 grep=Grep, format=Format},
 
-  {Result, NewState} =
-    case Timeout of
-      _ when number(Timeout) ->
-        S2 = skip_to_last(S1),
-        TRef = erlang:start_timer(0, self(), next),
-        {[], S2#state{tail_ref=TRef}};
-      false ->
-        do_next(S1)
-    end.
+    {Result, NewState} =
+	case Timeout of
+	    _ when number(Timeout) ->
+		S2 = skip_to_last(S1),
+		TRef = erlang:start_timer(0, self(), next),
+		{[], S2#state{tail_ref=TRef}};
+	    false ->
+		do_next(S1)
+	end.
 
 skip_to_last(S=#state{rest=Rest}) ->
-  skip_to_last(Rest, do_next(S)).
+    skip_to_last(Rest, do_next(S)).
 
 skip_to_last([], {[], State}) -> %already at the end
-  State;
+    State;
 skip_to_last(_, {Res, S=#state{pnum=PgNum, psize=infinity}}) ->
-  S#state{pnum=PgNum - 1, rest=Res};
+    S#state{pnum=PgNum - 1, rest=Res};
 skip_to_last(PrevRes, {Res, S=#state{pnum=PgNum, psize=PgSize}})
   when length(Res) < PgSize; Res == [] ->
-  PrevTailLen = length(PrevRes) - min(PgSize - length(Res), length(PrevRes)),
-  PrevTail = lists:nthtail(PrevTailLen, PrevRes),
-  S#state{pnum=PgNum - 1, rest=PrevTail++Res};
+    PrevTailLen = length(PrevRes) - min(PgSize - length(Res), length(PrevRes)),
+    PrevTail = lists:nthtail(PrevTailLen, PrevRes),
+    S#state{pnum=PgNum - 1, rest=PrevTail++Res};
 skip_to_last(_, {Res, State}) ->
-  skip_to_last(Res, do_next(State)).
+    skip_to_last(Res, do_next(State)).
 
 do_next(S=#state{log=Log,
                  cont=Cont,
@@ -199,65 +202,65 @@ do_next(S=#state{log=Log,
                  grep=Grep,
                  format=Format
                 }) ->
-  {Result, NewState} =
+    {Result, NewState} =
         case read_log(Log, Cont, Grep, Format, PgSize, Rest) of
-          {ok, NewCont, Res=[], NewRest=[]} -> %already at eof
-            {Res, S#state{cont=NewCont, rest=NewRest}};
-          {ok, NewCont, Res, NewRest} ->
-            NewPgNum = if PgSize == infinity -> 1; true -> PgNum+1 end,
-            {Res, S#state{pnum=NewPgNum, cont=NewCont, rest=NewRest}};
-          Error ->
-            throw({Error, S})
+	    {ok, NewCont, Res=[], NewRest=[]} -> %already at eof
+		{Res, S#state{cont=NewCont, rest=NewRest}};
+	    {ok, NewCont, Res, NewRest} ->
+		NewPgNum = if PgSize == infinity -> 1; true -> PgNum+1 end,
+		{Res, S#state{pnum=NewPgNum, cont=NewCont, rest=NewRest}};
+	    Error ->
+		throw({Error, S})
         end,
-  {Result, NewState}.
+    {Result, NewState}.
 
 read_log(_, Cont, _, _, BlockSize, Acc)
   when BlockSize =< length(Acc) ->
-  {ok, Cont, lists:sublist(Acc, BlockSize), lists:nthtail(BlockSize, Acc)};
+    {ok, Cont, lists:sublist(Acc, BlockSize), lists:nthtail(BlockSize, Acc)};
 read_log(Log, Cont, Grep, Format, BlockSize, Acc) ->
-  case disk_log:chunk(Log, Cont) of
-    {NextCont, Terms} ->
-      NextAcc = Acc ++
-        [Str || Str <- lists:map(Format, Terms), Grep(Str) =/= false],
-      read_log(Log, NextCont, Grep, Format, BlockSize, NextAcc);
-    eof ->
-      {ok, Cont, Acc, []};
-    Error = {error, _} ->
-      Error
-  end.
+    case disk_log:chunk(Log, Cont) of
+	{NextCont, Terms} ->
+	    NextAcc = Acc ++
+		[Str || Str <- lists:map(Format, Terms), Grep(Str) =/= false],
+	    read_log(Log, NextCont, Grep, Format, BlockSize, NextAcc);
+	eof ->
+	    {ok, Cont, Acc, []};
+	Error = {error, _} ->
+	    Error
+    end.
 
 check_show_opts(Args, S=#state{user=DefUser,
                                tail=Timeout, psize=DefPgSize,
                                grep=DefGrep, format=DefFormat}) ->
-  ChkPgSize = fun (infinity) -> {ok, infinity};
-                  (N) when integer(N), N > 0 -> {ok, N};
-                  (V) -> {error, {bad_number, V}}
-              end,
-  ChkGrep = fun (none) -> {ok, fun dummy_grep/1};
-                (F) when function(F) -> {ok, F};
-                (V) -> {error, {badarg, V}}
-            end,
-  ChkFormat = fun (none) -> {ok, fun dummy_format/1};
-                  (F) when function(F) -> {ok, F};
-                  (V) -> {error, {badarg, V}}
-              end,
-  ChkTail = fun (false) ->
-                 {ok, false};
-                 (T) when number(T);T > 0 ->
-                 {ok, T};
-                 (V) ->
-                 {error, {badarg, V}}
-             end,
+    ChkPgSize = fun (infinity) -> {ok, infinity};
+		    (N) when integer(N), N > 0 -> {ok, N};
+		    (V) -> {error, {bad_number, V}}
+		end,
+    ChkGrep = fun (none) -> {ok, fun dummy_grep/1};
+		  (F) when function(F) -> {ok, F};
+		  (V) -> {error, {badarg, V}}
+	      end,
+    ChkFormat = fun (none) -> {ok, fun dummy_format/1};
+		    (F) when function(F) -> {ok, F};
+		    (V) -> {error, {badarg, V}}
+		end,
+    ChkTail = fun (false) ->
+		      {ok, false};
+		  (T) when number(T);T > 0 ->
+		      {ok, T};
+		  (V) ->
+		      {error, {badarg, V}}
+	      end,
 
-  Opts = getopt:options(Args,
-                        [{user,   DefUser,   term},
-                         {tail,  Timeout,   ChkTail},
-                         {psize,  DefPgSize, ChkPgSize},
-                         {grep,   DefGrep,   ChkGrep},
-                         {format, DefFormat, ChkFormat}
-                        ],
-                        defined_strict),
-  Opts.
+    Opts = getopt:options(Args,
+			  [{user,   DefUser,   term},
+			   {tail,  Timeout,   ChkTail},
+			   {psize,  DefPgSize, ChkPgSize},
+			   {grep,   DefGrep,   ChkGrep},
+			   {format, DefFormat, ChkFormat}
+			  ],
+			  defined_strict),
+    Opts.
 
 cancel_timer(none) ->
     ok;
@@ -272,9 +275,9 @@ cancel_timer(Ref) ->
 
 min(A, B) when A =< B -> A;
 min(_, B) -> B.
-  
+
 dummy_grep(_) ->
-  true.
+    true.
 
 dummy_format(Term) ->
-  lists:flatten(io_lib:format("~p", [Term])).
+    lists:flatten(io_lib:format("~p", [Term])).
