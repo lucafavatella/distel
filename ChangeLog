@@ -1,5 +1,8 @@
 2002-11-24  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/distel.el (erlang-extended-mode): Added completion binding
+	on M-?, since M-TAB is often used by window managers.
+
 	* elisp/distel-ie.el: Changed keybindings. Now C-j evaluates the
 	expression behind the point and inserts the result in-line, and
 	C-M-x evaluates a function definition and shows the result as a
