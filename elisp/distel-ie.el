@@ -31,10 +31,13 @@
 
     (erl-ie-ensure-registered node)
 
+    ;; yep, how low can you sink: global variables, jesus! :
     (with-current-buffer buf (erlang-mode))
     (set-window-buffer (selected-window) buf)
 
-    (insert (erl-ie-welcome-message))
+    (unless (boundp 'distel-ie-showed-welcome)
+      (setq distel-ie-showed-welcome t)
+      (insert (erl-ie-welcome-message)))
     buf))
 
 
@@ -42,7 +45,7 @@
 ;; erl-ie-welcome-message
 
 (defun erl-ie-welcome-message ()
-  "%%% Welcome to the Distel Interactive Erlang Shell v0.0.2\n\n")
+  "%%% Welcome to the Distel Interactive Erlang Shell.\n\n")
 
 
 ;;
@@ -116,7 +119,7 @@
 	    (message "Unexpected: %S" other)))))))
 
 
-    ;;
+;;
 ;; &erl-ie-group-leader-loop
 
 (defun &erl-ie-group-leader-loop (buf)
@@ -131,18 +134,19 @@
 ;; erl-ie-copy-buffer-to-session
 
 (defun erl-ie-copy-buffer-to-session (node)
-  "Takes the content of the current buffer and opens a distel_ie session with it. This can be useful for debugging a file without ruining the content by mistake."
+  "Takes the content of the current buffer and opens a distel_ie session with it. The content is pasted at the end of the session buffer. This can be useful for debugging a file without ruining the content by mistake."
   (interactive (list (erl-read-nodename)))
   (let ((cloned-buffer (buffer-string)))
 
     (with-current-buffer (erl-ie-session node)
+      (end-of-buffer)
       (insert cloned-buffer))))
 
 ;;
 ;; erl-ie-copy-region-to-session
 
 (defun erl-ie-copy-region-to-session (start end node)
-  "Takes the content of the marked region in the current buffer and opens a distel_ie session with it. This can be useful for debugging a file without ruining the content by mistake."
+  "Takes the content of the marked region in the current buffer and opens a distel_ie session with it. The content is pasted at the end of the session buffer. This can be useful for debugging a file without ruining the content by mistake."
   (interactive (list
 		(region-beginning)
 		(region-end)
@@ -150,6 +154,7 @@
   (let ((cloned-region (buffer-substring-no-properties start end)))
 
     (with-current-buffer (erl-ie-session node)
+      (end-of-buffer)
       (insert cloned-region))))
 
 
