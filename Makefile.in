@@ -103,7 +103,7 @@ info_install: info
 	  install-info --info-dir=${infodir} --section Emacs \
 		       ${infodir}/distel.info
 
-dist: distclean configure
+dist: always distclean configure
 	cd .. && ln -sf ${PACKAGE} ${PACKAGE}-${VERSION}
 	cd .. && (find ${PACKAGE}-${VERSION} -follow -type f | \
 		  egrep -v '(^attic/)|/CVS/|\.cvsignore' | \
@@ -127,15 +127,16 @@ wc:
 
 config_install: dot_erlang dot_emacs
 
-dot_emacs: all
+dot_emacs: base
 	(grep distel-erlang-mode-hook ${HOME}/.emacs || \
 		cat config/emacs-init-snippet.el >> ${HOME}/.emacs) \
 	>/dev/null
 
-dot_erlang: all
+dot_erlang: base
 	(grep 'code:add_pathz("'${EBIN_DIR}'").' ${HOME}/.erlang || \
 		echo -e "\n%% The following line was automatically added by Distel config_install:\n"'code:add_pathz("'${EBIN_DIR}'").' >> ${HOME}/.erlang) \
 	>/dev/null
 
 .INTERMEDIATE: doc/distel.dvi
+.PHONY: always
 
