@@ -1,5 +1,8 @@
 ;;; erl-example.el
 
+(eval-when-compile (require 'cl))
+(require 'erl)
+
 ;; Echo
 
 (defun erlex-spawn-echo (recipient)
