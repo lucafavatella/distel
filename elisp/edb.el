@@ -5,7 +5,9 @@
 (require 'erl-service)
 (require 'erlang)
 (require 'ewoc)
-(require 'overlay)		; load compatibility library in XEmacs
+
+(when (featurep 'xemacs)
+  (require 'overlay))
 
 ;; Hack for XEmacs compatibility..
 (unless (fboundp 'line-beginning-position)
@@ -124,13 +126,8 @@ edb."))
 Use edb-restore-dbg-state to restore the state to the erlang node."
   (interactive (list (erl-read-nodename)))
   (let ((do-save nil))
-    (if edb-saved-interpreted-modules
-	(let ((confirm
-	       (read-char
-		"You already have a saved debugger state, continue? [y/n]")))
-	  (setq do-save (equal confirm ?y)))
-      (setq do-save t))
-    (when do-save
+    (when (or (null edb-saved-interpreted-modules)
+	      (y-or-n-p "You already have a saved debugger state, continue? "))
       (setq edb-saved-interpreted-modules edb-interpreted-modules)
       (edb-save-breakpoints node)
       (message "Debugger state saved."))))

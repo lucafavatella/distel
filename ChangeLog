@@ -1,5 +1,7 @@
 2002-12-16  Luke Gorrie  <luke@bluetail.com>
 
+	* Release: 3.2!
+
 	* elisp/edb.el (edb-make-breakpoint-overlay): Changed
 	`point-at-bol' call to `line-beginning-position', for Emacs20
 	compatibility.
