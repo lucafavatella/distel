@@ -1,3 +1,24 @@
+2002-06-02  Luke Gorrie  <luke@bluetail.com>
+
+	* erl/distel.erl: Added rpc_entry(M,F,A) which installs a
+	group_leader proxy/adapter.
+
+	* elisp/net-fsm.el: Sprinkled some more multibyte-avoidance code
+	around. The default coding-system mangled messages on my laptop,
+	but with 'no-conversion' it now works.
+
+	* elisp/erl.el: Added "real" group_leader support, with a default
+	group_leader writing output to *erl-output*. The group leader
+	protocol is not the same as Erlang's (needs to be adapted), and
+	supports just one message: {put_chars, Chars}.
+
+	* elisp/erl-service.el (erl-send-rpc): RPCs now go via
+	distel:rpc_entry(M,F,A), to setup a group_leader.
+	(erl-eval-expression): Added - evaluates an erlang expression.
+
+	* elisp/derl.el: Giving a specific error when 'dec32' isn't
+	installed in PATH.
+
 2002-04-24  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (fprof): Added a front-end to the 'fprof'
