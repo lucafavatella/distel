@@ -1,8 +1,8 @@
 ;;;
 ;;; distel-ie - an interactive erlang shell
 ;;;
-;;; Some of the code has shamelessly been stolen from Luke Gorrie 
-;;; [luke@bluetail.com] - ripped from its elegance and replaced by bugs. 
+;;; Some of the code has shamelessly been stolen from Luke Gorrie
+;;; [luke@bluetail.com] - ripped from its elegance and replaced by bugs.
 ;;; It just goes to show that you can't trust anyone these days. And
 ;;; as if that wasn't enough, I'll even blame Luke: "He _made_ me do it!"
 ;;;
@@ -13,8 +13,9 @@
 ;;; (it's probably going to be released onto an unexpecting public under
 ;;;  some sort of BSD license).
 
-
+(eval-when-compile (require 'cl))
 (require 'erlang)
+(require 'erl)
 
 (make-variable-buffer-local
  (defvar erl-ie-node nil
@@ -47,7 +48,7 @@
 
     ;; hiijack stdin/stdout :
     (let ((output-buffer (current-buffer)))
-      (setq erl-group-leader 
+      (setq erl-group-leader
 	    (erl-spawn (&erl-ie-group-leader-loop output-buffer))))
 
     (erl-ie-ensure-registered node)
@@ -98,8 +99,9 @@
 ;; want to change to (interactive "r") somehow ...
 
 (defun erl-ie-evaluate (start end node &optional inline)
-  "Evaluates a marked region. The marked region can be a function definition, a function call or an expression."
-  (interactive (list 
+  "Evaluate region START to END on NODE.
+The marked region can be a function definition, a function call or an expression."
+  (interactive (list
 		(region-beginning)
 		(region-end)
 		(erl-ie-read-nodename)))
@@ -107,7 +109,7 @@
   (let* ((string (buffer-substring-no-properties start end))
 	 (buffer (current-buffer)))
     (erl-spawn
-      (erl-send (tuple 'distel_ie node) 
+      (erl-send (tuple 'distel_ie node)
 		(tuple 'evaluate erl-self string))
       
       (message "Sent eval request..")
@@ -117,7 +119,7 @@
       (erl-receive (buffer inline)
 	  ((['ok value]
 	    (if inline
-		(with-current-buffer buffer 
+		(with-current-buffer buffer
 		  ;; Clear "Sent eval request.." message
 		  (message "")
 	      
@@ -145,7 +147,7 @@
 	   (['error reason]
 	    (with-current-buffer buffer
 	      
-	      ;; TODO: should check the buffer for first non-whitespace 
+	      ;; TODO: should check the buffer for first non-whitespace
 	      ;; before we do:
 	      (newline 1)
 	      (insert "Error: ") (insert reason) (newline 1)))
@@ -182,7 +184,9 @@
 ;; erl-ie-copy-buffer-to-session
 
 (defun erl-ie-copy-buffer-to-session (node)
-  "Takes the content of the current buffer and opens a distel_ie session with it. The content is pasted at the end of the session buffer. This can be useful for debugging a file without ruining the content by mistake."
+  "Open a distel_ie session on NODE with the content of the current buffer.
+The content is pasted at the end of the session buffer.  This can be useful
+for debugging a file without ruining the content by mistake."
   (interactive (list (erl-ie-read-nodename)))
   (let ((cloned-buffer (buffer-string)))
 
@@ -195,7 +199,9 @@
 ;; erl-ie-copy-region-to-session
 
 (defun erl-ie-copy-region-to-session (start end node)
-  "Takes the content of the marked region in the current buffer and opens a distel_ie session with it. The content is pasted at the end of the session buffer. This can be useful for debugging a file without ruining the content by mistake."
+  "Open a distel_ie session on NODE with the content of the region.
+The content is pasted at the end of the session buffer.  This can be useful
+for debugging a file without ruining the content by mistake."
   (interactive (list
 		(region-beginning)
 		(region-end)
