@@ -1,5 +1,8 @@
 2002-08-04  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/edb.el: Improved variables window (now you can press
+	return on a variable to popup its full value).
+
 	* elisp/erl-service.el (erl-read-nodename): Now you can enter node
 	names without the @host part, and they're taken to refer to the
 	local host.
