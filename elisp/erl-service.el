@@ -465,29 +465,37 @@ If there is no function call under point, returns nil."
   "Get the number of arguments in a function call.
 Should be called with point directly before the opening `('."
   ;; Adapted from erlang-get-function-arity.
-  (and (looking-at "[\n\r ]*(")
-       (save-excursion
-	 (goto-char (match-end 0))
-	 (condition-case nil
-	     (let ((res 0)
-		   (cont t))
-	       (while cont
-		 (cond ((eobp)
-			(setq res nil)
-			(setq cont nil))
-		       ((looking-at "\\s *)")
-			(setq cont nil))
-		       ((looking-at "\\s *\\($\\|%\\)")
-			(forward-line 1))
-		       ((looking-at "\\s *,")
-			(incf res)
-			(goto-char (match-end 0)))
-		       (t
-			(when (zerop res)
-			  (incf res))
-			(forward-sexp 1))))
-	       res)
-	   (error nil)))))
+  (save-excursion
+    (cond ((looking-at "/")
+	   ;; form is /<n>, like the /2 in foo:bar/2
+	   (forward-char)
+	   (let ((start (point)))
+	     (re-search-forward "\\([^0-9]\\|$\\)" nil t)
+	     (backward-char)
+	     (ignore-errors
+	       (car (read-from-string (buffer-substring start (point)))))))
+	  ((looking-at "[\n\r ]*(")
+	   (goto-char (match-end 0))
+	   (condition-case nil
+	       (let ((res 0)
+		     (cont t))
+		 (while cont
+		   (cond ((eobp)
+			  (setq res nil)
+			  (setq cont nil))
+			 ((looking-at "\\s *)")
+			  (setq cont nil))
+			 ((looking-at "\\s *\\($\\|%\\)")
+			  (forward-line 1))
+			 ((looking-at "\\s *,")
+			  (incf res)
+			  (goto-char (match-end 0)))
+			 (t
+			  (when (zerop res)
+			    (incf res))
+			  (forward-sexp 1))))
+		 res)
+	     (error nil))))))
 
 (defun erl-find-source (node module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
