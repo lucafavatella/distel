@@ -112,6 +112,10 @@ remove. Messages are ordered from oldest to newest.")
   "True when trapping exits from linked processes.")
 (defprocvar erl-exit-reason nil
   "Exit reason, or nil if the process is alive.")
+(defprocvar erl-reductions 0
+  "Number of \"reductions\".
+Actually the number of times the process has been run invoked,
+typically by the scheduler.")
 
 (defmacro with-erl-process (pid &rest body)
   "Execute BODY in PID's buffer. This is a full context-switch."
@@ -376,6 +380,7 @@ Invokes the scheduler if necessary."
   "Run a process.
 Calls the current continuation from within the process' buffer."
   (with-erl-process %pid
+    (incf erl-reductions)
     ;; The %ugly-names are to avoid shadowing the caller's dynamic
     ;; bindings.
     (let ((%k erl-continuation)
