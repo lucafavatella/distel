@@ -872,12 +872,14 @@ the node, version 1.2 (or perhaps later.)"
 ;; ------------------------------------------------------------
 ;; fdoc interface
 
-(defun erl-fdoc-apropos (node regexp)
+(defun erl-fdoc-apropos (node regexp rebuild-db)
   (interactive (list (erl-read-nodename)
-		     (read-string "Regexp: ")))
+		     (read-string "Regexp: ")
+		     (integerp current-prefix-arg)))
   (unless (string= regexp "")
     (erl-spawn
-      (erl-send-rpc node 'distel 'apropos (list regexp))
+      (erl-send-rpc node 'distel 'apropos (list regexp
+						(if rebuild-db 'true 'false)))
       (message "Sent request; waiting for results..")
       (erl-receive ()
 	  ((['rex ['ok matches]]
@@ -922,10 +924,11 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 (defvar erl-mfa-regexp-function-match 3)
 (defvar erl-mfa-regexp-arity-match    5)
 
-(defun erl-fdoc-describe (node mfastr)
+(defun erl-fdoc-describe (node mfastr rebuild-db)
   (interactive
    (list (erl-read-nodename)
-	 (read-string "M[:F[/A]]: ")))
+	 (read-string "M[:F[/A]]: ")
+	 (integerp current-prefix-arg)))
   (if (not (string-match erl-module-function-arity-regexp mfastr))
       (error "Bad input.")
     (let ((mod (match-string erl-mfa-regexp-module-match mfastr))
@@ -937,7 +940,8 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 	  (erl-send-rpc node 'distel 'describe
 			(list (intern mod)
 			      (if fun (intern fun) '_)
-			      (if arity (string-to-int arity) '_)))
+			      (if arity (string-to-int arity) '_)
+			      (if rebuild-db 'true 'false)))
 	  (message "Sent request; waiting for results..")
 	  (erl-receive ()
 	      ((['rex ['ok matches]]
