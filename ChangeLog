@@ -1,3 +1,8 @@
+2003-03-11  Luke Gorrie  <luke@bluetail.com>
+
+	* erl/distel.erl: Now converting fdoc result strings into
+	binaries, to avoid the classic string/list encoding problems.
+
 2003-03-10  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/distel.el: Added "C-x SPC" keybinding for toggling

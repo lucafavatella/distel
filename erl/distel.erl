@@ -685,7 +685,7 @@ apropos(RE, true) ->
     apropos(RE).
 
 apropos(RE) ->
-    fdoc:get_apropos(RE).
+    fdoc_binaryify(fdoc:get_apropos(RE)).
 
 describe(M, F, A, false) ->
     describe(M, F, A);
@@ -694,4 +694,10 @@ describe(M, F, A, true) ->
     describe(M, F, A).
 
 describe(M, F, A) ->
-    fdoc:description(M, F, A).
+    fdoc_binaryify(fdoc:description(M, F, A)).
+
+%% Converts strings to binaries, for Emacs
+fdoc_binaryify({ok, Matches}) ->
+    {ok, [{M, F, A, list_to_binary(Doc)} || {M, F, A, Doc} <- Matches]};
+fdoc_binaryify(Other) -> Other.
+
