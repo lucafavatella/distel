@@ -698,7 +698,8 @@ COMPLETIONS is a list of potential completions (strings.)"
   ;; Emacs completion packages (hippie and pcomplete) looked too
   ;; scary.
   (or (and scrollable (erl-maybe-scroll-completions))
-      (let ((completion (try-completion pattern completions)))
+      (let* ((completions (erl-make-completion-alist completions))
+	     (completion (try-completion pattern completions)))
 	(cond ((eq completion t)
 	       (message "Sole completion"))
 	      ((null completion)
@@ -714,6 +715,13 @@ COMPLETIONS is a list of potential completions (strings.)"
 		 (with-output-to-temp-buffer "*Completions*"
 		   (display-completion-list list)))
 	       (message "Making completion list...%s" "done"))))))
+
+(defun erl-make-completion-alist (list)
+  "Make an alist out of list.
+The same elements go in the CAR, and nil in the CDR. To support the
+apparently very stupid `try-completions' interface, that wants an
+alist but ignores CDRs."
+  (mapcar (lambda (x) (cons x nil)) list))
 
 (defun erl-maybe-scroll-completions ()
   "Scroll the completions buffer if it is visible.
