@@ -4,6 +4,8 @@
 (require 'erlang)
 (require 'easy-mmode)
 
+(provide 'distel)
+
 ;; Compatibility with XEmacs
 (unless (fboundp 'define-minor-mode)
   (defalias 'define-minor-mode 'easy-mmode-define-minor-mode))
@@ -35,6 +37,9 @@ You can add this to erlang-mode-hook with:
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
 \\[edb-toggle-breakpoint]	- Toggle a debugger breakpoint at the current line.
 \\[edb-monitor]	- Popup the debugger's process monitor buffer.
+\\[erl-ie-session]	- Create an interactive \"session\" buffer.
+\\[erl-ie-copy-buffer-to-session]	- Create an interactive \"session\" buffer from current buffer.
+\\[erl-ie-copy-region-to-session]	- Create an interactive \"session\" buffer from region.
 "
   nil
   " EXT"
@@ -56,5 +61,3 @@ You can add this to erlang-mode-hook with:
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
     ))
-
-(provide 'distel)
