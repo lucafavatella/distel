@@ -297,7 +297,7 @@ pad(X, A) when atom(A) ->
 pad(X, S) when length(S) < X ->
     S ++ lists:duplicate(X - length(S), $ );
 pad(X, S) ->
-    lists:sublist(S, X).
+    S.
 
 null_gl() ->
     receive
