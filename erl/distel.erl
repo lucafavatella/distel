@@ -640,17 +640,19 @@ functions(Mod, Prefix) ->
 %% Refactoring
 %% ----------------------------------------------------------------------
 
-%% @spec free_vars(Text::string()) -> string()
+%% @spec free_vars(Text::string()) ->
+%%           {ok, FreeVars::[atom()]} | {error, Reason::string()}
 %% @equiv free_vars(Text, 1)
 
 free_vars(Text) ->
     free_vars(Text, 1).
 
-%% @spec free_vars(Text::string(), Line::integer()) -> string()
+%% @spec free_vars(Text::string(), Line::integer()) ->
+%%           {ok, FreeVars::[atom()]} | {error, Reason::string()}
 
 free_vars(Text, StartLine) ->
     %% StartLine/EndLine may be useful in error messages.
-    {ok, Ts, EndLine} = erl_scan:string(Text, StartLine),
+    {ok, Ts, EndLine} = erl_scan:string("begin " ++ Text ++ " end", StartLine),
     Ts1 = lists:reverse([{dot, EndLine} | strip(lists:reverse(Ts))]),
     case erl_parse:parse_exprs(Ts1) of
 	{ok, Es} ->
