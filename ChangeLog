@@ -24,11 +24,6 @@
 	distinguish from the version installed on Bluetail'ers' machines
 	earlier today.
 
-	* elisp/edb.el, elisp/distel.erl: Erlang-extended-mode buffers now
-	indicate via the mode line whether they are currently being
-	interpreted. Also extended/improved the recent debug monitoring
-	changes.
-
 	* elisp/erl.el (erl-reductions): Added reductions counter, saying
 	how many times a process has been executed (_not_ how many calls
 	it has made, like Erlang reductions). This can be inspected
@@ -39,12 +34,10 @@
 	directory in ${prefix}/share/emacs/site-lisp/ doesn't get you
 	into the load path automatically.
 
-	* elisp/edb.el, distel.erl: Reworked the debugger so that the
+	* elisp/edb.el, erl/distel.erl: Reworked the debugger so that the
 	Monitor process tracks the current set of breakpoints and
-	interpreted modules. This lays the ground work for showing
-	breakpoints in source code, and indicating which modules are
-	interpreted via the mode line -- but that's not implemented
-	yet. Meanwhile, the debugger appears to still work :-)
+	interpreted modules. Erlang-extended-mode buffers now indicate via
+	the mode line whether they are currently being interpreted.
 
 	* Makefile.in: Moved the documentation onto separate targets:
 	  "info", "info_install", "postscript". Hopefully this will avoid
