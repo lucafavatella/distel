@@ -3,7 +3,7 @@
 ;;; Commentary:
 ;;
 ;; This module provides an Erlang-like runtime system in
-;; Emacs. Processes are emacs buffers with local variables containing
+;; Emacs. Processes are Emacs buffers with local variables containing
 ;; the pid, mailbox, etc.
 ;;
 ;; When a process is spawned it gets assigned a pid and a new buffer,
@@ -15,7 +15,8 @@
 ;; mailbox. If the process returns without setting a new continuation,
 ;; it terminates with 'normal' status.
 
-(require 'cl)
+(eval-when-compile (require 'cl))
+(provide 'erl)				; avoid recursive require
 (require 'derl)
 (require 'erl-service)
 (require 'patmatch)
@@ -62,7 +63,7 @@
 
 (defconst erl-null-pid (make-erl-local-pid 0)
   "\"Null process\", the /dev/null of erl processes.
-Any messages sent to this process are quietly discarded. When code
+Any messages sent to this process are quietly discarded.  When code
 isn't running in the buffer of a particular process, it's running as
 the null process.")
 
@@ -79,7 +80,7 @@ mappings for local processes.")
 (defvar erl-in-scheduler-loop nil
   "True when the scheduler loop is on the call stack, i.e. when
 schedulable processes are guaranteed to be executed before control is
-passed back to emacs.")
+passed back to Emacs.")
 
 (defvar erl-default-group-leader erl-null-pid
   ;; Initialized to a real process further down
@@ -103,13 +104,14 @@ command `erl-schedule' to continue.")
 
 ;; Process-local variables
 
+(eval-when-compile
 (defmacro defprocvar (symbol &optional initvalue docstring)
   "Define SYMBOL as a buffer-local process variable."
   `(prog1 (defvar ,symbol ,initvalue ,docstring)
      (make-variable-buffer-local ',symbol)
      ;; stop major modes' `kill-all-local-variables' from rubbing out
      ;; the process state
-     (put ',symbol 'permanent-local t)))
+     (put ',symbol 'permanent-local t))))
 
 ;; FIXME - what's the right incantation to have defprocvar fontified
 ;; as a keyword?
@@ -121,7 +123,7 @@ other buffers defaults to `erl-null-pid'.")
 (defprocvar erl-mailbox nil
   "Process mailbox.
 Contains messages for the process, which it's supposed to process and
-remove. Messages are ordered from oldest to newest.")
+remove.  Messages are ordered from oldest to newest.")
 (defprocvar erl-group-leader nil
   "Group leader process.")
 (defprocvar erl-continuation nil
@@ -144,7 +146,7 @@ This can be set and then later used to help with debugging.
 An example name would be \"Process list for z@cockatoo\"")
 
 (defmacro with-erl-process (pid &rest body)
-  "Execute BODY in PID's buffer. This is a full context-switch."
+  "Execute BODY in PID's buffer.  This is a full context-switch."
   `(with-current-buffer (erl-pid->buffer ,pid)
      ,@body))
 
@@ -204,7 +206,7 @@ alternative."
 (defun erl-send (who message)
   "Send the term MESSAGE to the process WHO.
 WHO can be a pid, a registered name (symbol), or a tuple of
-[REGISTERED-NAME NODE]."
+\[REGISTERED-NAME NODE]."
   (cond ((erl-null-pid-p who)
 	 (erl-lose-msg message))
 	((erl-local-pid-p who)
@@ -236,7 +238,7 @@ Like the erlang BIF exit/2."
 
 (defun erl-continue (k &rest args)
   "Yield control and arrange for K to be called with ARGS the next
-time this process is scheduled. Note that the process is not
+time this process is scheduled.  Note that the process is not
 \"scheduled out\" automatically, and the caller should return
 normally."
   (setq erl-continuation k)
@@ -262,15 +264,15 @@ Also makes the current process immediately reschedulable."
 (defmacro erl-receive (vars clauses &rest after)
   "Receive a message, matched by pattern.
 If the mailbox contains a matching message, the pattern's body is
-executed immediately. Otherwise, `erl-continue' is used to make the
-process continue matching when new messages arrive. The crucial
+executed immediately.  Otherwise, `erl-continue' is used to make the
+process continue matching when new messages arrive.  The crucial
 difference from Erlang's receive is that erl-receive returns
 immediately when nothing is matched, but will automatically resume
 after a new message arrives and the process is rescheduled.
 
 Since the the process may return and be rescheduled before the
 matching message is received, the clause's body might not be executed
-in the original dynamic environment. Consequently, any local variable
+in the original dynamic environment.  Consequently, any local variable
 bindings that need to be preserved should be named in VARS.
 
 After a pattern has been matched and executed, the AFTER forms are
@@ -285,8 +287,8 @@ The overall syntax for receive is:
 
 The pattern syntax is the same as `pmatch'."
   `(erl-start-receive (capture-bindings ,@vars)
-		      ,(mcase-parse-clauses clauses)
-		      (lambda () ,@after)))
+			,(mcase-parse-clauses clauses)
+			(lambda () ,@after)))
 
 (defun erl-start-receive (bs clauses after)
   ;; Setup a continuation and immediately return to the scheduler
@@ -338,7 +340,7 @@ is unregistered."
 
 ;; Guts
 ;;
-;; The scheduler works without ever being explicitly called. It runs
+;; The scheduler works without ever being explicitly called.  It runs
 ;; when a message arrives from a remote node or when a new process is
 ;; spawned, and it continues to schedule processes until none are
 ;; runnable.
@@ -354,8 +356,8 @@ is unregistered."
 (defun erl-spawn-fun (%init-function &optional %run-now-p %link)
   "Spawn a new erl process to call INIT-FUNCTION.
 If RUN-NOW-P is true, the process is called immediately with the
-current dynamic environment/bindings. Otherwise, the process is made
-schedulable. The scheduler loop is entered if we aren't being called
+current dynamic environment/bindings.  Otherwise, the process is made
+schedulable.  The scheduler loop is entered if we aren't being called
 by it already.
 If LINK is true, the process is linked before being run."
   (let* ((%pid (make-erl-local-pid))
@@ -392,7 +394,7 @@ Invokes the scheduler if necessary."
   (assert (null erl-schedulable-processes)))
 
 (defun erl-schedule-once ()
-  "Schedule the next process to run. Returns true if a process was scheduled."
+  "Schedule the next process to run.  Returns true if a process was scheduled."
   (when erl-schedulable-processes
     (erl-schedule-process (pop erl-schedulable-processes))
     t))
@@ -536,9 +538,18 @@ during the next `erl-schedule'."
   (add-hook 'kill-buffer-hook 'erl-unenroll-process)
   (add-hook 'kill-buffer-hook 'erl-propagate-exit))
 
+(defun erl-remove-if (predicate list)
+  "Return a copy of LIST with all items satisfying PREDICATE removed."
+  (let (out)
+    (while list
+      (unless (funcall predicate (car list))
+	(push (car list) out))
+      (setq list (cdr list)))
+    (nreverse out)))
+
 (defun erl-unenroll-process ()
   (setq erl-process-buffer-alist
-	(remove-if #'(lambda (x) (eq (erl-pid-id erl-self) (car x)))
+	(erl-remove-if #'(lambda (x) (eq (erl-pid-id erl-self) (car x)))
 		   erl-process-buffer-alist)))
 
 (defun erl-propagate-exit ()
@@ -615,5 +626,4 @@ during the next `erl-schedule'."
 	(rename-buffer "*erl-output*")
 	(&erl-group-leader-loop)))
 
-(provide 'erl)
 
