@@ -75,6 +75,8 @@
       
       ;; move cursor to after the marked region
       (goto-char (+ end 1))
+
+      (with-current-buffer buffer (newline 1))
       
       (erl-receive (buffer)
 	  
@@ -114,15 +116,29 @@
 
 
 ;;
-;; erl-ie-fiddle-with-me
+;; erl-ie-copy-buffer-to-session
 
-(defun erl-ie-fiddle-with-me (node)
+(defun erl-ie-copy-buffer-to-session (node)
   "Takes the content of the current buffer and opens a distel_ie session with it. This can be useful for debugging a file without ruining the content by mistake."
   (interactive (list (erl-read-nodename)))
   (let ((cloned-buffer (buffer-string)))
 
     (with-current-buffer (erl-ie-session node)
       (insert cloned-buffer))))
+
+;;
+;; erl-ie-copy-region-to-session
+
+(defun erl-ie-copy-region-to-session (start end node)
+  "Takes the content of the marked region in the current buffer and opens a distel_ie session with it. This can be useful for debugging a file without ruining the content by mistake."
+  (interactive (list
+		(region-beginning)
+		(region-end)
+		(erl-read-nodename)))
+  (let ((cloned-region (buffer-substring-no-properties start end)))
+
+    (with-current-buffer (erl-ie-session node)
+      (insert cloned-region))))
 
 
 (provide 'distel-ie)
