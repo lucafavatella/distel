@@ -1,9 +1,9 @@
 2002-10-04  Luke Gorrie  <luke@bluetail.com>
 
-	* erl/distel.erl: Can now find the source file for a module from
-	information in the beamfile saying where it was originally
-	compiled.
-	Idea & patch by Mats Cronqvist <etxmacr@cbe.ericsson.se>.
+	* erl/distel.erl, erl-service.el: Can now find the source file for
+	a module from information in the beamfile saying where it was
+	originally compiled.  Idea & patch by Mats Cronqvist
+	<etxmacr@cbe.ericsson.se>.
 
 2002-09-30  Luke Gorrie  <luke@bluetail.com>
 
