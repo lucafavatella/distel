@@ -15,18 +15,10 @@
 
 
 (require 'erlang)
-;(require 'erl-service)
 
 (make-variable-buffer-local
  (defvar erl-ie-node nil
    "Erlang node that the session is hosted on."))
-
-(defvar erl-ie-inline-results nil
-  "*Non-nil means to insert evaluation results straight into the buffer.
-Nil means print them as messages.
-
-When a prefix argument is used for session commands, the opposite
-behaviour to this default is used.")
 
 ;;
 ;; erl-ie-session
@@ -40,10 +32,17 @@ behaviour to this default is used.")
 
 (defun erl-ie-create-session (node)
   (with-current-buffer (get-buffer-create (erl-ie-buffer-name node))
-    (insert "%%% Welcome to the Distel Interactive Erlang Shell.\n\n")
+    (insert "\
+%%% Welcome to the Distel Interactive Erlang Shell.
+%%
+%% C-j evaluates an expression and prints the result in-line.
+%% C-M-x evaluates a whole function definition.
+
+")
     (push-mark (point) t)
 
     (erlang-mode)
+    (erl-session-minor-mode 1)
     (setq erl-ie-node node)
 
     ;; hiijack stdin/stdout :
@@ -72,13 +71,31 @@ behaviour to this default is used.")
     (erl-send-rpc node 'distel_ie 'ensure_registered '())))
 
 
+(defun erl-ie-eval-expression (node)
+  (interactive (list (erl-ie-read-nodename)))
+  (erl-ie-read-nodename)
+  (let ((end (point))
+	(beg (save-excursion (re-search-backward "\\(\\`\\|^\\<\\)")
+			     (point))))
+    (erl-ie-evaluate beg end node t)))
+
+(defun erl-ie-eval-defun (node)
+  (interactive (list (erl-ie-read-nodename)))
+  (erl-ie-read-nodename)
+  (let* ((beg (save-excursion (erlang-beginning-of-function)
+			      (point)))
+	 (end (save-excursion (goto-char beg)
+			      (erlang-end-of-function)
+			      (point))))
+    (erl-ie-evaluate beg end node)))
+
 ;;
 ;; erl-ie-evaluate
 ;;
 ;; this is doomed to fail, can end be the smaller value ?
 ;; want to change to (interactive "r") somehow ...
 
-(defun erl-ie-evaluate (start end node)
+(defun erl-ie-evaluate (start end node &optional inline)
   "Evaluates a marked region. The marked region can be a function definition, a function call or an expression."
   (interactive (list 
 		(region-beginning)
@@ -86,19 +103,7 @@ behaviour to this default is used.")
 		(erl-ie-read-nodename)))
 
   (let* ((string (buffer-substring-no-properties start end))
-
-	 ;; if the current buffer isn't a session; start a session
-	 ;; and copy the marked region over to it.
-	 ;; all interaction will then take place in the session buffer.
-	 (buffer   (if (string= (format "*ie session <%S>*" node) 
-				(buffer-name (current-buffer)))
-
-		       (current-buffer)
-
-		     (with-current-buffer (erl-ie-session node)
-		       (insert string)
-		       (current-buffer)))))
-    
+	 (buffer (current-buffer)))
     (erl-spawn
       (erl-send (tuple 'distel_ie node) 
 		(tuple 'evaluate erl-self string))
@@ -106,21 +111,27 @@ behaviour to this default is used.")
       (message "Sent eval request..")
 
       ;; move cursor to after the marked region
-      (goto-char (+ end 1))
-      
-      (erl-receive (buffer)
-	  
+      (goto-char (min (point-max) (1+ end)))
+      (erl-receive (buffer inline)
 	  ((['ok value]
-	    (if (erl-ie-xor erl-ie-inline-results current-prefix-arg)
-		;; insert directly into buffer
+	    (if inline
 		(with-current-buffer buffer 
 		  ;; Clear "Sent eval request.." message
 		  (message "")
 	      
-		  ;; TODO: should check the buffer for first non-whitespace 
-		  ;; before we do:
-		  (newline 1)
-		  (insert "--> ") (insert value) (newline 2)
+		  (unless (looking-at "^")
+		    (end-of-line)
+		    (insert "\n"))
+
+		  (let ((beg (point)))
+		    ;; Insert value, indent all lines of it 4 places,
+		    ;; then draw a " => " at the start.
+		    (insert value)
+		    (save-excursion (indent-rigidly beg (point) 4)
+				    (goto-char beg)
+				    (delete-region (point) (+ (point) 4))
+				    (insert " => ")))
+		  (insert "\n\n")
 		  (push-mark (point) t))
 	      (display-message-or-view (format "Result: %s" value)
 				       "*Evaluation Result*")))
@@ -199,5 +210,15 @@ behaviour to this default is used.")
 (defun erl-ie-popup-buffer (node)
   (switch-to-buffer (erl-ie-session node)))
 
+;; ------------------------------------------------------------
+;; Session minor mode.
+
+(define-minor-mode erl-session-minor-mode
+  "Minor mode for Distel Interactive Sessions."
+  nil
+  nil
+  '(("\C-j"    . erl-ie-eval-expression)
+    ("\C-\M-x" . erl-ie-eval-defun)))
 
 (provide 'distel-ie)
+
