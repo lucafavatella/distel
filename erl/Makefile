@@ -4,7 +4,7 @@ OBJS    := $(patsubst %.erl,%.beam,${SOURCES})
 all: $(OBJS)
 
 %.beam: %.erl
-	erlc $<
+	erlc +debug_info $<
 
 clean:
 	rm *.beam
