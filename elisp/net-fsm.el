@@ -238,7 +238,8 @@ buffer."
       (with-temp-buffer
 	(insert x)
 	(goto-char (point-min))
-	(replace-string "\n" "\\n")
+	(while (search-forward "\n" nil t)
+	  (replace-match "\\n" nil t))
 	(elide-string (buffer-string) 30))
     x))
 
