@@ -58,6 +58,8 @@ cache, give a prefix argument with C-u before using the command.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
 \\[edb-toggle-breakpoint]	- Toggle a debugger breakpoint at the current line.
 \\[edb-synch-breakpoints]	- Synchronizes current breakpoints to erlang.
+\\[edb-save-dbg-state]	- Save set of interpreted modules and breakpoints
+\\[edb-restore-dbg-state]	- Restore saved set of interpreted modules and breakpoints
 \\[edb-monitor]	- Popup the debugger's process monitor buffer.
 \\[erl-ie-show-session]	- Create an interactive \"session\" buffer.
 \\[erl-ie-copy-buffer-to-session]	- Create an interactive \"session\" buffer from current buffer.
