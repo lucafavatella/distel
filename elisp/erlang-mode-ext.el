@@ -3,7 +3,12 @@
 ;; Prerequisites
 (require 'erl)
 (require 'erlang)
+(require 'easy-mmode)
 (require 'erl-service)
+
+;; Compatibility with XEmacs
+(unless (fboundp 'define-minor-mode)
+  (defalias 'define-minor-mode 'easy-mmode-define-minor-mode))
 
 ;; Debugger
 (require 'edb)
