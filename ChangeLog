@@ -1,3 +1,16 @@
+2002-08-19  david wallin  <david.wallin@ul.ie>
+
+	* elisp/distel.el (erlang-extended-mode): Added keybindings 
+	for distel-ie.
+	C-c C-d s : Start a session.
+	C-c C-d c : Copy current buffer to a session.
+	C-c C-d r : Copy a marked region in the current buffer to a session.
+
+	* elisp/distel-ie.el (erl-ie-copy-buffer-to-session): Renamed
+	erl-ie-copy-to-session.
+	* elisp/distel-ie.el (erl-ie-copy-region-to-session): Same as 
+	erl-ie-copy-buffer-to-session but works on a marked region.
+
 2002-08-19  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/distel.el, elisp/erlang-mode-ext.el: Renamed
