@@ -432,17 +432,17 @@ time it spent in subfunctions."
 
 (defun erl-get-call-mfa ()
   "Return (MODULE FUNCTION ARITY) of the function call under point.
-If there is no function call under point, returns nil."
+If there is no function call under point, returns nil.
+ARITY is returned NIL if it cannot be determined."
   (save-excursion
     (erl-goto-end-of-call-name)
     (let ((arity (erl-get-arity)))
-      (unless (null arity)
-	(let ((mf (erlang-get-function-under-point)))
-	  (unless (null mf)
-	    (let ((module (intern (or (car mf)
-				      (erlang-get-module))))
-		  (function (intern (cadr mf))))
-	      (list module function arity))))))))
+      (let ((mf (erlang-get-function-under-point)))
+	(unless (null mf)
+	  (let ((module (intern (or (car mf)
+				    (erlang-get-module))))
+		(function (intern (cadr mf))))
+	    (list module function arity)))))))
 
 (defun erl-goto-end-of-call-name ()
   "Go to the end of the function or module:function part of a function call."
@@ -521,13 +521,16 @@ When FUNCTION is specified, the point is moved to its start."
     (while searching
       (cond ((search-forward str nil t)
 	     (backward-char)
-	     (when (eq (erl-get-arity) arity)
+	     (when (or (null arity)
+		       (eq (erl-get-arity) arity))
 	       (beginning-of-line)
 	       (setq searching nil)))
 	    (t
 	     (setq searching nil)
 	     (goto-char origin)
-	     (message "Couldn't find function %S/%S" function arity))))))
+	     (if arity
+		 (message "Couldn't find function %S/%S" function arity)
+	       (message "Couldn't find function %S" function)))))))
 
 (defun erl-read-symbol-or-nil (prompt)
   (let ((s (read-string prompt)))
