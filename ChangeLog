@@ -1,5 +1,8 @@
 2002-08-22  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/erl-service.el (erl-bury-viewer): Add this command, which
+	is like `erl-quit-viewer' but buries rather than kills the buffer.
+
 	* elisp/edb.el: Various debugger improvements: Monitor buffer pops
 	up when an unattached process hits a breakpoint (unless
 	`edb-popup-monitor-on-event' is nil); Monitor better intercepts

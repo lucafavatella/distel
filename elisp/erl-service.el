@@ -106,13 +106,20 @@ INFO is [PID SUMMARY-STRING]."
   "Window configuration to return to when viewing is finished.")
 (make-variable-buffer-local 'erl-old-window-configuration)
 
-(defun erl-quit-viewer ()
-  "Quit the current view and restore the original window
-  configuration."
+(defun erl-quit-viewer (&optional bury)
+  "Quit the current view and restore the old window config.
+When BURY is non-nil, buries the buffer instead of killing it."
   (interactive)
   (let ((cfg erl-old-window-configuration))
-    (kill-this-buffer)
+    (if bury
+	(bury-buffer)
+      (kill-this-buffer))
     (set-window-configuration cfg)))
+
+(defun erl-bury-viewer ()
+  "Bury the current view and restore the old window config."
+  (interactive)
+  (erl-quit-viewer t))
 
 (defvar process-list-mode-map nil
   "Keymap for Process List mode.")
