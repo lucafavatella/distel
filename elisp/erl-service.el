@@ -9,6 +9,8 @@
 ;; erlang module, which does most of the work for us.
 
 (require 'erlang)
+(eval-when-compile (require 'cl))
+(require 'erl)
 
 (add-hook 'erl-nodeup-hook 'erl-check-backend)
 
@@ -282,7 +284,7 @@ truncate to fit on the screen."
       (erl-spawn
 	(process-view-mode)
 	(setq erl-old-window-configuration (current-window-configuration))
-	(setq viewed-pid pid)
+	(setq erl-viewed-pid pid)
 	(erl-send-rpc (erl-pid-node pid)
 		      'distel 'process_summary_and_trace (list erl-self pid))
 	(erl-receive (pid)
