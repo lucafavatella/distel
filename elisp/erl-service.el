@@ -396,12 +396,27 @@ time it spent in subfunctions."
 ;; ------------------------------------------------------------
 ;; Find the source for a module
 
+(defvar erl-find-history-ring (make-ring 20)
+  "History ring tracing for following functions to their definitions.")
+
 (defun erl-find-source-under-point (node)
   (interactive (list (erl-read-nodename)))
   (let ((mfa (erl-get-call-mfa)))
     (when (null mfa)
       (error "Couldn't determine MFA of call"))
     (apply #'erl-find-source (cons node mfa))))
+
+(defun erl-find-source-unwind ()
+  "Unwind back from uses of `erl-find-source-under-point'."
+  (interactive)
+  (unless (ring-empty-p erl-find-history-ring)
+    (let* ((marker (ring-remove erl-find-history-ring))
+	   (buffer (marker-buffer marker)))
+      (if (buffer-live-p buffer)
+	  (progn (switch-to-buffer buffer)
+		 (goto-char (marker-position marker)))
+	;; If this buffer was deleted, recurse to try the next one
+	(erl-find-source-unwind)))))
 
 (defun erl-get-call-mfa ()
   "Return (MODULE FUNCTION ARITY) of the function call under point.
@@ -457,6 +472,9 @@ Should be called with point directly before the opening `('."
 (defun erl-find-source (node module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
 When FUNCTION is specified, the point is moved to its start."
+  ;; Add us to the history list
+  (ring-insert-at-beginning erl-find-history-ring
+			    (copy-marker (point-marker)))
   (erl-spawn
     (erl-send-rpc node 'distel 'find_source (list module))
     (erl-receive (function arity)
