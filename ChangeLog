@@ -1,3 +1,28 @@
+2002-06-24  Luke Gorrie  <luke@bluetail.com>
+
+	* erl/distel.erl: Erlang-side debugger support. Fprof interface
+	can parse expressions.
+
+	* elisp/erlang-mode-ext.el: More key bindings ("C-c C-e" prefix),
+	moved debugging code to edb.el
+
+	* elisp/edb.el: New file for (much improved and extended) debugger
+	code.
+
+	* elisp/erl-service.el (erl-find-source): Added erl-find-source to
+	find and load the source code for a module by name.
+	(fprof): Fprof now takes an erlang expression as input instead of
+	MFA.
+
+	* elisp/erl.el (erl-run-process): Saves current buffer when
+	invoking the process continuation, so that cleanup works when the
+	process returns in another buffer.
+
+2002-06-17  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erlang-mode-ext.el, erl/distel.erl: Beginnings of
+	debugger support: partial implementation of the "monitor".
+
 2002-06-02  Luke Gorrie  <luke@bluetail.com>
 
 	* erl/distel.erl: Added rpc_entry(M,F,A) which installs a
