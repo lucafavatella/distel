@@ -64,6 +64,7 @@ cache, give a prefix argument with C-u before using the command.
 \\[erl-ie-show-session]	- Create an interactive \"session\" buffer.
 \\[erl-ie-copy-buffer-to-session]	- Create an interactive \"session\" buffer from current buffer.
 \\[erl-ie-copy-region-to-session]	- Create an interactive \"session\" buffer from region.
+\\[erl-refactor-subfunction]	- Refactor expressions in the region as a new function.
 
 Most commands that pop up new buffers will save your original window
 configuration, so that you can restore it by pressing 'q'. Use
@@ -91,6 +92,7 @@ sequence. For general information about Emacs' online help, use
     ("\C-\M-i"   . erl-complete)	; M-TAB
     ("\M-?"      . erl-complete)	; Some windowmanagers hijack M-TAB..
     ("\C-c\C-de" . erl-ie-show-session)
+    ("\C-c\C-df" . erl-refactor-subfunction)
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
