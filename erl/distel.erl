@@ -14,9 +14,9 @@
 -import(lists, [flatten/1, member/2]).
 
 -export([rpc_entry/3, eval_expression/1, find_source/1,
-	 process_list/0, process_summary/1,
-	 process_summary_and_trace/2, fprof/3,
-	 debug_toggle/1, break_toggle/2, debug_subscribe/1]).
+         process_list/0, process_summary/1,
+         process_summary_and_trace/2, fprof/3,
+         debug_toggle/1, break_toggle/2, debug_subscribe/1]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
@@ -29,12 +29,12 @@ rpc_entry(M, F, A) ->
     GL = group_leader(),
     Name = gl_name(GL),
     case whereis(Name) of
-	undefined ->
-	    Pid = spawn(?MODULE, gl_proxy, [GL]),
-	    register(Name, Pid),
-	    group_leader(Pid, self());
-	Pid ->
-	    group_leader(Pid, self())
+        undefined ->
+            Pid = spawn(?MODULE, gl_proxy, [GL]),
+            register(Name, Pid),
+            group_leader(Pid, self());
+        Pid ->
+            group_leader(Pid, self())
     end,
     apply(M,F,A).
 
@@ -43,15 +43,15 @@ gl_name(Pid) ->
 
 gl_proxy(GL) ->
     receive
-	{io_request, From, ReplyAs, {put_chars, C}} ->
-	    GL ! {put_chars, C},
-	    From ! {io_reply, ReplyAs, ok};
-	{io_request, From, ReplyAs, {put_chars, M, F, A}} ->
-	    GL ! {put_chars, flatten(apply(M, F, A))},
-	    From ! {io_reply, ReplyAs, ok};
-	{io_request, From, ReplyAs, {get_until, _, _, _}} ->
-	    %% Input not supported, yet
-	    From ! {io_reply, ReplyAs, eof}
+        {io_request, From, ReplyAs, {put_chars, C}} ->
+            GL ! {put_chars, C},
+            From ! {io_reply, ReplyAs, ok};
+        {io_request, From, ReplyAs, {put_chars, M, F, A}} ->
+            GL ! {put_chars, flatten(apply(M, F, A))},
+            From ! {io_reply, ReplyAs, ok};
+        {io_request, From, ReplyAs, {get_until, _, _, _}} ->
+            %% Input not supported, yet
+            From ! {io_reply, ReplyAs, eof}
     end,
     gl_proxy(GL).
 
@@ -59,15 +59,15 @@ gl_proxy(GL) ->
 
 eval_expression(S) ->
     case parse_expr(S) of
-	{ok, Parse} ->
-	    case catch erl_eval:exprs(Parse, []) of
-		{value, V, _} ->
-		    {ok, flatten(io_lib:format("~p", [V]))};
-		{'EXIT', Reason} ->
-		    {error, Reason}
-	    end;
-	{error, {_, erl_parse, Err}} ->
-	    {error, Err}
+        {ok, Parse} ->
+            case catch erl_eval:exprs(Parse, []) of
+                {value, V, _} ->
+                    {ok, flatten(io_lib:format("~p", [V]))};
+                {'EXIT', Reason} ->
+                    {error, Reason}
+            end;
+        {error, {_, erl_parse, Err}} ->
+            {error, Err}
     end.
 
 parse_expr(S) ->
@@ -76,46 +76,46 @@ parse_expr(S) ->
 
 find_source(Mod) ->
     case code:ensure_loaded(Mod) of
-	{module, Mod} ->
-	    case code:is_loaded(Mod) of
-		{file, preloaded} ->
-		    {error, preloaded};
-		{file, Name} ->
-		    case guess_source_file(Name) of
-			{ok, Fname} ->
-			    {ok, Fname};
-			false ->
-			    {error, cannot_guess_sourcefile}
-		    end
-	    end;
-	{error, What} ->
-	    {error, What}
+        {module, Mod} ->
+            case code:is_loaded(Mod) of
+                {file, preloaded} ->
+                    {error, preloaded};
+                {file, Name} ->
+                    case guess_source_file(Name) of
+                        {ok, Fname} ->
+                            {ok, Fname};
+                        false ->
+                            {error, cannot_guess_sourcefile}
+                    end
+            end;
+        {error, What} ->
+            {error, What}
     end.
 
 guess_source_file(Beam) ->
     case regexp:sub(Beam, "\\.beam\$", ".erl") of
-	{ok, Src1, _} ->
-	    case file:read_file_info(Src1) of
-		{ok, #file_info{type=regular}} ->
-		    {ok, Src1};
-		_ ->
-		    case regexp:sub(Src1, "/ebin/", "/src/") of
-			{ok, Src2, _} ->
-			    case file:read_file_info(Src2) of
-				{ok, #file_info{type=regular}} ->
-				    {ok, Src2};
-				_ ->
-				    false
-			    end;
-			_ ->
-			    false
-		    end
-	    end;
-	_ ->
-	    false
+        {ok, Src1, _} ->
+            case file:read_file_info(Src1) of
+                {ok, #file_info{type=regular}} ->
+                    {ok, Src1};
+                _ ->
+                    case regexp:sub(Src1, "/ebin/", "/src/") of
+                        {ok, Src2, _} ->
+                            case file:read_file_info(Src2) of
+                                {ok, #file_info{type=regular}} ->
+                                    {ok, Src2};
+                                _ ->
+                                    false
+                            end;
+                        _ ->
+                            false
+                    end
+            end;
+        _ ->
+            false
     end.
 
-				    
+                                    
 
 %% ----------------------------------------------------------------------
 %% Summarise all processes in the system.
@@ -131,10 +131,10 @@ iformat_pid(Pid) ->
 
 name(Pid) ->
     case process_info(Pid, registered_name) of
-	{registered_name, Regname} ->
-	    atom_to_list(Regname);
-	_ ->
-	    io_lib:format("~p", [Pid])
+        {registered_name, Regname} ->
+            atom_to_list(Regname);
+        _ ->
+            io_lib:format("~p", [Pid])
     end.
 
 initial_call(Pid) ->
@@ -151,15 +151,31 @@ messages(Pid) ->
 
 iformat(A1, A2, A3, A4) ->
     list_to_binary(io_lib:format("~-21s ~-33s ~12s ~8s~n",
-				 [A1,A2,A3,A4])).
+                                 [A1,A2,A3,A4])).
 
 %% ----------------------------------------------------------------------
 %% Individual process summary and tracing.
 
+%% Returns: {ok, String} | {error, Rsn}
+process_info_item(Pid, Item) ->
+    case process_info(Pid, Item) of
+	{backtrace, Bin} ->
+	    {ok, Bin};
+	{Item, Term} ->
+	    {ok, fmt("~p~n", [Term])};
+	undefined ->
+	    case is_process_alive(Pid) of
+		true ->
+		    {ok, <<"undefined">>};
+		false ->
+		    {ok, fmt("dead process: ~p", [Pid])}
+	    end
+    end.
+
 %% Returns: Summary : binary()
 process_summary(Pid) ->
     Text = [io_lib:format("~-20w: ~w~n", [Key, Value])
-	    || {Key, Value} <- [{pid, Pid} | process_info(Pid)]],
+            || {Key, Value} <- [{pid, Pid} | process_info(Pid)]],
     list_to_binary(Text).
 
 %% Returns: Summary : binary()
@@ -183,11 +199,11 @@ trace_flags() ->
 
 tracer_loop(Tracer, Tracee) ->
     receive
-	Trace when tuple(Trace),
-		   element(1, Trace) == trace,
-		   element(2, Trace) == Tracee ->
-	    Msg = tracer_format(Trace),
-	    Tracer ! {trace_msg, list_to_binary(Msg)}
+        Trace when tuple(Trace),
+                   element(1, Trace) == trace,
+                   element(2, Trace) == Tracee ->
+            Msg = tracer_format(Trace),
+            Tracer ! {trace_msg, list_to_binary(Msg)}
     end,
     tracer_loop(Tracer, Tracee).
 
@@ -208,12 +224,10 @@ tracer_format(Msg) ->
 
 fprof(Expr) ->
     case parse_expr(Expr) of
-	{ok, Parse} ->
-	    Z = fprof_fun(fun() -> erl_eval:exprs(Parse, []) end),
-	    io:format("~p~n", [Z]),
-	    Z;
-	{error, Rsn} ->
-	    {error, Rsn}
+        {ok, Parse} ->
+            fprof_fun(fun() -> erl_eval:exprs(Parse, []) end);
+        {error, Rsn} ->
+            {error, Rsn}
     end.
 
 fprof(M,F,A) ->
@@ -240,7 +254,6 @@ fprof_header() ->
     fmt("~sCalls\tACC\tOwn\n", [pad(50, "Function")]).
 
 fprof_entry(F) ->
-    erlang:display(F),
     {Up, This, Down} = F,
     {Name, _, _, _} = This,
     {fprof_tag(Name),
@@ -262,16 +275,16 @@ fprof_tag_name(X) -> flatten(io_lib:format("~s", [fprof_tag(X)])).
 
 fprof_text({Name, Cnt, Acc, Own}) ->
     fmt("~s~p\t~.3f\t~.3f\n",
-	[pad(50, fprof_tag_name(Name)), Cnt, Acc, Own]).
+        [pad(50, fprof_tag_name(Name)), Cnt, Acc, Own]).
 
 fprof_tags(C) -> [fprof_tag(Name) || {Name,_,_,_} <- C].
 
 fprof_beamfile({M,_,_}) ->
     case code:which(M) of
-	Fname when list(Fname) ->
-	    l2b(Fname);
-	X ->
-	    undefined
+        Fname when list(Fname) ->
+            l2b(Fname);
+        X ->
+            undefined
     end;
 fprof_beamfile(_)                  -> undefined.
 
@@ -297,27 +310,27 @@ null_gl() ->
 
 debug_toggle(Mod) ->
     case member(Mod, int:interpreted()) of
-	true ->
-	    int:n(Mod),
-	    uninterpreted;
-	false ->
-	    case int:i(Mod) of
-		{module, Mod} ->
-		    interpreted;
-		error ->
-		    error
-	    end
+        true ->
+            int:n(Mod),
+            uninterpreted;
+        false ->
+            case int:i(Mod) of
+                {module, Mod} ->
+                    interpreted;
+                error ->
+                    error
+            end
     end.
 
 break_toggle(Mod, Line) ->
     case lists:any(fun({Point,_}) -> Point == {Mod,Line} end,
-		   int:all_breaks()) of
-	true ->
-	    ok = int:delete_break(Mod, Line),
-	    disabled;
-	false ->
-	    ok = int:break(Mod, Line),
-	    enabled
+                   int:all_breaks()) of
+        true ->
+            ok = int:delete_break(Mod, Line),
+            disabled;
+        false ->
+            ok = int:break(Mod, Line),
+            enabled
     end.
 
 %% Returns: {Header, [{Pid, Text}]}
@@ -338,46 +351,52 @@ debug_subscriber_init(Parent, Pid) ->
 
 debug_subscriber(Pid) ->
     receive
-	{int, {new_status, P, Status, Info}} ->
-	    Pid ! [int, [new_status, P, fmt("~w",[Status]), fmt("~w",[Info])]];
-	{int, {new_process, {P, {M,F,A}, Status, Info}}} ->
-	    Pid ! [int, [new_process,
-			 [P,
-			  fmt("~p:~p/~p", [M,F,length(A)]),
-			  fmt("~w", [Status]),
-			  fmt("~w", [Info])]]];
-	X ->
-	    io:format("Unrecognised: ~p~n", [X])
+        {int, {new_status, P, Status, Info}} ->
+            Pid ! [int, [new_status, P, fmt("~w",[Status]), fmt("~w",[Info])]];
+        {int, {new_process, {P, {M,F,A}, Status, Info}}} ->
+            Pid ! [int, [new_process,
+                         [P,
+                          fmt("~p:~p/~p", [M,F,length(A)]),
+                          fmt("~w", [Status]),
+                          fmt("~w", [Info])]]];
+        X ->
+            io:format("Unrecognised: ~p~n", [X])
     end,
     ?MODULE:debug_subscriber(Pid).
 
 debug_format(Pid, {M,F,A}, Status, Info) ->
     debug_format_row(io_lib:format("~w", [Pid]),
-		     io_lib:format("~p:~p/~p", [M,F,length(A)]),
-		     io_lib:format("~w", [Status]),
-		     io_lib:format("~w", [Info])).
+                     io_lib:format("~p:~p/~p", [M,F,length(A)]),
+                     io_lib:format("~w", [Status]),
+                     io_lib:format("~w", [Info])).
 
 debug_format_row(Pid, MFA, Status, Info) ->
     fmt("~-12s ~-21s ~-9s ~-21s~n", [Pid, MFA, Status, Info]).
 
+%% Attach the client process Emacs to the interpreted process Pid.
+%%
+%% spawn_link's a new process to proxy messages between Emacs and
+%% Pid's meta-process.
 debug_attach(Emacs, Pid) ->
     spawn_link(?MODULE, debug_attach_init, [Emacs, Pid]).
 
 debug_attach_init(Emacs, Pid) ->
     link(Emacs),
     case int:attached(Pid) of
-	{ok, Meta} ->
-	    debug_attach_loop(Emacs, Meta);
-	error ->
-	    exit({error, {unable_to_attach, Pid}})
+        {ok, Meta} ->
+            debug_attach_loop(Emacs, Meta);
+        error ->
+            exit({error, {unable_to_attach, Pid}})
     end.
 
 debug_attach_loop(Emacs, Meta) ->
     receive
-	{Meta, Msg} ->
-	    Emacs ! {meta, Msg};
-	{emacs, meta, Cmd} ->
-	    int:meta(Meta, Cmd)
+        {Meta, Msg} ->
+            Emacs ! {meta, Msg};
+        {emacs, meta, Cmd, Args} ->
+	    apply(int, meta, [Meta,Cmd|Args]);
+	{emacs, meta_query, Cmd, Args} ->
+	    Emacs ! {result, Cmd, Args, apply(int, meta, [Meta,Cmd|Args])}
     end,
-    debug_attach_loop(Emacs, Meta).
+    ?MODULE:debug_attach_loop(Emacs, Meta).
 

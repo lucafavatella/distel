@@ -1,3 +1,15 @@
+2002-07-27  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl.el (erl-idle): (erl-idle) puts the process into a
+	receive that matches nothing, making the process idle
+	indefinitely. This can be interrupted by executing code in the
+	process via an emacs command.
+
+	* elisp/erl-service.el (erl-show-process-info-item): Now possible
+	to view individual process items, with special support for
+	message queues and backtraces.
+	(erl-find-source): Better.
+
 2002-06-24  Luke Gorrie  <luke@bluetail.com>
 
 	* erl/distel.erl: Erlang-side debugger support. Fprof interface
