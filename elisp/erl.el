@@ -375,7 +375,9 @@ Calls the current continuation from within the process' buffer."
 	  (progn
 	    ;; if they (throw 'schedule-out value), we return the
 	    ;; value, otherwise nil
-	    (prog1 (catch 'schedule-out (prog1 nil (apply %k %args)))
+	    (prog1 (catch 'schedule-out
+		     (prog1 nil
+		       (save-current-buffer (apply %k %args))))
 	      (unless erl-continuation ; don't have a next continuation?
 		(erl-terminate 'normal))))
 	(erl-exit-signal (erl-terminate (cadr data)))
@@ -429,6 +431,9 @@ during the next `erl-schedule'."
   "Get PID's buffer."
   (or (cdr (assoc (erl-pid-id pid) erl-process-buffer-alist))
       (error "No buffer for pid %S" pid)))
+
+(defun erl-pid-to-string (pid)
+  (format "<*.%S.0>" (erl-pid-id pid)))
 
 (defun erl-null-pid-p (p)
   (equal p erl-null-pid))
