@@ -1,3 +1,11 @@
+2002-10-30  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-reload-module): Convenience function
+	for reloading an Erlang module. I often see people switch from
+	Emacs to an erlang shell to type "l(mymod)" after a 'make'. This
+	is a quicker way.
+	Bound to "C-c C-d L".
+
 2002-10-23  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/distel.el (report-distel-problem): New automated bug

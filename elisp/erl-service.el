@@ -415,6 +415,17 @@ time it spent in subfunctions."
       s
     (concat s ".")))
 
+(defun erl-reload-module (node module)
+  "Reload a module."
+  (interactive (list (erl-read-nodename)
+		     (let* ((module (erlang-get-module))
+			    (prompt (if module
+					(format "Module (default %s): " module)
+					"Module: ")))
+		       (intern (read-string prompt nil nil module)))))
+  (erl-eval-expression node (format "c:l('%s')." module)))
+					  
+
 ;; ------------------------------------------------------------
 ;; Find the source for a module
 
