@@ -93,11 +93,7 @@ sequence. For general information about Emacs' online help, use
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
     ("\M-*"      . erl-find-source-unwind) ; usually `pop-tag-mark'
-    )
-  (if erlang-extended-mode
-      (distel-init)
-    (distel-finish))
-  )
+    ))
 
 ;; Setup mode-line info for erlang-extended-mode
 ;;
@@ -107,6 +103,12 @@ sequence. For general information about Emacs' online help, use
 (add-to-list 'minor-mode-alist
 	     '(erlang-extended-mode
 	       (" EXT" (edb-module-interpreted ":interpreted" ""))))
+
+(add-hook 'erlang-extended-mode-hook
+	  (lambda ()
+	    (if erlang-extended-mode
+		(distel-init)
+	      (distel-finish))))
 
 (defun distel-init ()
   (setq erlang-menu-items
