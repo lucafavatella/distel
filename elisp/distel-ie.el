@@ -42,7 +42,7 @@
 ;; erl-ie-welcome-message
 
 (defun erl-ie-welcome-message ()
-  "%%% Welcome to the Distel Interactive Erlang Shell v0.0.1\n\n")
+  "%%% Welcome to the Distel Interactive Erlang Shell v0.0.2\n\n")
 
 
 ;;
@@ -66,8 +66,20 @@
 		(region-beginning)
 		(region-end)
 		(erl-read-nodename)))
-  (let ((string (buffer-substring-no-properties start end))
-	(buffer (current-buffer)))
+
+  (let* ((string (buffer-substring-no-properties start end))
+
+	 ;; if the current buffer isn't a session; start a session
+	 ;; and copy the marked region over to it.
+	 ;; all interaction will then take place in the session buffer.
+	 (buffer   (if (string= (format "*ie session <%S>*" node) 
+				(buffer-name (current-buffer)))
+
+		       (current-buffer)
+
+		     (with-current-buffer (erl-ie-session node)
+		       (insert string)
+		       (current-buffer)))))
     
     (erl-spawn
       (erl-send (tuple 'distel_ie node) 
@@ -75,7 +87,7 @@
       
       ;; move cursor to after the marked region
       (goto-char (+ end 1))
-
+      
       (with-current-buffer buffer (newline 1))
       
       (erl-receive (buffer)
@@ -104,7 +116,7 @@
 	    (message "Unexpected: %S" other)))))))
 
 
-;;
+    ;;
 ;; &erl-ie-group-leader-loop
 
 (defun &erl-ie-group-leader-loop (buf)
