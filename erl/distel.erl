@@ -295,7 +295,9 @@ l2b(X) -> list_to_binary(X).
 pad(X, A) when atom(A) ->
     pad(X, atom_to_list(A));
 pad(X, S) when length(S) < X ->
-    S ++ lists:duplicate(X - length(S), $ ).
+    S ++ lists:duplicate(X - length(S), $ );
+pad(X, S) ->
+    lists:sublist(S, X).
 
 null_gl() ->
     receive
