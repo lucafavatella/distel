@@ -148,13 +148,18 @@ Available commands:
 	  (padcut pid 12)
 	  (padcut mfa 21)
 	  (padcut status 9)
-	  (padcut info 21)))
+	  (cut info 21)))
 
 (defun padcut (s w)
   (let ((len (length s)))
     (cond ((= len w) s)
 	  ((< len w) (concat s (make-string (- w len) ? )))
 	  ((> len w) (substring s 0 w)))))
+
+(defun cut (s w)
+  (if (> (length s) w)
+      (substring s 0 w)
+    s))
 
 (defun edb-monitor-header ()
   (edb-monitor-format "PID" "Initial Call" "Status" "Info"))
