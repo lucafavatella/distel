@@ -863,8 +863,19 @@ the node, version 1.2 (or perhaps later.)"
 		     (read-string "Function name: ")
 		     (region-beginning)
 		     (region-end)))
+  ;; Skip forward over whitespace
+  (setq start (save-excursion
+                (goto-char start)
+                (skip-chars-forward " \t\r\n")
+                (point)))
+  ;; Skip backwards over trailing syntax
+  (setq end (save-excursion
+              (goto-char end)
+              (skip-chars-backward ". ,;\r\n\t")
+              (point)))
   (let ((buffer (current-buffer))
-	(text   (erl-refactor-strip-macros (buffer-substring start end))))
+	(text   (erl-refactor-strip-macros
+                 (buffer-substring start end))))
     (erl-spawn
       (erl-send-rpc node 'distel 'free_vars (list text))
       (erl-receive (name start end buffer text)
@@ -880,6 +891,7 @@ the node, version 1.2 (or perhaps later.)"
 		     (buffer-substring start end)))
 		;; rewrite the original as a call
 		(delete-region start end)
+                (goto-char start)
 		(insert (format "%s%s" name arglist))
 		(indent-according-to-mode)
 		;; Now generate the function and stick it on the kill ring
