@@ -1,3 +1,32 @@
+Version 3.3:
+
+	A User Manual is now available from the homepage,
+	http://www.bluetail.com/~luke/distel/
+
+	'fdoc' online docmentation is now included, with "C-c C-d d"
+	and "C-c C-d a" to do "describe" and "apropos",
+	respectively. 'fdoc' is a program for automatically extracting
+	documentation from the comments in source files - it primarily
+	exists in the Jungerl.
+
+	Refactoring support now exists, with a command to take an
+	expression from a function and "refactor" it into a separate
+	sub-function. Distel automatically passes the appropriate
+	variables to the new function by using the 'syntax_tools'
+	package to analyse the expression. This feature requires
+	'syntax_tools' version 1.2 to be installed separately.
+
+	Breakpoint handling in the debugger has been improved in many
+	small ways. There is also an extra keybinding for toggling
+	breakpoints, "C-x SPC", for consistency with other Emacs
+	packages.
+
+	Giving a numeric prefix argument to M-. will force it to
+	prompt for the function to lookup. This is useful if you want
+	to find the source for a function that isn't being called in
+	any code that you have handy. You can give it a numeric prefix
+	with e.g. "M-1 M-."
+
 Version 3.2:
 
 	Completion of module and function names. So list:keyso
