@@ -23,6 +23,10 @@
   :type 'boolean
   :group 'distel)
 
+(defvar derl-cookie nil
+  "Cookie to use in distributed erlang connections, or NIL.
+When NIL, we read ~/.erlang.cookie.")
+
 ;; Local variables
 
 (make-variable-buffer-local
@@ -194,9 +198,10 @@ gen_digest() function:
    (md5 (concat (erl-cookie) (int32-to-decimal challenge)))))
 
 (defun erl-cookie ()
-  (with-temp-buffer
-    (insert-file-contents (concat (getenv "HOME") "/.erlang.cookie"))
-    (buffer-string)))
+  (or derl-cookie
+      (with-temp-buffer
+	(insert-file-contents (concat (getenv "HOME") "/.erlang.cookie"))
+	(buffer-string))))
 
 ;; ------------------------------------------------------------
 ;; Alive/connected state
