@@ -1132,10 +1132,8 @@ refresh_callers(Callers, Applies) ->
     map(fun refresh_dir/1, Callers).
 
 ts(F) ->
-    case file:read_file_info(F) of
-	{ok, FI} -> {ok, FI#file_info.mtime};
-	_        -> error
-    end.
+    {ok, FI} = file:read_file_info(F),
+    FI#file_info.mtime.
     
 refresh_dir({Dir, Mods}) ->
     case file:list_dir(Dir) of
