@@ -9,7 +9,7 @@ infodir     = @infodir@
 erlc        = @erlc@
 emacs       = @emacs@
 
-ELISP_DIR = ${datadir}/emacs/site-lisp/distel
+ELISP_DIR = ${datadir}/${emacs}/site-lisp/distel
 EBIN_DIR = ${datadir}/distel/ebin
 ERL_SRC_DIR = ${datadir}/distel/src
 

@@ -1,5 +1,7 @@
 ;; Testing
 
+(require 'distel)
+
 (defun erl-test ()
   (interactive)
   (erl-message-test)
@@ -69,4 +71,23 @@
        ([Other Msg]
 	(message "Other: %S %S" other msg)))
     (erl-tag-srv-loop tag)))
+
+;; Interactive testing for high level features
+
+(defvar erl-interactive-test-cases
+  (list (lambda (node) (erl-process-list node))
+	(lambda (node)
+	  (find-file "/home/luke/devel/erlang/foo.erl")
+	  (erlang-mode)
+	  (erlang-extended-mode t)
+	  (message "DebugMe"))))
+
+(defvar erl-interactive-remaining-cases
+  erl-interactive-test-cases)
+
+(defun erl-interactive-next-test (node)
+  (interactive (list (erl-read-nodename)))
+  (when current-prefix-arg
+    (setq erl-interactive-remaining-cases erl-interactive-test-cases))
+  (funcall (pop erl-interactive-remaining-cases) node))
 

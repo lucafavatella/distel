@@ -123,8 +123,9 @@ Use the distribution protocol's EXIT2 message."
   (when (derl-have-msg)
     (goto-char (point-min))
     (erlext-read2)			; skip length
-    (unless (equal 110 (erlext-read1))	; tag-check (n)
-      (fsm-fail 'wrong-tag))
+    (let ((tag (erlext-read1)))
+      (unless (equal 110 tag)	; tag-check (n)
+	(fsm-fail (format nil "wrong-tag: %S" tag))))
     (let ((version (erlext-read2))
 	  (flags   (erlext-read4))
 	  (challenge (erlext-readn 4))

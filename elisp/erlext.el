@@ -48,6 +48,16 @@
   (unless (featurep 'xemacs)
     (cons 'progn body)))
 
+;; Some runtime tests to make sure the right compiler was used.
+
+(xemacs-only
+ (unless (featurep 'xemacs)
+   (error "Error: This file (erlext.elc) was compiled for XEmacs.")))
+
+(gnu-only
+ (when (featurep 'xemacs)
+   (error "Error: This file (erlext.elc) was not compiled for XEmacs.")))
+
 ;; type tags
 
 (defconst erlext-tag-alist

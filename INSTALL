@@ -4,8 +4,12 @@ Installation
 1. Build and install the software in the usual way:
      ./configure && make && [sudo] make install
 
-   (If you checked out from CVS, you'll have to run 'autoconf' first,
-   to create 'configure')
+   If you checked out from CVS, you'll have to run 'autoconf' first,
+   to create 'configure'.
+
+   If you use XEmacs but the configure script detects 'emacs', you
+   should do "make emacs=xemacs" for both the compile and install
+   steps.
 
 [The following two steps can be done manually, or you can just do
 "make config_install" instead. It will append these lines to your
