@@ -1,5 +1,9 @@
 2002-11-05  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/erl.el (erl-make-ref): Equivalent to make_ref/0 BIF in
+	Erlang. Also added support for encoding/decoding refs "on the
+	wire" (erlext.el).
+
 	* elisp/erlext.el (erlext-read-obj): Bignums are now skipped over,
 	giving the symbol SMALL-BIGNUM or LARGE-BIGNUM instead of an
 	error.

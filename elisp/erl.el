@@ -87,6 +87,9 @@ Such errors are allowed to propagate, so you can debug them using
 Because this interrupts the scheduling of processes, you must use the
 command `erl-schedule' to continue.")
 
+(defvar erl-ref-counter 0
+  "Unique reference id counter.")
+
 ;; Process-local variables
 
 (defmacro defprocvar (symbol &optional initvalue docstring)
@@ -190,7 +193,7 @@ alternative."
 (defun erl-send (who message)
   "Send the term MESSAGE to the process WHO.
 WHO can be a pid, a registered name (symbol), or a tuple of
- [tuple REGNAME NODENAME]."
+[REGISTERED-NAME NODE]."
   (cond ((erl-null-pid-p who)
 	 (erl-lose-msg message))
 	((erl-local-pid-p who)
@@ -208,15 +211,17 @@ WHO can be a pid, a registered name (symbol), or a tuple of
 	(t
 	 (error "Bad pid: %S" who))))
 
-(defun erl-exit (why)
+(defun erl-exit (why &optional process)
   "Exit the current process.
 Like the erlang BIF exit/1."
-  (signal 'erl-exit-signal (list why)))
+  (if process
+      (erl-send-exit erl-self who why)
+    (signal 'erl-exit-signal (list why))))
 
 (defun erl-exit/2 (who why)
   "Exit a process.
 Like the erlang BIF exit/2."
-  (erl-send-exit erl-self who why))
+  (erl-exit why who))
 
 (defun erl-continue (k &rest args)
   "Yield control and arrange for K to be called with ARGS the next
@@ -236,7 +241,12 @@ Also makes the current process immediately reschedulable."
   (erl-receive ()
       ()))
 
+(defun erl-make-ref ()
+  "Make a unique reference object."
+  (vector erl-tag 'erl-ref erl-node-name (incf erl-ref-counter) 0))
+
 ;; receive
+
 
 (defmacro erl-receive (vars clauses &rest after)
   "Receive a message, matched by pattern.
@@ -492,6 +502,10 @@ during the next `erl-schedule'."
   "True iff X is the pid of a remote process."
   (and (erl-pid-p x)
        (not (erl-local-pid-p x))))
+
+(defun erl-pid->string (pid)
+  ;; FIXME: number nodes
+  (format "<0.%S.%S>" (erl-pid-serial pid) (erl-pid-id pid)))
 
 (defun erl-lose-msg (msg)
   "Log and discard a message sent to the null process."

@@ -154,7 +154,9 @@ itself.")
 	       ((erl-pid)
 		(apply #'erlext-write-pid elts))
 	       ((erl-port)
-		(apply #'erlext-write-port elts))))))
+		(apply #'erlext-write-port elts))
+	       ((erl-ref)
+		(apply #'erlext-write-ref elts))))))
         ((integerp obj)
          (erlext-write-int obj))
         (t
@@ -242,6 +244,11 @@ itself.")
   (erlext-write-obj node)
   (erlext-write4 id)
   (erlext-write1 creation))
+(defun erlext-write-ref (node id creation)
+  (erlext-write1 (erlext-get-code 'ref))
+  (erlext-write-obj node)
+  (erlext-write4 id)
+  (erlext-write1 creation))
 
 ;; ------------------------------------------------------------
 ;; Decoding
@@ -284,6 +291,11 @@ itself.")
 			    'erl-port
 			    (erlext-read-obj) ; node
 			    (erlext-read4) ; id
+			    (erlext-read1))) ; creation
+      ((ref)        (vector erl-tag
+			    'erl-ref
+			    (erlext-read-obj) ; node
+			    (erlext-read4) ;id
 			    (erlext-read1))) ; creation
       ((smallBig)   (erlext-read-small-bignum))
       ((largeBig)   (erlext-read-large-bignum))
