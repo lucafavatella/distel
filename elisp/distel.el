@@ -131,6 +131,8 @@ sequence. For general information about Emacs' online help, use
       ("Toggle debug interpreting of the module" edb-toggle-interpret)
       ("Toggle a breakpoint at current line" edb-toggle-breakpoint)
       ("Synchronizes current breakpoints to erlang" edb-synch-breakpoints)
+      ("Save debugger state" edb-save-dbg-state)
+      ("Restore debugger state" edb-restore-dbg-state)
       ("Popup the debugger process monitor" edb-monitor)
       nil
       ("Create an interactive erlang session buffer" erl-ie-show-session)
