@@ -8,7 +8,7 @@
 	same behaviour as `distel-tags-compliant', i.e. prompt for
 	function name. Useful for jumping to functions that aren't being
 	called anywhere handy.
-	(erl-find-source-under-point): Slightly improved error reportage.
+	(erl-refactor-subfunction): Slightly improved error reportage.
 
 	* elisp/edb.el (edb-new-attach-buffer): Inhibiting
 	`erlang-new-file-hook' in attach buffers. It was misfiring and
