@@ -41,10 +41,12 @@ Wild card: _ (underscore)
 Sequence: (pat1 ...), [pat1 ...]
   Matches the \"shape\" of the pattern, as well as each individual
   subpattern."
-  `(mcase ,object
-     (,pattern ,@body)
-     (_        (signal 'erl-exit-signal
-		       (list (tuple 'badmatch ',pattern ,object))))))
+  (let ((var (gensym)))
+    `(let ((,var ,object))	; so that we just eval `object' once
+       (mcase ,var
+	 (,pattern ,@body)
+	 (_        (signal 'erl-exit-signal
+			   (list (tuple 'badmatch ',pattern ,var))))))))
 
 (defun mcase* (object clauses)
   "Clauses = ((TEST . ACTIONS) ...)"
@@ -56,8 +58,14 @@ Sequence: (pat1 ...), [pat1 ...]
 	   (result  (patmatch pattern object)))
       (if (eq result 'fail)
 	  (mcase* object (cdr clauses))
-	(eval `(let ,(alist-to-list result)
+	(eval `(let ,(alist-to-letlist result)
 		 ,@action))))))
+
+(defun alist-to-letlist (alist)
+  "Convert an alist into `let' binding syntax, eg: ((A . B)) => ((A 'B))"
+  (mapcar (lambda (cell)
+	    (list (car cell) (list 'quote (cdr cell))))
+	  alist))
 
 (defun patmatch (pattern object &optional bindings)
   "Match OBJECT with PATTERN, and return an alist of bindings."
@@ -141,12 +149,6 @@ Example: (QUOTE QUOTE)"
 
 (defun pmatch-bound-var-name (sym)
   (intern (substring (symbol-name sym) 1)))
-
-(defun alist-to-list (alist)
-  "Convert an alist into a normal list, e.g. ((A . B)) => ((A B))"
-  (mapcar (lambda (cell)
-	    (list (car cell) (cdr cell)))
-	  alist))
 
 (defun pmatch-alist-keysort (alist)
   (sort alist (lambda (a b)
