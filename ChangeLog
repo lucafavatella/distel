@@ -1,4 +1,35 @@
+2002-08-03  Luke Gorrie  <luke@bluetail.com>
+
+	* Everywhere: Changed the datatype mapping so that tuples are just
+	vectors, so {ok, "foo"} becomes [ok "foo"] instead of
+	[tuple ok "foo"]. Pids and ports, which are also vectors, now
+	contain a special `erl-tag' in their first element, which is the
+	uninterned symbol `TYPE'. Because the symbol is uninterned, it's
+	not equal to what you get from 'TYPE, even though it looks the
+	same. It's distinct from any value that can appear in an actual
+	tuple, so the mapping is unambiguous.
+
+	This modification is _not_ backwards compatible. Any tuple-based
+	pattern matching needs to be updated, and any accesses to tuple
+	elements with `elt' will now be off-by-one (there is a `tuple-elt'
+	function to use instead, which indexes from 1). I've fixed
+	everything that grepped on "elt" or "tuple", and everything seems
+	to work.
+	
+	I'd been scratching for a nice way to do this since the beginning
+	-- an uninterned symbol is just right.
+	
+2002-08-02  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/derl.el (ensure-have-dec32): Rewrite based on
+	`locate-library', hopefully now more portable.
+
 2002-08-01  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-goto-end-of-call-name): Added a
+	work-around for the installation on Tobbe's machine, which doesn't
+	put ':' in the same syntax class as mine does. Cause as yet
+	unknown.
 
 	* elisp/erlang-mode-ext.el: Decided to hijack the TAGS key
 	bindings, so now M-. takes you from a function call to the
