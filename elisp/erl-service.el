@@ -16,8 +16,8 @@ commands. Using C-u to bypasses the cache.")
 
 (defun erl-read-nodename ()
   "Read a node name, either from a cached variable or the minibuffer.
-If a prefix argument is in effect, the cache in skipped."
-  (if (and (not current-prefix-arg)
+If a universal (C-u) prefix argument is in effect, the cache in skipped."
+  (if (and (not (consp current-prefix-arg))
 	   erl-nodename-cache)
       erl-nodename-cache
     (erl-read-nodename-from-user)))
@@ -503,12 +503,17 @@ look in, with the following algorithm:
     Again with /ebin/ replaced with /erl/
     Directory where source file was originally compiled
 
-  Otherwise, report that the file can't be found."
+  Otherwise, report that the file can't be found.
+
+When `distel-tags-compliant' is non-nil, or a numeric prefix argument
+is given, the user is prompted for the function to lookup (with a
+default.)"
   (interactive)
   (let ((mfa (erl-get-call-mfa)))
     (when (null mfa)
       (error "Couldn't determine MFA of call"))
-    (if distel-tags-compliant
+    (if (or distel-tags-compliant
+	    (integerp current-prefix-arg))
 	(let* ((module (erlang-get-module))
 	       (str (cond ((null (caddr mfa))  ; no arity (e.g. an apply)
 			   (format "%s" (cadr mfa)))
@@ -801,9 +806,11 @@ the node, version 1.2 (or perhaps later.)"
     (erl-spawn
       (erl-send-rpc node 'distel 'free_vars (list text))
       (erl-receive (name start end buffer text)
-	  ((['badrpc rsn]
-	    (error "Refactor failed: %S" rsn))
-	   (['rex free-vars]
+	  ((['rex ['badrpc rsn]]
+	    (message "Refactor failed: %S" rsn))
+	   (['rex ['error rsn]]
+	    (message "Refactor failed: %s" rsn))
+	   (['rex ['ok free-vars]]
 	    (with-current-buffer buffer
 	      (let ((arglist
 		     (concat "(" (mapconcat 'symbol-name free-vars ", ") ")"))
