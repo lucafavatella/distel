@@ -59,17 +59,17 @@ This variable is meaningful in erlang-extended-mode buffers.
 The interpreted status refers to the node currently being monitored by
 edb."))
 
-(defun edb-update-interpreted-buffer ()
+(defun edb-setup-source-buffer ()
   (make-local-variable 'kill-buffer-hook)
   (add-hook 'kill-buffer-hook 'edb-delete-buffer-breakpoints)
   (make-local-variable 'after-change-functions)
   (add-to-list 'after-change-functions 'edb-make-breakpoints-stale)
   (edb-update-interpreted-status)
-  (let ((mod (edb-source-file-module-name)))
-    (if (assq mod edb-interpreted-modules)
-	(edb-create-buffer-breakpoints mod))))
+  (when edb-module-interpreted
+    (edb-create-buffer-breakpoints (edb-module))))
 
-(add-hook 'erlang-extended-mode-hook 'edb-update-interpreted-buffer)
+(add-hook 'erlang-extended-mode-hook
+	  'edb-setup-source-buffer)
 
 ;; ----------------------------------------------------------------------
 ;; EDB minor mode for erlang-mode source files
@@ -102,6 +102,8 @@ edb."))
   (interactive (list (erl-read-nodename)
 		     (edb-module)
 		     (edb-line-number)))
+  (unless edb-module-interpreted
+    (error "Module is not interpreted, can't set breakpoints."))
   (if edb-buffer-breakpoints-stale
       (edb-toggle-stale-breakpoint module line)
     (edb-toggle-real-breakpoint node module line)))
@@ -371,12 +373,13 @@ Tracks events and state changes from the Erlang node."
 (defun edb-update-interpreted-status ()
   "Update `edb-module-interpreted' for current buffer."
   (when erlang-extended-mode
-    (if (assq (edb-source-file-module-name) edb-interpreted-modules)
-	(setq edb-module-interpreted t)
-      (setq edb-module-interpreted nil)
-      ;; the erlang debugger automatically removes breakpoints when a
-      ;; module becomes uninterpreted, so we match it here
-      (edb-delete-breakpoints (edb-source-file-module-name)))
+    (let ((mod (edb-source-file-module-name)))
+      (if (and mod (assq mod edb-interpreted-modules))
+	  (setq edb-module-interpreted t)
+	(setq edb-module-interpreted nil)
+	;; the erlang debugger automatically removes breakpoints when a
+	;; module becomes uninterpreted, so we match it here
+	(edb-delete-breakpoints (edb-source-file-module-name))))
     (force-mode-line-update)))
 
 (defun edb-update-source-buffers (&optional mod)
@@ -736,8 +739,11 @@ Available commands:
 
 (defun edb-create-buffer-breakpoints (mod)
   "Creates buffer breakpoints in the current buffer."
+  (when edb-buffer-breakpoints
+    ;; remove old/stale breakpoints
+    (edb-delete-buffer-breakpoints))
   (setq edb-buffer-breakpoints (edb-mk-bbps mod)))
-	    
+
 (defun edb-delete-buffer-breakpoints ()
   "Deletes all buffer breakpoints in the current buffer."
   (setq edb-buffer-breakpoints 
@@ -774,8 +780,12 @@ I.e. deletes all old breakpoints, and re-applies them at the current line."
       (setq edb-buffer-breakpoints-stale nil))))
 
 (defun edb-make-breakpoints-stale (begin end length)
+  "Make breakpoints in the current buffer stale.
+Has no effect if the buffer's module is not interpreted, or the
+breakpoints are already marked as stale."
   (when (and (not edb-attach-buffer)
-	     (not edb-buffer-breakpoints-stale))
+	     (not edb-buffer-breakpoints-stale)
+	     edb-module-interpreted)
     (mapc (lambda (bbp)
 	    (let ((ov (bbp-ov bbp)))
 	      (overlay-put ov 'face 'edb-breakpoint-stale-face)))
