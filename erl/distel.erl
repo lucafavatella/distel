@@ -88,10 +88,16 @@ find_source(Mod) ->
                         {ok, Fname} ->
                             {ok, Fname};
                         false ->
-                            {error, fmt("Can't guess matching source file from ~p",
-				       [Name])}
-                    end
-            end;
+			    case guess_source_file_from_modinfo(Mod) of
+				{ok, Fname} ->
+				    {ok, Fname};
+				false ->
+				    {error, fmt("Can't guess matching "
+						"source file from ~p",
+						[Name])}
+			    end
+		    end
+	    end;
 	{error, nofile} ->
 	    {error, fmt("Can't find module '~p' on ~p", [Mod, node()])};
         {error, Why} ->
@@ -105,6 +111,31 @@ abs_beamfile_name(RelName) ->
 	_ ->
 	    RelName
     end.
+
+guess_source_file_from_modinfo(Mod) ->
+    case get_cwd(Mod) of
+      false -> false;
+      {ok, CWD} ->
+          Src = filename:join([CWD, to_list(Mod)++".erl"]),
+          case file:read_file_info(Src) of
+              {ok, #file_info{type=regular}} -> {ok, Src};
+              _ -> false
+          end
+    end.
+
+get_cwd(Mod) ->
+    case [O || {options, O} <- Mod:module_info(compile)] of
+      [Opts] -> 
+          case [C || {cwd, C} <- Opts] of
+              [C] -> {ok, to_list(C)};
+              _ -> false
+          end;
+      _ -> 
+          false
+    end.
+
+to_list(A) when atom(A) -> atom_to_list(A);
+to_list(L) when list(L) -> L.
 
 guess_source_file(Beam) ->
     case regexp:sub(Beam, "\\.beam\$", ".erl") of
