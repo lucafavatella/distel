@@ -1,3 +1,9 @@
+2004-01-09  Luke Gorrie  <luke@bluetail.com>
+
+	* erl/distel.erl (debug_toggle): Call code:ensure_loaded/1 to
+	make sure a module is loaded before trying to interpret. This is
+	an attempt to avoid not-properly-understood debugger problems.
+
 2003-06-11  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-refactor-strip-macros): Now removing
