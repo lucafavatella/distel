@@ -1,9 +1,16 @@
 Version 3.0: (Work in progress)
 
-	Debugger, dynamic TAGS, and generally "end-user" applications.
+	Lots and lots and lots.
+
+	Dynamic TAGS, debugger, profiler, shell-cum-scratchpad, and
+	generally "end-user" applications.
 	
-	Thanks are due to David Wallin, Torbjörn Törnkvist, and Darius
-	Bacon (so far..) for hacks and ideas.
+	Substantial improvements to the programming interface too,
+	particularly eliminating the ugly `tuple' tag.
+
+	Thanks are due to David Wallin (!), Torbjörn Törnkvist, and
+	Darius Bacon (so far..) for hacks and ideas, and all the good
+	sports here at Bluetail for beta testing :-)
 
 Version 2.0:
 
