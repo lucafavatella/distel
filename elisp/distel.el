@@ -6,7 +6,7 @@
 
 (provide 'distel)
 
-(defconst distel-version "3.1")
+(defconst distel-version "3.3")
 
 ;; Customization
 
@@ -84,6 +84,7 @@ sequence. For general information about Emacs' online help, use
   nil
   nil
   '(("\C-c\C-di" . edb-toggle-interpret)
+    ("\C-x "     . edb-toggle-breakpoint)
     ("\C-c\C-db" . edb-toggle-breakpoint)
     ("\C-c\C-ds" . edb-synch-breakpoints)
     ("\C-c\C-dS" . edb-save-dbg-state)
