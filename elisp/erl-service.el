@@ -113,11 +113,14 @@ INFO is [tuple PID SUMMARY-STRING]."
 (defvar process-list-mode-map nil
   "Keymap for Process List mode.")
 
-(unless process-list-mode-map
+(when (null process-list-mode-map)
   (setq process-list-mode-map (make-sparse-keymap))
   (define-key process-list-mode-map [?q] 'erl-quit-viewer)
   (define-key process-list-mode-map [return] 'erl-show-process-info)
-  (define-key process-list-mode-map [(control m)] 'erl-show-process-info))
+  (define-key process-list-mode-map [(control m)] 'erl-show-process-info)
+  (define-key process-list-mode-map [?i] 'erl-show-process-info-item)
+  (define-key process-list-mode-map [?b] 'erl-show-process-backtrace)
+  (define-key process-list-mode-map [?m] 'erl-show-process-messages))
 
 (defun process-list-mode ()
   "Major mode for viewing Erlang process listings."
@@ -136,6 +139,48 @@ INFO is [tuple PID SUMMARY-STRING]."
     (if (null pid)
 	(message "No process at point.")
       (erl-view-process pid))))
+
+(defun erl-show-process-info-item (item)
+  "Show a piece of information about process at point."
+  (interactive (list (intern (read-string "Item: "))))
+  (let ((pid (get-text-property (point) 'erl-pid)))
+    (if (null pid)
+	(message "No process at point.")
+      (erl-spawn
+	(erl-send-rpc (erl-pid-node pid)
+		      'distel 'process_info_item (list pid item))
+	(erl-receive (item pid)
+	    (([tuple rex [tuple ok String]]
+	      (display-message-or-view string "*pinfo item*"))
+	     (Other
+	      (message "Error from erlang side of process_info:\n  %S"
+		       other))))))))
+
+(defun display-message-or-view (msg bufname)
+  "Like `display-buffer-or-message', but with `view-buffer-other-window'.
+That is, if a buffer pops up it will be in view mode, and pressing q
+will get rid of it."
+  (let ((buf (save-window-excursion
+	       (let ((res (display-message-or-buffer msg)))
+		 (if (windowp res)
+		     (window-buffer res)
+		   nil)))))
+    (when buf
+      ;; Kill old buffer
+      (when (get-buffer bufname)
+	(kill-buffer bufname))
+      (with-current-buffer buf
+	(rename-buffer bufname))
+      (let ((win (selected-window)))
+	(view-buffer-other-window buf)
+	(select-window win)))))
+
+(defun erl-show-process-messages ()
+  (interactive)
+  (erl-show-process-info-item 'messages))
+(defun erl-show-process-backtrace ()
+  (interactive)
+  (erl-show-process-info-item 'backtrace))
 
 ;; ------------------------------------------------------------
 ;; Single process viewer
@@ -343,31 +388,91 @@ time it spent in subfunctions."
 ;; ------------------------------------------------------------
 ;; Find the source for a module
 
-(defun erl-find-source (node module &optional function k kargs)
+(defun erl-find-source-under-point (node)
+  (interactive (list (erl-read-nodename)))
+  (let ((mfa (erl-get-call-mfa)))
+    (when (null mfa)
+      (error "Couldn't determine MFA of call"))
+    (apply #'erl-find-source (cons node mfa))))
+
+(defun erl-get-call-mfa ()
+  "Return (MODULE FUNCTION ARITY) of the function call under point.
+If there is no function call under point, returns nil."
+  (save-excursion
+    (erl-goto-end-of-call-name)
+    (let ((arity (erl-get-arity)))
+      (unless (null arity)
+	(let ((mf (erlang-get-function-under-point)))
+	  (unless (null mf)
+	    (let ((module (intern (or (car mf)
+				      (erlang-get-module))))
+		  (function (intern (cadr mf))))
+	      (list module function arity))))))))
+
+(defun erl-goto-end-of-call-name ()
+  "Go to the end of the function or module:function part of a function call."
+  ;; We basically just want to do forward-sexp iff we're not already
+  ;; in the right place
+  (unless (member (char-syntax (char-after (point)))
+		  '(?w ?_))
+    (backward-sexp))
+  (forward-sexp))
+
+(defun erl-get-arity ()
+  "Get the number of arguments in a function call.
+Should be called with point directly before the opening `('."
+  ;; Adapted from erlang-get-function-arity.
+  (and (looking-at "[\n\r ]*(")
+       (save-excursion
+	 (goto-char (match-end 0))
+	 (condition-case nil
+	     (let ((res 0)
+		   (cont t))
+	       (while cont
+		 (cond ((eobp)
+			(setq res nil)
+			(setq cont nil))
+		       ((looking-at "\\s *)")
+			(setq cont nil))
+		       ((looking-at "\\s *\\($\\|%\\)")
+			(forward-line 1))
+		       ((looking-at "\\s *,")
+			(incf res)
+			(goto-char (match-end 0)))
+		       (t
+			(when (zerop res)
+			  (incf res))
+			(forward-sexp 1))))
+	       res)
+	   (error nil)))))
+
+(defun erl-find-source (node module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
-When FUNCTION is specified, the point is moved to its start.
-When a continuation K is given, it is invoked from inside the source
-buffer."
-  (interactive (list (erl-read-nodename)
-		     (intern (read-string "Module: "))
-		     (erl-read-symbol-or-nil "Function (optional): ")))
+When FUNCTION is specified, the point is moved to its start."
   (erl-spawn
     (erl-send-rpc node 'distel 'find_source (list module))
-    (erl-receive (function k kargs)
+    (erl-receive (function arity)
 	(([tuple rex [tuple ok Path]]
 	  (find-file path)
 	  (when function
-	    (erl-search-function function))
-	  (when k (apply k kargs)))
+	    (erl-search-function function arity)))
 	 ([tuple rex [error Reason]]
 	  (error "%S" reason))))))
 
-(defun erl-search-function (function)
-  (let ((str (concat "\n" (symbol-name function) "(")))
+(defun erl-search-function (function arity)
+  (let ((origin (point))
+	(str (concat "\n" (symbol-name function) "("))
+	(searching t))
     (goto-char (point-min))
-    (if (search-forward str nil nil)
-	(beginning-of-line)
-      (message "Couldn't find function %S" function))))
+    (while searching
+      (cond ((search-forward str nil t)
+	     (beginning-of-line)
+	     (when (eq (erlang-get-function-arity) arity)
+	       (setq searching nil)))
+	    (t
+	     (setq searching nil)
+	     (goto-char origin)
+	     (message "Couldn't find function %S/%S" function arity))))))
 
 (defun erl-read-symbol-or-nil (prompt)
   (let ((s (read-string prompt)))
