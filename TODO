@@ -1,10 +1,19 @@
-For coming release:
+-*- outline -*-
 
-- Highlight breakpoints
-+ Fix fprof gui
-- Find a way to overide which Emacs to use with ./configure
+* Build and install
 
-New features:
+Autoconf and portability to non-GNU systems is a bit of a mystery to
+me, so nic build & install will happen gradually. Contributions from
+people on non-GNU systems would be especially appreciated.
 
-- Speedbars
-- get-steve-jobs-hooked-on-distel-hook
+- Manual override for which Emacs to use in ./configure
+- Make all code byte-compile cleanly
+- Autoloads
+
+* Debugger
+- Popup monitor when something "interesting" happens
+- Visual breakpoint markers
+
+* Profiler
+- Tree-view, like OptimizeIt for Java
+

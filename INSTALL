@@ -11,12 +11,17 @@ Installation
    should do "make emacs=xemacs" for both the compile and install
    steps.
 
+2. Optionally build an Info version of the Distel programming manual,
+   with "make info" and "make info_install"
+
+   You can also build a Postscript version with "make postscript"
+
 [The following two steps can be done manually, or you can just do
 "make config_install" instead. It will append these lines to your
 ~/.emacs and ~/.erlang (but only if they aren't already there). I
 ain't touchin' yer dotfiles without permission.]
 
-2. To have Distel's erlang support libraries available in all your
+3. To have Distel's erlang support libraries available in all your
    nodes, add this line to your ~/.erlang:
 
      code:add_pathz("/usr/local/share/distel/ebin").
@@ -24,14 +29,10 @@ ain't touchin' yer dotfiles without permission.]
   (If you used an install prefix other than /usr/local, change that
   line appropriately.)
 
-3. To automatically enable the erlang-extended-mode for editing Erlang
+4. To automatically enable the erlang-extended-mode for editing Erlang
    files, add this to your ~/.emacs:
 
-     (require 'erlang-mode-ext)
-
-     (defun distel-erlang-mode-hook ()
-       (erlang-extended-mode t))
-
+     (require 'distel)
      (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)
 
 And you should be all set! README says how to get started.

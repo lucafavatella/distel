@@ -28,3 +28,12 @@ Hope you enjoy, and please send hacks or feedback to luke@bluetail.com!
 
 PS: The "dynamic TAGS" with M-. and M-, is the coolest bit!
 
+Compatibility notes:
+
+  The profiler front end requires >= R8B (to get fprof)
+  The debugger front end requires >= R8B-1
+
+  Distel itself is tested with GNU Emacs 20.x and 21.x, and XEmacs
+  21.x. Snapshots from CVS may sometimes only work with GNU Emacs 21
+  (or, of course, not work at all :-))
+
