@@ -65,14 +65,17 @@ gl_proxy(GL) ->
 eval_expression(S) ->
     case parse_expr(S) of
         {ok, Parse} ->
-            case catch erl_eval:exprs(Parse, []) of
-                {value, V, _} ->
-                    {ok, flatten(io_lib:format("~p", [V]))};
-                {'EXIT', Reason} ->
-                    {error, Reason}
-            end;
+            try_evaluation(Parse);
         {error, {_, erl_parse, Err}} ->
             {error, Err}
+    end.
+
+try_evaluation(Parse) ->
+    case catch erl_eval:exprs(Parse, []) of
+	{value, V, _} ->
+	    {ok, flatten(io_lib:format("~p", [V]))};
+	{'EXIT', Reason} ->
+	    {error, Reason}
     end.
 
 parse_expr(S) ->
