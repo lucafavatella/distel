@@ -75,7 +75,9 @@ sequence. For general information about Emacs' online help, use
   nil
   '(("\C-c\C-di" . edb-toggle-interpret)
     ("\C-c\C-db" . edb-toggle-breakpoint)
-    ("\C-c\C-dS" . edb-synch-breakpoints)
+    ("\C-c\C-ds" . edb-synch-breakpoints)
+    ("\C-c\C-dS" . edb-save-dbg-state)
+    ("\C-c\C-dR" . edb-restore-dbg-state)
     ("\C-c\C-dm" . edb-monitor)
     ("\C-c\C-d:" . erl-eval-expression)
     ("\C-c\C-dL" . erl-reload-module)
@@ -86,11 +88,11 @@ sequence. For general information about Emacs' online help, use
     ("\C-c\C-dl" . erl-process-list)
     ("\C-\M-i"   . erl-complete)	; M-TAB
     ("\M-?"      . erl-complete)	; Some windowmanagers hijack M-TAB..
-    ("\C-c\C-ds" . erl-ie-show-session)
+    ("\C-c\C-de" . erl-ie-show-session)
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
-    ("\M-*"      . erl-find-source-unwind) ; usually `tags-loop-continue'
+    ("\M-*"      . erl-find-source-unwind) ; usually `pop-tag-mark'
     )
   (if erlang-extended-mode
       (distel-init)
