@@ -413,12 +413,13 @@ debug_toggle(Mod, Filename) ->
     end.
 
 debug_add(Modules) ->
-    Interpreted = int:interpreted(),
     lists:foreach(fun([Mod, FileName]) ->
-			  case member(Mod, Interpreted) of
-			      true -> ok;
-			      false -> int:i(FileName)
-			  end
+			  %% FIXME: want to reliably detect whether
+			  %% the module is interpreted, but
+			  %% 'int:interpreted()' can give the wrong
+			  %% answer if code is reloaded behind its
+			  %% back.. -luke
+			  int:i(FileName)
 		  end, Modules),
     ok.
 
