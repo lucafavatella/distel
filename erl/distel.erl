@@ -1037,12 +1037,17 @@ get_int(B) ->
 %%-----------------------------------------------------------------
 -define(SERVER, distel_callers).
 
-%% Ret: [{{M,F,A},Line}] of callers to M:F/A
+%% Ret: [{M,F,A}], M = F = binary()
+who_calls(M, F, A) ->
+    [{fmt("~p", [Mod]), fmt("~p", [Fun]), A, Line}
+     || {Mod,Fun,A,Line} <- calls_to(M, F, A)].
+
+%% Ret: [{M,F,A,Line}] of callers to M:F/A
 calls_to(M, F, A) ->
     ensure_started(),
     call({calls_to, {M,F,A}}).
 
-%% Ret: [{{F,A}, [{{CM,CF,CA},Line}]}] of calls from M
+%% Ret: [{{F,A}, [{CM,CF,CA,Line}]}] of calls from M
 calls_from(M) ->
     ensure_started(),
     call({calls_from, M}).
