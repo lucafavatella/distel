@@ -1,27 +1,20 @@
 \input texinfo   @c -*-texinfo-*-
 @c %**start of header
 @setfilename distel.info
-@settitle Distel
+@settitle Distel User Manual
 @c %**end of header
 
-@set EDITION 3.0
-@set UPDATED 29 August 2002
+@set EDITION Distel 3.3
+@set UPDATED March 2003
+@set VERSION 3.3
 
 @titlepage
-@title Distel: Distributed Emacs Lisp
+@title Distel User Manual
 @subtitle @value{EDITION}, updated @value{UPDATED}
 @author Luke Gorrie
 @end titlepage
 
-@dircategory Emacs
-@direntry
-* Distel: (distel).             Distributed Emacs Lisp (for Erlang).
-@end direntry
-
-@ifinfo
-Distributed Emacs Lisp is a suite of tools for communicating with
-Erlang nodes from Emacs.
-@end ifinfo
+@c @setchapternewpage off
 
 @contents
 
@@ -30,689 +23,617 @@ Erlang nodes from Emacs.
 
 @noindent
 
+@ifinfo
+This is the user manual for Distel version @value{VERSION}.
+@end ifinfo
+
 @menu
-* Introduction::                Overview of features.
-* Data Types::                  Mapping between Emacs Lisp and Erlang
-                                data structures.
-* Processes::                   What processes are.
-* Programming Interface::       How to write processes.
-* Scheduler Internals::         How processes are executed.
-* Tips and Tricks::             Tips for Distel programming.
-* Hacking Distel::              Brief tour of the internals.
+* Introduction::                
+* Programming Aids::            
+* Applications::                
+
+@detailmenu
+ --- The Detailed Node Listing ---
+
+Introduction
+
+* Principles::                  The underlying model of operation.
+* Conventions::                 Common conventions for commands.
+
+Programming Aids
+
+* Tags::                        Looking up function definitions.
+* Completion::                  Completing module and function names.
+* Evaluation::                  Evaluating snippets and reloading modules.
+* Refactoring::                 
+* Documentation::               Looking up online documentation.
+
+Applications
+
+* Process Manager::             See and manipulate Erlang processes.
+* Debugger::                    Debug Erlang programs.
+* Interactive Sessions::        Hybrid Emacs buffer / Erlang shell.
+* Profiler::                    Profile with fprof.
+
+Debugger
+
+* Basic Commands::              Interpreting modules and setting breakpoints.
+* Monitor Buffer::              Monitoring interpreted processes.
+* Attach Buffer::               Single-stepping a process.
+* Synchronising Breakpoints::   Resynchronising breakpoints after edits.
+* Saving and Restoring::        Temporarily saving debugging state.
+
+@end detailmenu
 @end menu
 
-@node Introduction, Data Types, Top, Top
-@comment  node-name,  next,  previous,  up
-@chapter Overview
+@node Introduction, Programming Aids, Top, Top
+@chapter Introduction
 
-Distel extends Emacs Lisp with Erlang's processes and message
-passing. Processes are spawned and scheduled, they send and receive
-messages, link with one another, crash, and so on, all within
-Emacs. They also use Erlang's distribution protocol to communicate
-with other processes in real Erlang nodes, just as other nodes
-would. This integration makes Emacs Lisp suitable for writing clients
-and front-ends to Erlang programs.
+Distel is a set of Emacs-based programs for interacting with running
+Erlang nodes. The purpose is to make everyday Erlang programming tasks
+easier -- looking up function definitions, debugging and profiling,
+experimenting with code snippets, and so on. It builds on the existing
+@code{erlang-mode} to provide more of the features common to
+Integrated Development Environments.
 
-For example, this is an Emacs process that brutally terminates a
-remote Erlang node, via the RPC server that all nodes run by default:
+This manual describes Distel from the user's point of view. For
+details on how Distel works and how to write your own Distel-based
+programs, see the paper @cite{Distel: Distributed Emacs Lisp (for
+Erlang)} from the proceedings of the 2002 Erlang User Conference. The
+paper is also available from the Distel home page,
+@url{http://distel.sourceforge.net}
 
-@lisp
-(erl-spawn
-  (erl-send [rex mynode@@myhost]
-           `[,erl-self [call erlang halt () ,erl-group-leader]]))
-@end lisp
+@ifinfo
+The overall principles of Distel's operation and use are described in
+the following sections.
+@end ifinfo
 
-The equivalent Erlang program is:
+@menu
+* Principles::                  The underlying model of operation.
+* Conventions::                 Common conventions for commands.
+@end menu
 
-@lisp
-spawn(fun() -> @{rex, mynode@@myhost@} !
-                   @{self(), @{call, erlang, halt, [], group_leader()@}@}
-      end).
-@end lisp
+@node Principles, Conventions, Introduction, Introduction
+@section Principles of Operation
 
-You can see that the Emacs Lisp process has much the same structure as
-the Erlang one. Of course, not just any Erlang program can be
-translated into Emacs Lisp, because only an ``essential'' subset of
-Erlang is implemented. This subset includes pattern matching,
-messages, process links, registered names, and distribution. It
-excludes the ``bit syntax'', ports, and so on.
+Distel works by talking to Erlang nodes using the Erlang distribution
+protocol. It creates an ``Emacs node,'' similar to the ``C nodes'' of
+@code{erl_interface}, and then talks directly to Erlang nodes with RPC
+and other forms of message-passing.
 
-The overall intention is to make Emacs a suitable user-interface
-toolkit for Erlang programs, especially development and debugging
-tools. Distel currently includes several such tools, and their
-implementation is straight-forward.
+Of course, this means that to use Distel you need to have an Erlang
+node running. The node should be able to load some supporting modules
+for Distel to make RPCs to -- setting this up is simple, and described
+in the @file{INSTALL} file in the distribution. Other aspects of the
+node's setup, such as which other modules it can find, will also
+affect Distel's operation. More on this in the relevant sections.
 
-Here's a more meaty example to whet your appetite:
+@node Conventions,  , Principles, Introduction
+@section Conventions of Use
+
+Most Distel commands need to know which Erlang node to talk to. The
+first command you use will prompt in the minibuffer for the name of
+the node to use. You can answer with either a @code{name@@host} node
+name, or with just the @code{name} part as an abbreviation for a node
+on the local machine.
+
+As a convenience, the node name you enter is cached and then reused in
+future commands. If you later want to talk to a different node, you
+can bypass the cache by prefixing a command's key sequence with the
+Emacs ``universal prefix argument,'' @kbd{C-u}. All commands accept
+this prefix argument to mean ``forget the cached node name and prompt
+for a new one.'' For example, @kbd{M-.} is the command to lookup a
+function definition, so @kbd{C-u M-.} will do the same thing but
+prompt for the node to use.
+
+Some commands also accept a numeric prefix argument to alter their
+behaviour in some specific way. You can give a numeric prefix by
+holding either Control or Meta and pressing a number, followed by the
+command itself. For example, @kbd{M-1 M-.} tells the @kbd{M-.}
+command to prompt for the function to lookup, instead choosing one by
+looking at the source text in the buffer. The effect, if any, of a
+numeric prefix on a command is included in the command's
+documentation.
+
+@node Programming Aids, Applications, Introduction, Top
+@chapter Programming Aids
+
+Distel includes a few small sets of related commands to automate
+common programming chores. These are described in the following
+sections.
+
+@menu
+* Tags::                        Looking up function definitions.
+* Completion::                  Completing module and function names.
+* Evaluation::                  Evaluating snippets and reloading modules.
+* Refactoring::                 
+* Documentation::               Looking up online documentation.
+@end menu
+
+@node Tags, Completion, Programming Aids, Programming Aids
+@section Cross-Referencing (Tags)
+
+A ``dynamic tags'' facility effectively makes each function call in an
+Erlang source file into a hyperlink to the definition of that
+function. For example, if you have a line of code like this:
 
 @example
-(defun spawn-math-server ()
-  "Start a server process for doing simple calculations."
-  (erl-spawn
-    (erl-register 'math)
-    (&math-server-loop)))
-
-(defun &math-server-loop ()
-  (erl-receive ()
-      ((['calculate who what]
-        (erl-send who (mcase what
-                        (['add x y] (+ x y))
-                        (['sub x y] (- x y))
-                        (other `[bad_operation ,other]))))
-       (other (message "Unexpected message: %S" other)))
-    (&math-server-loop)))
+lists:keysort(2, L).
 @end example
 
-@node Data Types, Processes, Introduction, Top
-@chapter Data Types
+You can place the point on the function name, press @kbd{M-.}, and up
+pops @file{lists.erl} at the definition of @code{keysort/2}. After you
+have perused the definition to your satisfaction, you press @kbd{M-,}
+to jump back where you came from. You can also jump through several
+(sub)function definitions and then use @kbd{M-,} several times to
+unwind step-by-step back to where you came from.
 
-Since processes in Emacs and in Erlang can exchange messages, it's
-necessary to map data structures between the languages. Fortunately,
-there are very natural translations of most types.
+This feature is a dynamic version of a traditional Emacs facility
+called ``Tags.''  Whereas Tags needs you to maintain a special
+@file{TAGS} file to keep track of definitions, Distel simply asks an
+Erlang node, ``Where is the source file for module @code{foo}?'' The
+Erlang node makes a well-educated guess at which source file we want
+(based on the location and attributes of the beam file for the same
+module), and sends back the path. Emacs then opens the file and scans
+down to the definition of the function with the right arity.
 
-@section Type Mapping
-The following table summarises the mapping of Erlang types
-onto Emacs Lisp:
+If you have several versions of the same source file (perhaps
+belonging to separate branches in revision control), then Distel will
+find the one that matches the code in the Erlang node you're talking
+to. So, to work on a particular source tree you just connect to a node
+that has the matching code in its code path.
 
-@table @asis
-@item Atom
-@tindex atom
-Symbol.
-@item Integer
-@tindex integer
-Integer. Because Emacs Lisp only supports signed 28-bit integers, this
-is a partial mapping.
-@item List
-@tindex list
-List.
-@item Tuple
-@tindex tuple
-Vector. For example,
-@example
-@code{@{1, 2, 3@}} @result{} @code{[1 2 3]}
-@end example
-@item Binary
-@tindex binary
-String.
-@item PID
-@tindex pid
-Vector of @code{[@var{TYPE} erl-pid @var{node} @var{id} @var{serial} @var{creation}]}
-@item Port
-@tindex port
-Vector of @code{[@var{TYPE} erl-port @var{node} @var{id} @var{creation}]}
+@table @kbd
+
+@item M-.
+Jump from a function call to the definition of the function
+(@code{erl-find-source-under-point}). If the variable
+@code{distel-tags-compliant} is non-nil, or a numeric prefix argument
+is given, this command prompts for the function name to lookup.
+
+@item M-,
+Jump back from a function definition
+(@code{erl-find-source-unwind}). This is a multi-level unwind through
+a stack of positions from which you have jumped with @kbd{M-.} The
+command is also bound to @kbd{M-*} for consistency with ``etags.''
 @end table
 
-The @var{TYPE} field is an uninterned symbol, and is used to
-distinguish tuple-vectors from PIDs other other datatypes.
+To actually find the source file for a particular module, the Erlang
+node first ensures that it can load the module, and then tries each of
+these locations in order:
 
-The Erlang External Term Format also includes a ``string'' type, which
-is has no clear meaning for Erlang. In general, sending strings from
-Erlang might not do what you want, for example the empty string will
-come out in emacs as NIL. When you really want to give Emacs a string,
-you should send it as a binary.
-
-Some types aren't mapped yet, such as Float, Function, and Ref. It is
-an error to send these types to an Emacs Lisp node!
-
-@node Processes, Programming Interface, Data Types, Top
-@chapter Processes
-
-Processes are buffers that have PIDs and can send and receive
-messages. In other respects they are like normal buffers -- they can
-contain text, have key bindings, use modes, etc.
-
-Some processes may do nothing interesting with their buffers, like the
-example RPC client. User-interface processes can be more interesting
-by displaying information in their buffer, binding keys to commands
-that do work and send messages, and updating the buffer contents when
-messages are received.
-
-@menu
-* Process State::               Variables that define a process.
-* Current Process::             How the ``current process'' is defined.
-@end menu
-
-@node Process State, Current Process, Processes, Processes
-@section Process State
-
-The state of a process is recorded in buffer-local variables. Such
-variables make up all of the process's identity and state, so ``context
-switching'' is simply a matter of changing to another process's
-buffer. Although some variables are ``internal'', these ones can be
-accessed directly:
-
-@defvar erl-self
-This variable is bound to the PID of the current process.
-@end defvar
-
-@defvar erl-group-leader
-This variable contains the PID of the group leader process, which
-handles all I/O of the process.@footnote{The I/O protocol differs from
-the native Erlang one. See the bottom of @file{erl.el}.}
-@end defvar
-
-@defvar erl-trap-exits
-This variable can be set to true to achieve the effect of:
-@example
-process_flag(trap_exit, true)
-@end example
-@end defvar
-
-@node Current Process,  , Process State, Processes
-@section Current Process
-
-There is always some ``current process'' bound to @var{erl-self},
-which is either a process that has been scheduled, or otherwise ``the
-null process''. The null process is a pseudo-process that never dies
-and is never scheduled, but is used when BIFs are called from
-non-process buffers. This means that any buffer can invoke BIFs,
-though only process buffers with their own PIDs are able to receive
-messages, be scheduled, create links, etc.
-
-@defvar erl-null-pid
-PID of the @dfn{null process}. All messages sent to this PID are
-written to the @file{*erl-lost-msgs*} buffer and then discarded. When
-Emacs is not in the buffer of any particular process, @var{erl-self}
-is bound to @code{erl-null-pid}.
-@end defvar
-
-@node Programming Interface, Scheduler Internals, Processes, Top
-@chapter Programming Interface
-
-The programming interface is very much like Erlang's, and most
-functions do just what you would expect. There are however some
-important differences.
-
-The most important difference is that when a process ``schedules out''
-it has to return from its current function to the ``scheduler loop'',
-with a note saying what it wants to do the next time it gets scheduled
-(unless it's finished). This returning up the Elisp stack means that
-scheduling out causes all of the process's dynamic variable bindings
-to be undone, its @code{unwind-protect}'s executed, and the functions
-on its stack returned to (actually -- bypassed by @code{throw}). The
-overall effect is that variable bindings and control state have to be
-explicitly passed between schedules.
-
-In practice this is not a great imposition, since the only time a
-process needs to reschedule is when it blocks in ``receive''. The
-@code{erl-receive} construct is conveniently extended to save and
-restore specific variable bindings for when the process is
-rescheduled, and to accept series of forms to execute after the
-matching clause runs.
-
-@xref{Scheduler Internals} for more details on the scheduler's
-internal workings.
-
-@menu
-* Spawning and Running::        Creating new processes
-* Pattern Matching::            
-* BIFs::                        
-* Tuples::                      Functions for dealing with tuples.
-* PIDs::                        Functions for dealing with PIDs.
-@end menu
-
-@node Spawning and Running, Pattern Matching, Programming Interface, Programming Interface
-@section Spawning and Running
-
-Emacs Lisp processes, like Erlang ones, are created by being
-``spawned'' with some code to execute.
-
-@defmac erl-spawn &rest forms
-Create a new process to execute @var{forms}, and return its PID. The
-process is run immediately in its own buffer, using the current
-dynamic environment. This means that the caller's @code{let} bindings
-are visible to the new process.
-
-A simple example,
-@example
-(erl-spawn (message "New PID: %S" erl-self))
-@print{} New PID: [erl-pid erlmacs@@kookaburra 188 0 0]
-@result{} [erl-pid erlmacs@@kookaburra 188 0 0]
-@end example
-(@xref{Data Types}, for details of the PID data structure.)
-@end defmac
-
-@defmac erl-spawn-link &rest forms
-Create a new process like @code{erl-spawn}, but link it with the
-current process before executing.
-@end defmac
-
-@defmac erl-spawn-async &rest forms
-Create a new process to execute @var{forms}, and return its PID. The
-process may be scheduled to run later, and thus is not guaranteed to
-run in the present dynamic environment.
-@end defmac
-
-@defmac erl-spawn-link-async &rest forms
-Create a new process like @code{erl-spawn-async}, but link it with
-the current process before executing.
-@end defmac
-
-@defmac erl-receive saved-vars clauses &rest after
-Receive a message from the process mailbox, like Erlang's
-@code{receive}. The complete syntax is similar to @code{mcase}
-(@xref{Pattern Matching}):
-
-@example
-(erl-receive (@var{saved-var ...})
-    ((@var{pattern} @var{body...})
-     @var{...})
-  @var{after...})
-@end example
-
-The first message matching a @var{pattern} is removed from the process
-mailbox, the corresponding @var{body} forms are executed, and then the
-@var{after} forms are executed regardless of which pattern matched. If
-necessary the process waits until a matching message
-arrives. Receiving a message involves a return to the scheduler (via
-@code{throw}), so dynamic variable bindings will @emph{not} be
-preserved, except for the @var{saved-vars} which are saved and then
-restored before the @var{body} is executed. Variables that are matched
-by value in a @var{pattern} must also be included is @var{saved-vars}.
-
-Here's a complete example, excerpted from @file{erl-example.el}:
-@example
-@group
-(defun spawn-counter ()
-  (erl-spawn
-    (erl-register 'counter)
-    (&counter-loop 1)))
-
-(defun &counter-loop (count)
-  (erl-receive (count)
-      ((msg (message "Got message #%S: %S" count msg)))
-    (&counter-loop (1+ count))))
-@end group
-@end example
-
-@strong{Important Note:} Because the caller's stack is @code{throw}'n
-away by scheduling out, all calls to @code{erl-receive}, or to
-functions that will lead to its being called, should be in
-tail-position. In aid of this, all functions that lead to erl-receive
-are prefixed with an @code{&}, which makes them stand out in the
-code. With this convention, we must ensure that all calls to
-@code{&}-functions are in tail-position, and then we are safe from
-accidentally losing important state on the stack.
-
-@xref{Common Pitfalls} for important tips, either now or when you
-start wondering ``why the fuck isn't X getting called?!'' @code{;-)}
-@end defmac
-
-@node Pattern Matching, BIFs, Spawning and Running, Programming Interface
-@section Pattern Matching
-
-There are macros for pattern matching, roughly equivalent to Erlang's
-(minus guards). The following summarises the pattern syntax:
-
-@table @asis
-@item Trivial: @code{t}, @code{nil}, @code{42}, @code{[]}
-Numbers, and atomic types other than symbols of variables are matched
-literally with @code{equal}.
-@item Constant: @code{'symbol}, @code{'(a b c)}
-Quoted constants are matched literally with @code{equal}.
-@item Pattern Variable: @code{my-variable}
-Symbols denote variables. Pattern variables take on the value of the
-corresponding object, and are bound to lisp variables if the match
-succeeds. If the same pattern variable occurs more than once, then all
-of its bindings must agree, as in Erlang.
-@item Bound Variable: @code{,bound-var}
-Symbol preceeded by an comma. Matches the value of the (already bound)
-lisp variable @var{bound-var} with @code{equal}.
-@item Wildcard: @code{_} (underscore)
-As in Erlang, a wildcard matches anything without creating a binding.
-@item Sequence: @code{(pat1 ...)}, @code{[pat1 ...]}
-List or vector of patterns. Matches the ``shape'' (type and length) of
-the sequence, as well as each subpattern.
-@end table
-
-This pattern syntax is used for the macros that follow, as well as
-@code{erl-receive}.
-
-@defmac mlet pattern object &rest body
-Match @var{pattern} with @var{object}, and execute @var{body} with all
-pattern variable bindings in effect. If @var{pattern} doesn't match,
-an error is signaled. For example,
-
-@example
-@group
-(mlet [value Key] my-tuple
-  (message "The key is %S" key))
-@end group
-@end example
-@end defmac
-
-@defmac mcase object &rest clauses
-Pattern matching ``case'' expression. The full syntax is:
-@example
-@group
-(mcase @var{expr}
-  (@var{pattern} @var{body...})
-   @var{...})
-@end group
-@end example
-For example, we can translate Erlang @code{case} expressions
-into Emacs @code{mcase}:
-@example
-@group
-case X of
-    @{add, X, Y@} -> X + Y;
-    @{sub, X, Y@} -> X - Y;
-    _           -> error
-end.
-  @result{}
-(mcase x
-  (['add x y] (+ x y))
-  (['sub x y] (- x y))
-  (_         'error))
-@end group
-@end example
-@end defmac
-
-@node BIFs, Tuples, Pattern Matching, Programming Interface
-@section BIFs
-
-@defun erl-send who message
-Send the term @var{message} to the process @var{who}. As in Erlang,
-@var{who} can be any of the following:
-
-@itemize @bullet
+@enumerate
 @item
-The PID of a process, either local or remote.
+Same directory as the beam file.
 @item
-A symbol, interpreted as the registered name of a local process.
+@file{../src/} from the beam file.
 @item
-A tuple of the form @code{[@var{name} @var{node}]}, indicating
-a remote registered process.
-@end itemize
-@end defun
+@file{../erl/} from the beam file.
+@item
+The directory from which the beam file was compiled. We can find this
+using @code{module_info/1}, because the compiler records it as an
+attribute in the beam file.
+@end enumerate
 
-@defun erl-link pid
-Link the current process with @var{pid}.
-@end defun
+@node Completion, Evaluation, Tags, Programming Aids
+@section Completion of Modules and Functions
 
-@defun erl-unlink pid
-Unlink the current process from @var{pid}.
-@end defun
+Completion allows you to write some part of a module or remote
+function name and then press @kbd{M-TAB} to have it completed
+automatically. When multiple completions exist they are displayed in a
+popup buffer, much like Emacs's normal filename completion. The
+completion buffer can simply be read to see which completions exist,
+or either @kbd{RET} or the middle mouse button can be used to select
+one.
 
-@defun erl-exit why
-Terminate the current process, with @var{why} as the exit reason.
-@end defun
+@table @kbd
 
-@defun erl-exit/2 pid why
-Terminate the process @var{pid}, with @var{why} as exit reason.
-@end defun
+@item M-TAB
+Complete the module or function at point. (@code{erl-complete})
 
-@defun erl-register name &optional process
-Register @var{process} as @var{name}. If @var{process} is
-unspecified, the current process is registered.
-@end defun
-
-@defun erl-whereis name
-Return the PID of the process registered with @var{name}, or nil if
-the name is unregistered.
-@end defun
-
-@defun erl-term-to-binary object
-Encode @var{object} into the external term format, and return the
-result as a string.
-@end defun
-
-@defun erl-binary-to-term string
-Decode @var{string} from the external term format into a data
-structure.
-@end defun
-
-@node Tuples, PIDs, BIFs, Programming Interface
-@section Tuples
-
-@defun tuple &rest elements
-Construct a tuple from @var{elements}. For example,
-@example
-(tuple 1 2 3) @result{} [1 2 3]
-@end example
-@end defun
-
-@defun tuple-elt tuple n
-Access the @var{n}th element of @var{tuple}. As in Erlang, indexing
-starts from 1.
-@end defun
-
-@defun tuplep object
-Type predicate for tuples.
-@end defun
-
-@defun tuple-to-list tuple
-Convert @var{tuple} to a list. For example,
-@example
-(tuple-to-list (tuple 1 2 3)) @result{} (1 2 3)
-@end example
-@end defun
-
-@defun tuple-arity tuple
-Return the number of elements in @var{tuple}.
-@end defun
-
-@node PIDs,  , Tuples, Programming Interface
-@section PIDs
-
-@defun erl-pid-p object
-Type predicate for PIDs.
-@end defun
-
-@defun erl-local-pid-p object
-Predicate for PIDs of processes inside this Emacs.
-@end defun
-
-@defun erl-remote-pid-p object
-Predicate for PIDs on remote nodes.
-@end defun
-
-@defun erl-pid-node pid
-Return the node name (a symbol) of the @var{pid}.
-@end defun
-
-@node Scheduler Internals, Tips and Tricks, Programming Interface, Top
-@chapter Scheduler Internals
-
-Because Emacs Lisp has no built-in concurrency, a custom scheduler is
-used to run processes. This scheduler is based on a technique called
-@dfn{Trampolined Style} (@xref{Related Work}), which is related to
-continuation-passing style. The gist is that each process has a
-``continuation'' variable containing its ``next function'' -- the
-function to call when the process is next scheduled. Initially, the
-process's continuation function will execute the code given in the
-@code{erl-spawn} call.
-
-To run a process, the scheduler simply switches into the process's
-buffer and calls its continuation function. The function does a finite
-amount of processing and then either simply returns, or makes a
-``blocking'' call to @code{erl-receive} which sets up a next
-continuation to wait for the right message. If the process just
-returned without setting a next continuation, it is exited with reason
-@code{normal}. Otherwise the process is marked as ``waiting'' and left
-alive. Waiting processes become runnable when they receive a message,
-and are then invoked again with their new continuation, and so
-on. @code{erl-receive} works by continually installing itself as the
-next continuation until a matching message arrives, and then executing
-the appropriate body clause.
-
-The scheduler itself is event-driven: the only events that can cause a
-process to become runnable are process creation and message
-delivery. On each of these events, the scheduler loop runs until no
-processes are left runnable, and then returns control to Emacs.
-
-The pattern-matching @code{erl-receive} is not actually built into the
-scheduler, but is implemented in terms of the primitive function
-@code{erl-continue}.
-
-@defun erl-continue function &rest args
-Set the ``next continuation'' of the process, such that the next time
-it is scheduled it will apply @var{function} to @var{args}. This will
-@emph{not} occur in the same dynamic environment -- the @var{let}
-bindings in effect when @code{erl-continue} is called won't be
-available to the continuation. Important state and bindings should be
-passed in @var{args} (much like an Erlang function call), or stored in
-a buffer local variable (much like the Erlang process dictionary).
-@end defun
-
-@node Tips and Tricks, Hacking Distel, Scheduler Internals, Top
-@chapter Tips and Tricks
-
-Processes' buffers are usually named either @file{*pid
-<0.@var{ID}.0>*}, though these names can be changed to
-anything. Special significance is given to the pattern @file{*reg
-@var{name}*}, which is a registered process. If you want to kill off
-some zombie processes, you can find their buffers (e.g. with @kbd{M-x
-list-buffers}) kill them with @key{C-x k} just like any other
-buffer. This is equivalent to the @cite{interrupt} feature of the
-Erlang shell, and the process's @var{kill-buffer-hook} will still
-propagate the exit signal.
-
-All messages between distributed nodes are recorded in trace buffers
-named @file{*trace @var{nodename}*}, which you can look in to see the
-actual messages being exchanged between nodes. The buffers associated
-with sockets to other nodes are named @file{*derl @var{nodename}}, and
-killing these buffers will safely sever connections.
-
-@menu
-* Common Pitfalls::             
-@end menu
-
-@node Common Pitfalls,  , Tips and Tricks, Tips and Tricks
-@section Common Pitfalls
-
-An easy mistake to make when ``thinking in Erlang'' is to make a call
-to @code{erl-receive} that is not in tail position. For example:
-
-@example
-(defun &server-loop-bad ()
-  "DO NOT WRITE CODE LIKE THIS!"
-  (erl-receive ()
-      ((msg (message "Got %S" msg))))
-  (&server-loop-bad))
-@end example
-
-The @code{erl-receive} is not in tail position because more code (the
-recursion) is supposed to run after it returns. What actually happens
-is that @code{erl-receive} @code{throw}'s back up the stack to the
-scheduler loop, so the recursive call to @code{server-loop-bad} is
-never reached. The process just terminates after processing the first
-message.
-
-The correct way to write the function is this:
-
-@example
-(defun &server-loop-good ()
-  "This function is fine."
-  (erl-receive ()
-      ((msg (message "Got %S" msg)))
-    (&server-loop-good)))
-@end example
-
-Or alternatively,
-
-@example
-(defun &server-loop-good2 ()
-  "This function is also fine."
-  (erl-receive ()
-      ((msg (message "Got %S" msg)
-            (&server-loop-good2)))))
-@end example
-
-Here the recursion is explicit in the body of a receive clause or in
-the ``after'' code, rather than implicit in the caller's stack.
-
-You must @emph{always} be careful to place calls to @code{erl-receive}
-in tail position. The same applies to calling any function that can in
-turn call @code{erl-receive}. If you forget, then code that looks like
-it should run will get skipped.
-
-@node Hacking Distel,  , Tips and Tricks, Top
-@chapter Hacking Distel
-
-@menu
-* Hitch Hikers Guide::          Summary of the contents of major
-                                source files.
-* Documents::                   Other documents containing important
-                                information.
-* Related Work::                
-* Document Revision History::   
-@end menu
-
-@node Hitch Hikers Guide, Documents, Hacking Distel, Hacking Distel
-@section Hitch Hikers Guide
-
-@table @file
-@item erl.el
-The process runtime system, which is the core of the system.
-@item erl-service.el
-``High-level'' Emacs commands for viewing process lists, process
-tracing, and so on.
-@item derl.el
-The distribution protocol module.
-@item erlext.el
-External term format encoding and decoding.
-@item epmd.el
-Client for epmd, for looking up node ports.
-@item net-fsm.el
-Generalised framework for network state machines, used to implement
-@file{derl} and @file{epmd}.
-@item erl-test.el
-A few test cases.
-@item erl-example.el
-Example code for doing nothing-in-particular.
+@item M-?
+Alternative binding for @code{erl-complete}, since @kbd{M-TAB} is
+often reserved by window managers.
 @end table
 
-@node Documents, Related Work, Hitch Hikers Guide, Hacking Distel
-@section Documents
+@node Evaluation, Refactoring, Completion, Programming Aids
+@section Evaluting Erlang Code
 
-Various goodies are described in text files in the OTP distribution:
-@file{erts/emulator/internal_doc/erl_ext_dist.txt} describes the
-distribution protocol, epmd protocol, and term format. The
-authentication ``handshake'' protocol for connecting to a node is
-documented in
-@file{lib/kernel/internal_doc/distribution_handshake.txt}.
+Distel includes some simple ways to evaluate Erlang code, described
+here. More elaborate interactive evaluation is provided by Interactive
+Sessions (@pxref{Interactive Sessions}).
 
-@node Related Work, Document Revision History, Documents, Hacking Distel
-@section Related Work
+@table @kbd
 
-Related libraries in OTP versions past or present are
-@cite{erl_interface}, @cite{JInterface}, and @cite{JIVE}, as well as
-the distribution code in the emulator itself.
+@item C-c C-d :
+Read an Erlang expression from the minibuffer, evaluate it on an
+Erlang node, and show the result. (@code{erl-eval-expression})
 
-Distel is also similar to @cite{ETOS}, the Erlang to Scheme compiler,
-in a modest sort of a way -- both systems implement Erlang runtime
-systems in Lisp. It's pretty interesting to see just how neatly this
-can be done in Scheme, using first-class continuations. @cite{ETOS} is
-available from @url{http://www.iro.umontreal.ca/~etos/}. For some
-reason the latest version is only available in binary form, but the
-source to an older version is there. I don't know why it's so.
-
-The method of scheduling processes in Distel comes from the paper
-@cite{Trampolined Style} by Steven Ganz, Daniel Friedman, and Mitchell
-Wand. You can find a copy at
-@url{http://citeseer.nj.nec.com/217102.html}. It's a very pleasant
-read if you're familiar with Scheme.
-
-@section Contact
-
-The Distel homepage is at
-@url{http://www.bluetail.com/~luke/distel/}. Send feedback and patches
-to @email{luke@@bluetail.com}.
-
-@node Document Revision History,  , Related Work, Hacking Distel
-@section Document Revision History
-
-@table @strong
-@item 2.0
-Major additions are pattern matching and @code{erl-receive}. This has
-simplified the programming interface a lot, causing fundamentals like
-@code{erl-mailbox} to become undocumented and @code{erl-continue} to
-be reclassified as an ``internal'' function.
-
-Added a reference to Trampolined Style.
-@item 1.0
-First version.
+@item C-c C-d L
+Read a module name from the minibuffer and reload that module in an
+Erlang node. (@code{erl-reload-module})
 @end table
+
+@node Refactoring, Documentation, Evaluation, Programming Aids
+@section Refactoring
+
+@emph{The Refactoring feature requires the syntax-tools package to be
+in the Erlang node's code path. You can download syntax-tools from the
+erlang.org ``User Contributions'' area.}
+
+Expressions within functions can be automatically ``refactored'' into
+their own sub-functions by using the @code{erl-refactor-subfunction}
+command (@kbd{C-c C-d f}). The command takes the text of the
+expression, determines which variables it needs from the original
+function, and then generates the new function and puts it on the kill
+ring for insertion by hand (with @code{yank}, @kbd{C-y}). The original
+function is rewritten with a call to the subfunction where the
+refactored expression used to be.
+
+For example, suppose we want to refactor the following function:
+
+@example
+eval_expression(S) ->
+    case parse_expr(S) of
+        @{ok, Parse@} ->
+            case catch erl_eval:exprs(Parse, []) of
+                @{value, V, _@} ->
+                    @{ok, flatten(io_lib:format("~p", [V]))@};
+                @{'EXIT', Reason@} ->
+                    @{error, Reason@}
+            end;
+        @{error, @{_, erl_parse, Err@}@} ->
+            @{error, Err@}
+    end.
+@end example
+
+In this example we will take the inner @code{case} expression and move
+it into a new function called @code{try_evaluation}. We do this by
+setting the Emacs region (using the mouse or @kbd{C-SPC}) from the
+word @code{case} until the end of the word @code{end} -- marking
+exactly one whole expression. We then enter @kbd{C-c C-d f} to
+refactor, and when prompted for the function name we respond with
+``@code{try_evaluation}''. The original function is then rewritten to:
+
+@example
+eval_expression(S) ->
+    case parse_expr(S) of
+       @{ok, Parse@} ->
+           try_evaluation(Parse);
+       @{error, @{_, erl_parse, Err@}@} ->
+           @{error, Err@}
+    end.
+@end example
+
+And at the front of the kill ring we have the new function definition,
+which can be pasted into the buffer wherever we want. The actual
+definition we get is:
+
+@example
+try_evaluation(Parse) ->
+    case catch erl_eval:exprs(Parse, []) of
+       @{value, V, _@} ->
+           @{ok, flatten(io_lib:format("~p", [V]))@};
+       @{'EXIT', Reason@} ->
+           @{error, Reason@}
+    end.
+@end example
+
+@strong{Important note:} This command is not a ``pure'' refactoring,
+because although it will import variables from the parent function
+into the subfunction, it will not export new bindings created in the
+subfunction back to the parent. However, if you follow good
+programming practice and never ``export'' variables from inner
+expressions, this is not a problem. An example of @emph{bad} code that
+will not refactor correctly is this @code{if} expression:
+
+@example
+if A < B -> X = true;
+   B > A -> X = false
+end,
+foo(X)
+@end example
+
+This is in poor style -- a variable created inside the @code{if} is
+used by code at an outer level of nesting. To work with refactoring,
+and to be in better style, it should be rewritten like this:
+
+@example
+X = if A < B -> true;
+       B > A -> false
+    end,
+foo(X)
+@end example
+
+@node Documentation,  , Refactoring, Programming Aids
+@section Documentation
+
+Simple online Erlang documentation is provided via an Erlang program
+called @code{fdoc}. The documentation is automatically scanned out of
+source files by building a searchable database of the comments
+appearing before each function. Naturally, the quality of
+documentation provided by this scheme will depend on the style in
+which the source files are commented.
+
+@table @kbd
+@item C-c C-d d
+Describe an Erlang module or function by
+name. (@code{erl-fdoc-describe})
+@item C-c C-d a
+Show apropos information about Erlang functions, by regular
+expression. All functions whose names or comments match the regexp are
+displayed. (@code{erl-fdoc-apropos})
+@end table
+
+With a numeric prefix argument, these commands rebuild the @code{fdoc}
+database before searching. This is useful after (re)loading a lot of
+modules, since @code{fdoc} only scans the currently loaded modules for
+documentation when it builds the database.
+
+@node Applications,  , Programming Aids, Top
+@chapter Applications
+
+This chapter describes the larger applications included with Distel.
+
+@menu
+* Process Manager::             See and manipulate Erlang processes.
+* Debugger::                    Debug Erlang programs.
+* Interactive Sessions::        Hybrid Emacs buffer / Erlang shell.
+* Profiler::                    Profile with fprof.
+@end menu
+
+@node Process Manager, Debugger, Applications, Applications
+@section Process Manager
+
+The process manager displays a list of all the processes running on an
+Erlang node, and offers commands to manipulate them.
+
+@table @kbd
+@item C-c C-d l
+Popup a process manager buffer. (@code{erl-process-list})
+@end table
+
+Within the process manager's buffer, the following commands are
+available:
+
+@table @kbd
+@item q
+Quit the process manager, and restore the Emacs windows as they were
+before it popped up.
+@item u
+Update the process list.
+@item k
+Kill a process.
+@item RET
+Pop up a buffer showing all the information about a process. The
+buffer also continuously traces the process by appending events to the
+buffer, until the buffer is killed with @kbd{q}.
+@item i
+Show a piece of information about the process, specified by name. The
+name can be any key accepted by the @code{process_info/2} BIF.
+@item b
+Show a backtrace for a process. The backtrace is a fairly low-level
+snapshot of the stack of a process, obtained from
+@code{process_info(P, backtrace)}. It may take a little pratice to
+learn how to read them.
+@item m
+Show the contents of a process's mailbox.
+@end table
+
+@node Debugger, Interactive Sessions, Process Manager, Applications
+@section Debugger
+Distel includes a front-end to the Erlang debugger, using the same
+backend as the standard Tk-based OTP debugger. The Distel debugger has
+three parts: commands in Erlang source buffers for interpreting
+modules and configuring breakpoints, a ``Monitor'' buffer listing
+processes running interpreted code, and one ``Attach'' buffer for each
+process that is being single-stepped.
+
+@menu
+* Basic Commands::              Interpreting modules and setting breakpoints.
+* Monitor Buffer::              Monitoring interpreted processes.
+* Attach Buffer::               Single-stepping a process.
+* Synchronising Breakpoints::   Resynchronising breakpoints after edits.
+* Saving and Restoring::        Temporarily saving debugging state.
+@end menu
+
+@node Basic Commands, Monitor Buffer, Debugger, Debugger
+@subsection Basic Commands
+
+@table @kbd
+@item C-c C-d i
+Toggle interpretedness of the current buffer's module.
+(@code{edb-toggle-interpret})
+@item C-x SPC
+Toggle a breakpoint on the current line.
+(@code{edb-toggle-breakpoint})
+@item C-c C-d m
+Popup the Monitor buffer. (@code{edb-monitor})
+@end table
+
+@node Monitor Buffer, Attach Buffer, Basic Commands, Debugger
+@subsection Monitor Buffer
+
+The monitor buffer displays all processes that the debugger knows
+about, line-by-line. This includes all processes that have run
+interpreted code, and all that are stopped in breakpoints. The current
+status of each process is shown -- running, at breakpoint, or
+exited. You can attach to a debugged process by pressing @kbd{RET} on
+its summary line.
+
+@table @kbd
+@item RET
+Popup an attach buffer for a process.
+@item q
+Hide the Monitor buffer and restore Emacs' window configuration to the
+way it was before.
+@item k
+Kill the monitor. This disconnects Emacs from the Erlang node's
+debugging state and deletes all the local debugging state
+(e.g. breakpoints in buffers.) The next debugger command will
+automatically re-attach the monitor.
+@end table
+
+@node Attach Buffer, Synchronising Breakpoints, Monitor Buffer, Debugger
+@subsection Attach Buffer
+
+An attach buffer corresponds to a particular Erlang process that is
+being debugged. It displays the source to the module currently being
+executed and, when the process is stopped at a breakpoint, an arrow
+showing the next line of execution. The attach buffer is accompanied
+by a buffer showing the variable bindings in the current stack frame.
+
+@table @kbd
+@item SPC
+Step into the next expression. If the expression is a function call,
+the debugger will enter that function. (@code{edb-attach-step})
+@item n
+Step over the next expression, without going down into a subfunction.
+(@code{edb-attach-next})
+@item c
+Continue execution until the next breakpoint.
+(@code{edb-attach-continue})
+@item u
+Show the previous stack frame. (@code{edb-attach-up})
+@item d
+Show the next stack frame. (@code{edb-attach-down})
+@item b
+Toggle a breakpoint on the current line.
+(@code{edb-toggle-breakpoint})
+@item q
+Kill the attach buffer. This does not affect the actual Erlang
+process.
+@item h
+Display online help, showing essentially this information.
+(@code{edb-attach-help})
+@end table
+
+@node Synchronising Breakpoints, Saving and Restoring, Attach Buffer, Debugger
+@subsection Synchronising Breakpoints
+
+At any point in time the breakpoints in a particular buffer will be
+either ``fresh'' or ``stale,'' depending on whether the buffer has
+been modified. Breakpoints are fresh when, as far as Emacs knows, the
+buffer's source text (line numbers) correspond with the code in the
+Erlang node. After the buffer is modified, the breakpoints become
+stale, because edits may change line numbers so that the breakpoints
+in Emacs no longer correspond with the actual program. Stale
+breakpoints are made fresh by using the @code{edb-synch-breakpoints}
+(@kbd{C-c C-d s}) command to reassert that they are correct. This
+command is typically used after recompiling and reloading the module.
+
+Fresh breakpoints are marked in red, stale breakpoints are marked in
+purple.
+
+@table @kbd
+@item C-c C-d s
+Synchronise breakpoints by discarding the ones in the Erlang node and
+then re-setting them from those in the Emacs buffer.
+@end table
+
+@iftex
+The overall debugger state machine for Erlang-mode buffers is shown in
+this figure:
+
+@image{dbg, 6in}
+
+In the ``Normal'' state, no breakpoints exist. In the ``Interpreted''
+state, all breakpoints are fresh. In the ``Out of sync'' state, all
+breakpoints are stale. The transitions illustrate how you can navigate
+between the states.
+@end iftex
+
+Care must be taken to only synchronise breakpoints when the Erlang
+node is actually running the same code that is in the Emacs
+buffer. Otherwise, the Erlang processes may break in unexpected
+places.
+
+When reloading modules during debugging, it is preferable to use the
+@code{erl-reload-module} command (@kbd{C-c C-d L}, @pxref{Evaluation})
+than to call @code{l(mymodule)} directly in the Erlang shell. This is
+because the Distel command is specially coded to make sure reloading
+interpreted modules keeps them interpreted, but this doesn't appear to
+work correctly in the Erlang shell.
+
+@node Saving and Restoring,  , Synchronising Breakpoints, Debugger
+@subsection Saving and Restoring Debugger State
+
+The overall debugger state (set of breakpoints and interpreted
+modules) can be temporarily saved inside Emacs and then restored to
+the Erlang node. This is particularly useful when you want to restart
+the Erlang node and then continue debugging where you left off: you
+just save the debug state, restart the node, and then restore.
+
+@table @kbd
+@item C-c C-d S
+Save the set of breakpoints and interpreted modules inside
+Emacs. (@code{edb-save-dbg-state})
+@item C-c C-d R
+Restore Emacs's saved debugger state to the Erlang
+node. (@code{edb-restore-dbg-state})
+@end table
+
+@node Interactive Sessions, Profiler, Debugger, Applications
+@section Interactive Sessions
+
+Interactive sessions are an Erlang version of the Emacs Lisp
+@file{*scratch*} buffer. You can enter arbitrary Erlang expressions
+and function definitions in an interactive session buffer and evaluate
+them immediately, without creating any files.
+
+@table @kbd
+@item C-c C-d e
+Display the Interactive Session buffer for an Erlang node, creating it
+if necessary. (@code{erl-ie-show-session})
+@end table
+
+Within the session buffer, these commands are available:
+
+@table @kbd
+@item C-j
+Evaluate the Erlang expression on the current line, and insert the
+result in-line. (@code{erl-ie-eval-expression})
+@item C-M-x
+Evaluate the function definition before the point. Once defined, the
+function can then be called from expressions in the session buffer,
+and can be redefined later.
+@end table
+
+@node Profiler,  , Interactive Sessions, Applications
+@section Profiler
+
+Distel supports profiling function calls via the OTP @code{fprof}
+application. This is a very convenient profiler, in that it doesn't
+require any special compiler options or initialisation -- you can use
+it whenever you want.
+
+@table @kbd
+@item C-c C-d p
+Prompt for an Erlang expression, evaluate it with profiling, and then
+summarise the results. (@code{fprof})
+@item C-c C-d P
+Load and display prerecorded profiler data, from a file created by
+@code{fprof:analyse/1}. (@code{fprof-analyse})
+@end table
+
+After an expression is profiled, the results are popped up in
+``profiler results'' buffer. The buffer contains one line to describe
+each function that was called, with the following columns:
+
+@table @code
+@item Calls
+The total number of times the function was called.
+@item ACC
+The total time (ms) spent in the function, including its callees.
+@item Own
+The total time (ms) spent by the function itself, excluding time spent
+in its callees.
+@end table
+
+Furthermore, pressing @kbd{RET} on a summary line in the results
+buffer will pop up another buffer showing more information about the
+function: how much time it spent on behalf of each of its callers, and
+how much time it spent in each of its subfunctions.
 
 @bye
 
