@@ -423,8 +423,15 @@ time it spent in subfunctions."
 
 (defun erl-find-source-under-point (node)
   "Goto the source code that defines the function being called at point.
-For remote calls, contacs an Erlang node to determine which file to
-look in."
+For remote calls, contacts an Erlang node to determine which file to
+look in, with the following algorithm:
+
+  Find the directory of the module's beam file (loading it if necessary).
+  Look for the source file in:
+    Same directory as the beam file
+    Directory with /ebin/ replaced with /src/
+    Directory with /ebin/ replaced with /erl/
+  Otherwise, report that the file can't be found."
   (interactive (list (erl-read-nodename)))
   (let ((mfa (erl-get-call-mfa)))
     (when (null mfa)
@@ -513,18 +520,20 @@ Should be called with point directly before the opening `('."
 (defun erl-find-source (node module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
 When FUNCTION is specified, the point is moved to its start."
-  (let ((origin (copy-marker (point-marker))))
-    (erl-spawn
-      (erl-send-rpc node 'distel 'find_source (list module))
-      (erl-receive (origin function arity)
-	  (([rex [ok Path]]
-	    ;; Add us to the history list
-	    (ring-insert-at-beginning erl-find-history-ring origin)
-	    (find-file path)
-	    (when function
-	      (erl-search-function function arity)))
-	   ([rex [error Reason]]
-	    (message "Error: %s" reason)))))))
+  ;; Add us to the history list
+  (ring-insert-at-beginning erl-find-history-ring
+			    (copy-marker (point-marker)))
+  (erl-spawn
+    (erl-send-rpc node 'distel 'find_source (list module))
+    (erl-receive (function arity)
+	(([rex [ok Path]]
+	  (find-file path)
+	  (when function
+	    (erl-search-function function arity)))
+	 ([rex [error Reason]]
+	  ;; Remove the history marker, since we didn't go anywhere
+	  (ring-remove erl-find-history-ring)
+	  (message "Error: %s" reason))))))
 
 (defun erl-search-function (function arity)
   "Goto the definition of FUNCTION/ARITY in the current buffer."
