@@ -17,42 +17,55 @@
 (require 'erlang)
 ;(require 'erl-service)
 
+(make-variable-buffer-local
+ (defvar erl-ie-node nil
+   "Erlang node that the session is hosted on."))
+
+(defvar erl-ie-inline-results nil
+  "*Non-nil means to insert evaluation results straight into the buffer.
+Nil means print them as messages.
+
+When a prefix argument is used for session commands, the opposite
+behaviour to this default is used.")
+
 ;;
 ;; erl-ie-session
 
 (defun erl-ie-session (node)
-  "Creates an interactive shell buffer connected to a erlang node."
-  (interactive (list (erl-read-nodename)))
-  (let ((buf (get-buffer-create (format "*ie session <%S>*" node))))
+  "Return the erl-ie-session for NODE, creating it if necessary."
+  (interactive (list (erl-ie-read-nodename)))
+
+  (erl-ie-ensure-registered node)
+
+  (or (get-buffer (erl-ie-buffer-name node))
+      (erl-ie-create-session node)))
+
+(defun erl-ie-create-session (node)
+  (with-current-buffer (get-buffer-create (erl-ie-buffer-name node))
+    (insert "%%% Welcome to the Distel Interactive Erlang Shell.\n\n")
+
+    (erlang-mode)
+    (setq erl-ie-node node)
 
     ;; hiijack stdin/stdout :
     (setq erl-group-leader 
-	  (erl-spawn (&erl-ie-group-leader-loop buf)))
+	  (erl-spawn (&erl-ie-group-leader-loop (current-buffer))))
 
-    (erl-ie-ensure-registered node)
+    (current-buffer)))
 
-    ;; yep, how low can you sink: global variables, jesus! :
-    (with-current-buffer buf (erlang-mode))
-    (set-window-buffer (selected-window) buf)
+(defun erl-ie-read-nodename ()
+  "Get the node for the session, either from buffer state or from the user."
+  (or erl-ie-node
+      (erl-read-nodename)))
 
-    (unless (boundp 'distel-ie-showed-welcome)
-      (setq distel-ie-showed-welcome t)
-      (insert (erl-ie-welcome-message)))
-    buf))
-
-
-;;
-;; erl-ie-welcome-message
-
-(defun erl-ie-welcome-message ()
-  "%%% Welcome to the Distel Interactive Erlang Shell.\n\n")
-
+(defun erl-ie-buffer-name (node)
+  (format "*ie session <%S>*" node))
 
 ;;
 ;; erl-ie-ensure-registered
 
 (defun erl-ie-ensure-registered (node)
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-ie-read-nodename)))
   (erl-spawn
     (erl-send-rpc node 'distel_ie 'ensure_registered '())))
 
@@ -68,7 +81,7 @@
   (interactive (list 
 		(region-beginning)
 		(region-end)
-		(erl-read-nodename)))
+		(erl-ie-read-nodename)))
 
   (let* ((string (buffer-substring-no-properties start end))
 
@@ -88,20 +101,26 @@
       (erl-send (tuple 'distel_ie node) 
 		(tuple 'evaluate erl-self string))
       
+      (message "Sent eval request..")
+
       ;; move cursor to after the marked region
       (goto-char (+ end 1))
-      
-      (with-current-buffer buffer (newline 1))
       
       (erl-receive (buffer)
 	  
 	  (([ok Value]
-	    (with-current-buffer buffer 
+	    (if (erl-ie-xor erl-ie-inline-results current-prefix-arg)
+		;; insert directly into buffer
+		(with-current-buffer buffer 
+		  ;; Clear "Sent eval request.." message
+		  (message "")
 	      
-	      ;; TODO: should check the buffer for first non-whitespace 
-	      ;; before we do:
-	      (newline 1)
-	      (insert "--> ") (insert value) (newline 1)))
+		  ;; TODO: should check the buffer for first non-whitespace 
+		  ;; before we do:
+		  (newline 1)
+		  (insert "--> ") (insert value) (newline 1))
+	      (display-message-or-view (format "Result: %s" value)
+				       "*Evaluation Result*")))
 	   
 	   ([msg Msg]
 	    (with-current-buffer buffer
@@ -119,6 +138,11 @@
 	    (message "Unexpected: %S" other)))))))
 
 
+(defun erl-ie-xor (a b)
+  "Boolean exclusive or of A and B."
+  (or (and a (not b))
+      (and b (not a))))
+
 ;;
 ;; &erl-ie-group-leader-loop
 
@@ -135,12 +159,13 @@
 
 (defun erl-ie-copy-buffer-to-session (node)
   "Takes the content of the current buffer and opens a distel_ie session with it. The content is pasted at the end of the session buffer. This can be useful for debugging a file without ruining the content by mistake."
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-ie-read-nodename)))
   (let ((cloned-buffer (buffer-string)))
 
     (with-current-buffer (erl-ie-session node)
-      (end-of-buffer)
-      (insert cloned-buffer))))
+      (goto-char (point-max))
+      (insert cloned-buffer)
+      (pop-to-buffer (current-buffer)))))
 
 ;;
 ;; erl-ie-copy-region-to-session
@@ -150,12 +175,14 @@
   (interactive (list
 		(region-beginning)
 		(region-end)
-		(erl-read-nodename)))
+		(erl-ie-read-nodename)))
   (let ((cloned-region (buffer-substring-no-properties start end)))
 
     (with-current-buffer (erl-ie-session node)
-      (end-of-buffer)
-      (insert cloned-region))))
+      (goto-char (point-max))
+      (set-mark (point))		; so the region will be right
+      (insert cloned-region)
+      (pop-to-buffer (current-buffer)))))
 
 
 (provide 'distel-ie)

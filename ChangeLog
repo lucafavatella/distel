@@ -1,3 +1,9 @@
+2002-08-29  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/distel-ie.el (erl-ie-inline-results): Added variable to
+	control how results are reported (inline in buffer, or in message
+	area). Uses the message area by default, prefix argument inverts.
+
 2002-08-28  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (display-message-or-view): Fixed
