@@ -29,13 +29,13 @@ a warning if not."
 Distel Warning: node `%s' can't seem to load the `distel' module.
 
 This means that most Distel commands won't function correctly, because
-the supporting library is not available. Please check your code path,
-and make sure that Distel's \"ebin\" directory is included.
+the supporting library is not available. Please check your node's code
+path, and make sure that Distel's \"ebin\" directory is included.
 
 The most likely cause of this problem is either:
 
   a) Your ~/.erlang file doesn't add Distel to your load path (the
-     Distel \"make config_install\" target can do this for you.)
+     Distel \"make config_install\" target can set this up for you.)
 
   b) Your system's boot script doesn't consult your ~/.erlang file to
      read your code path setting.
@@ -243,11 +243,13 @@ truncate to fit on the screen."
       ;; Contains a newline with actual text after it, so display as a
       ;; buffer
       (with-current-buffer (get-buffer-create bufname)
-	(erase-buffer)
-	(insert msg)
-	(goto-char (point-min))
-	(let ((win (display-buffer (current-buffer))))
-	  (when select (select-window win))))
+	(setq buffer-read-only t)
+	(let ((inhibit-read-only t))
+	  (erase-buffer)
+	  (insert msg)
+	  (goto-char (point-min))
+	  (let ((win (display-buffer (current-buffer))))
+	    (when select (select-window win)))))
     ;; Print only the part before the newline (if there is
     ;; one). Newlines in messages are displayed as "^J" in emacs20,
     ;; which is ugly
@@ -550,11 +552,11 @@ default.)"
 	 (mfa (if (or distel-tags-compliant
 		      (integerp current-prefix-arg)
 		      (null default-mfa))
-		  (erl-prompt-for-tag default-mfa)
+		  (erl-prompt-for-tag default-mfa "Find erlang function: ")
 		default-mfa)))
     (apply #'erl-find-source mfa)))
 
-(defun erl-prompt-for-tag (mfa)
+(defun erl-prompt-for-tag (mfa prompt)
   (let* ((default
 	   (if (null mfa)
 	       nil
@@ -562,7 +564,8 @@ default.)"
 	     (concat (if (first mfa)  (format "%s:" (first mfa)) "")
 		     (if (second mfa) (format "%s"  (second mfa)) "")
 		     (if (third mfa)  (format "/%S" (third mfa))))))
-	 (prompt (format "Find erlang function: %s"
+	 (prompt (format "%s %s"
+			 prompt
 			 (if default
 			     (format "(default %s) " default)
 			   ""))))
@@ -865,6 +868,91 @@ the node, version 1.2 (or perhaps later.)"
 			    (indent-region (point-min) (point-max) nil)
 			    (buffer-string)))
 		(message "Saved `%s' definition on kill ring." name)))))))))
+
+;; ------------------------------------------------------------
+;; fdoc interface
+
+(defun erl-fdoc-apropos (node regexp)
+  (interactive (list (erl-read-nodename)
+		     (read-string "Regexp: ")))
+  (unless (string= regexp "")
+    (erl-spawn
+      (erl-send-rpc node 'distel 'apropos (list regexp))
+      (message "Sent request; waiting for results..")
+      (erl-receive ()
+	  ((['rex ['ok matches]]
+	    (erl-show-fdoc-matches matches))
+	   (['rex ['badrpc rsn]]
+	    (message "fdoc RPC failed: %S" rsn))
+	   (other
+	    (message "fdoc unexpected result: %S" other)))))))
+
+(defun erl-show-fdoc-matches (matches)
+  "Show MATCHES from fdoc. Each match is [MOD FUNC ARITY DOC]."
+  (if (null matches)
+      (message "No matches.")
+    (display-message-or-view
+     (with-temp-buffer
+       (dolist (match matches)
+	 (mlet [mod func arity doc] match
+	   (insert (propertize (format "%s:%s/%s" mod func arity)
+			       'face '(bold t))
+		   ":\n")
+	   (set-mark (point))
+	   (insert doc)
+	   (indent-rigidly (mark) (point) 2)
+	   (insert "\n")))
+       (buffer-string))
+     "*Erlang fdoc results*")))
+
+(defvar erl-module-function-arity-regexp
+  ;; Nasty scary not-really-correct stuff.. now I know how perl guys feel
+  (let* ((module-re   "[^:]*")
+	 (fun-re      "[^/]*")
+	 (arity-re    "[0-9]*")
+	 (the-module  (format "\\(%s\\)" module-re))
+	 (maybe-arity (format "\\(/\\(%s\\)\\)?" arity-re))
+	 (maybe-fun-and-maybe-arity
+	  (format "\\(:\\(%s\\)%s\\)?" fun-re maybe-arity)))
+    (concat "^" the-module maybe-fun-and-maybe-arity "$"))
+    "Regexp matching \"module[:function[/arity]]\".
+The match positions are erl-mfa-regexp-{module,function,arity}-match.")
+
+(defvar erl-mfa-regexp-module-match   1)
+(defvar erl-mfa-regexp-function-match 3)
+(defvar erl-mfa-regexp-arity-match    5)
+
+(defun erl-fdoc-describe (node mfastr)
+  (interactive
+   (list (erl-read-nodename)
+	 (read-string "M[:F[/A]]: ")))
+  (if (not (string-match erl-module-function-arity-regexp mfastr))
+      (error "Bad input.")
+    (let ((mod (match-string erl-mfa-regexp-module-match mfastr))
+	  (fun (ignore-errors (match-string erl-mfa-regexp-function-match mfastr)))
+	  (arity (ignore-errors (match-string erl-mfa-regexp-arity-match mfastr))))
+      (if (string= mod "")
+	  (error "Bad spec -- which module?")
+	(erl-spawn
+	  (erl-send-rpc node 'distel 'describe
+			(list (intern mod)
+			      (if fun (intern fun) '_)
+			      (if arity (string-to-int arity) '_)))
+	  (message "Sent request; waiting for results..")
+	  (erl-receive ()
+	      ((['rex ['ok matches]]
+		(erl-show-fdoc-matches matches))
+	       (['rex ['badrpc rsn]]
+		(message "fdoc RPC failed: %S" rsn))
+	       (other
+		(message "fdoc unexpected result: %S" other)))))))))
+
+
+(defun erl-format-mfa (&optional m f a)
+  (cond ((null m) nil)
+	((null f) (symbol-name m))
+	((null a) (format "%s:%s" m f a))
+	(t        (format "%s:%s/%s" m f a))))
 
 (provide 'erl-service)
 

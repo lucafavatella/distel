@@ -19,7 +19,8 @@
          debug_toggle/2, debug_subscribe/1, debug_add/1,
 	 break_toggle/2, break_delete/2, break_add/2, break_restore/1,
 	 modules/1, functions/2,
-	 free_vars/1, free_vars/2]).
+	 free_vars/1, free_vars/2,
+	 apropos/1, describe/3]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
@@ -673,3 +674,12 @@ strip([{'||', _}  | Ts]) -> strip(Ts);
 strip([{'of', _}  | Ts]) -> strip(Ts);
 strip(Ts)                -> Ts.
 
+%% ----------------------------------------------------------------------
+%% Online documentation
+%% ----------------------------------------------------------------------
+
+apropos(RE) ->
+    fdoc:get_apropos(RE).
+
+describe(M, F, A) ->
+    fdoc:description(M, F, A).

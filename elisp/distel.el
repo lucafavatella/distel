@@ -19,6 +19,11 @@
   :type 'boolean
   :group 'distel)
 
+(defcustom distel-inhibit-backend-check nil
+  "Don't check for the 'distel' module when we connect to new nodes."
+  :type 'boolean
+  :group 'distel)
+
 ;; Compatibility with XEmacs
 (unless (fboundp 'define-minor-mode)
   (defalias 'define-minor-mode 'easy-mmode-define-minor-mode))
@@ -55,6 +60,8 @@ cache, give a prefix argument with C-u before using the command.
 \\[erl-reload-module]	- Reload an Erlang module.
 \\[fprof]	- Profile (with fprof) an expression from the minibuffer.
 \\[fprof-analyse]	- View profiler results from an \"fprof:analyse\" file.
+\\[erl-fdoc-describe]	- Describe a module or function with fdoc.
+\\[erl-fdoc-apropos]	- Describe all Erlang functions matching a regexp.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
 \\[edb-toggle-breakpoint]	- Toggle a debugger breakpoint at the current line.
 \\[edb-synch-breakpoints]	- Synchronizes current breakpoints to erlang.
@@ -93,6 +100,8 @@ sequence. For general information about Emacs' online help, use
     ("\M-?"      . erl-complete)	; Some windowmanagers hijack M-TAB..
     ("\C-c\C-de" . erl-ie-show-session)
     ("\C-c\C-df" . erl-refactor-subfunction)
+    ("\C-c\C-dd" . erl-fdoc-describe)
+    ("\C-c\C-da" . erl-fdoc-apropos)
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
