@@ -10,7 +10,7 @@
 	`edb-popup-monitor-on-event' is nil); Monitor better intercepts
 	debug commands to either start monitoring or switch nodes; 'q' now
 	hides rather than kills the monitor buffer/process ('k' kills);
-	Return and C-m can be used to attach to a buffer from the monitor,
+	Return and C-m can be used to attach to a process from the monitor,
 	as well as the traditional 'a'.
 
 2002-08-21  Luke Gorrie  <luke@bluetail.com>
