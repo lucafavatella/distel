@@ -169,8 +169,9 @@ guess_source_file(Mod, BeamFName) ->
     Dir = filename:dirname(BeamFName),
     TryL = src_from_beam(BeamFName) ++
 	[Dir ++ "/" ++ Erl,
-	 filename:join(Dir ++ "../src/", Erl),
-	 filename:join(Dir ++ "../erl/", Erl)],
+	 filename:join(Dir ++ "/../src/", Erl),
+	 filename:join(Dir ++ "/../esrc/", Erl),
+	 filename:join(Dir ++ "/../erl/", Erl)],
     try_srcs(TryL).
 
 try_srcs([H | T]) ->
