@@ -1,5 +1,7 @@
 ; Network state machine engine
 
+(eval-when-compile (require 'cl))
+
 (defcustom fsm-use-debug-buffer nil
   "*Store fsm debug messages in a buffer."
   :type 'boolean
@@ -35,7 +37,7 @@ addition to being passed as an argument.")
 
 (defmacro with-error-cleanup (cleanup &rest body)
   "Execute BODY, and if it hits an error run CLEANUP."
-  (let ((success (gensym "success")))
+  (let ((success (make-symbol "success")))
     `(let (,success)
        (unwind-protect
 	   (prog1 (progn ,@body)
@@ -49,7 +51,7 @@ addition to being passed as an argument.")
 ;; ----------------------------------------------------------------------
 
 (defun fsm-open-socket (host port)
-  (let ((buf (generate-new-buffer "*net-fsm*")))
+  (let ((buf (generate-new-buffer " *net-fsm*")))
     (with-error-cleanup (kill-buffer buf)
       (let ((p (open-network-stream "netfsm" buf host port)))
 	(set-process-coding-system p 'no-conversion 'no-conversion)
@@ -108,7 +110,7 @@ the FSM fails."
   "Process `event' in the current state."
   (assert-fsm-invariants)
   (fsm-debug "EVENT: %S - %S\n" event arg)
-  (with-error-cleanup 
+  (with-error-cleanup
       (fsm-fail (format "Error on event %S in state %S"
 			event fsm-state))
 	(funcall fsm-state event arg)))
@@ -164,10 +166,8 @@ error is signaled."
 (defmacro fsm-build-message (&rest body)
   "Execute BODY, and return the message that it creates via calls to
 fsm-{insert,encode}*."
-  `(let ((fsm-work-buffer ,(generate-new-buffer "*fsm-msg*")))
-     (unless (featurep 'xemacs)
-       (with-current-buffer fsm-work-buffer
-	 (set-buffer-multibyte nil)))
+  `(let ((fsm-work-buffer (let ((default-enable-multibyte-characters nil))
+			     (generate-new-buffer " *fsm-msg*"))))
      (unwind-protect
 	 (progn ,@body
 		(with-current-buffer fsm-work-buffer (buffer-string)))
@@ -267,4 +267,3 @@ buffer."
     (kill-buffer oldbuffer)))
 
 (provide 'net-fsm)
-
