@@ -102,6 +102,9 @@ command `erl-schedule' to continue.")
 (defvar erl-ref-counter 0
   "Unique reference id counter.")
 
+(defvar erl-nodes nil
+  "List of nodes that we are currently connected to.")
+
 ;; Process-local variables
 
 (eval-when-compile
@@ -594,9 +597,11 @@ during the next `erl-schedule'."
 ;; Initialisation
 
 (defun erl-nodeup (node proc)
+  (pushnew node erl-nodes)
   (message "nodeup: %S" node))
 
 (defun erl-nodedown (node)
+  (setq erl-nodes (remove node erl-nodes))
   (message "nodedown: %S" node))
 
 ;; These hooks are defined in derl.el
