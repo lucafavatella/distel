@@ -1,3 +1,13 @@
+2002-08-19  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el, distel.erl (fprof): Fixed the fprof
+	interface to handle multiple processes. Used the compiler as a
+	test case.
+
+	The presentation of results is seriously inadequate for such large
+	quantities of data. What's needed is a sexy tree layout like the
+	OptimizeIt profiler for Java has.
+
 2002-08-18  david wallin  <david@dolly.csis.ul.ie>
 
 	* elisp/distel-ie.el (erl-ie-evaluate): Can now receive messages 
@@ -21,8 +31,6 @@
 	the function name and arity.
 
 	* erl/distel_ie.erl (get_function_name/1): Returns the arity as well.
-	
-
 	
 2002-08-17  Luke Gorrie  <luke@bluetail.com>
 

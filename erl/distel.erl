@@ -11,7 +11,7 @@
 
 -include_lib("kernel/include/file.hrl").
 
--import(lists, [flatten/1, member/2, sort/1]).
+-import(lists, [flatten/1, member/2, sort/1, map/2]).
 
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
@@ -21,6 +21,8 @@
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
 -compile(export_all).
+
+-define(L2B(X), list_to_binary(X)).
 
 %% ----------------------------------------------------------------------
 %% RPC entry point, adapting the group_leader protocol.
@@ -108,8 +110,19 @@ guess_source_file(Beam) ->
                                     false
                             end;
                         _ ->
-                            false
-                    end
+			    %% This lets us find Distel's own sourcecode
+			    case regexp:sub(Src1, "/ebin/", "/erl/") of
+				{ok, Src2, _} ->
+				    case file:read_file_info(Src2) of
+					{ok, #file_info{type=regular}} ->
+					    {ok, Src2};
+					_ ->
+					    false
+				    end;
+				_ ->
+				    false
+			    end
+		    end
             end;
         _ ->
             false
@@ -245,7 +258,7 @@ fprof_fun(F) ->
     {ok,
      fprof_preamble(Totals),
      fprof_header(),
-     [fprof_entry(F) || F <- Fns]}.
+     [fprof_entry(Entry) || Entry <- Fns]}.
 
 fprof_preamble({totals, Cnt, Acc, Own}) ->
     fmt("Totals: ~p calls, ~.3f real, ~.3f CPU\n\n", [Cnt, Acc, Own]).
@@ -253,15 +266,30 @@ fprof_preamble({totals, Cnt, Acc, Own}) ->
 fprof_header() ->
     fmt("~sCalls\tACC\tOwn\n", [pad(50, "Function")]).
 
+fprof_entry([{ProcName, Cnt, Acc, Own} | Info]) ->
+    %% {process, Name, [Infos]}
+    {process, fmt("Process ~s: ~p%", [ProcName, Own]),
+     map(fun fprof_process_info/1, Info)};
 fprof_entry(F) ->
     {Up, This, Down} = F,
     {Name, _, _, _} = This,
-    {fprof_tag(Name),
+    {tracepoint,
+     fprof_tag(Name),
      fprof_mfa(Name),
      fprof_text(This),
      fprof_tags(Up),
      fprof_tags(Down),
      fprof_beamfile(Name)}.
+
+fprof_process_info({spawned_by, Who}) ->
+    fmt("  ~s: ~s", [pad(16, "spawned_by"), Who]);
+fprof_process_info({spawned_as, What}) ->
+    fmt("  ~s: ~s", [pad(16, "spawned as"),
+		   fprof_tag_name(What)]);
+fprof_process_info({initial_calls, Calls}) ->
+    fmt("  ~s: ~p~n", [pad(16, "initial calls"), Calls]);
+fprof_process_info(Info) ->
+    fmt("  ???: ~p~n", [Info]).
 
 fprof_tag({M,F,A}) ->
     list_to_atom(flatten(io_lib:format("~p:~p/~p", [M,F,A])));
@@ -341,11 +369,11 @@ break_toggle(Mod, Line) ->
 debug_subscribe(Pid) ->
     spawn_link(?MODULE, debug_subscriber_init, [self(), Pid]),
     receive ready -> ok end,
-    [{Pid,
+    [{Proc,
       fmt("~p:~p/~p", [M,F,length(A)]),
       fmt("~w", [Status]),
       fmt("~w", [Info])}
-     || {Pid, {M,F,A}, Status, Info} <- int:snapshot()].
+     || {Proc, {M,F,A}, Status, Info} <- int:snapshot()].
 
 debug_subscriber_init(Parent, Pid) ->
     link(Pid),
@@ -470,3 +498,4 @@ attach_goto(Emacs, Meta, Mod, Line, Pos, Max) ->
 	       {Name,Val} <- Bs],
     Emacs ! {variables, Vars},
     Emacs ! {location, Mod, Line, Pos, Max}.
+

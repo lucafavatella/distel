@@ -280,6 +280,7 @@ This is received from the Erlang module.")
     (define-key (current-local-map) [(control m)] 'fprof-show-detail)
     (define-key (current-local-map) [?f] 'fprof-find-source)
     (define-key (current-local-map) [?q] 'kill-this-buffer)
+    (setq tab-width 10)
     (erase-buffer)
     (insert preamble)
     (insert fprof-header)
@@ -289,14 +290,21 @@ This is received from the Erlang module.")
 
 (defun fprof-add-entry (entry)
   "Add a profiled function entry."
-  (pmatch [Tag MFA Text Callers Callees Beamfile] entry
-    (push `(,tag . ((text 	. ,text)
-		    (mfa 	. ,mfa)
-		    (callers 	. ,callers)
-		    (callees 	. ,callees)
-		    (beamfile 	. ,beamfile)))
-	  fprof-entries)
-    (fprof-insert text tag)))
+  (mcase entry
+    ([process Title Info-List]
+     (insert "\n")
+     (insert title "\n")
+     (dolist (info info-list)
+       (insert "  " info "\n"))
+     (insert "\n"))
+    ([tracepoint Tag MFA Text Callers Callees Beamfile]
+     (push `(,tag . ((text 	. ,text)
+		     (mfa 	. ,mfa)
+		     (callers 	. ,callers)
+		     (callees 	. ,callees)
+		     (beamfile 	. ,beamfile)))
+	   fprof-entries)
+     (fprof-insert text tag))))
 
 (defun fprof-insert (text tag)
   (put-text-property 0 (length text) 'fprof-tag tag text)
