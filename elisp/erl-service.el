@@ -20,14 +20,21 @@ If a prefix argument is in effect, the cache in skipped."
   (if (and (not current-prefix-arg)
 	   erl-nodename-cache)
       erl-nodename-cache
-    (let ((name-string (read-string "Node: ")))
-      (let ((name (intern (if (string-match "@" name-string)
-			      name-string
-			    (concat name-string
-				    "@" (erl-determine-hostname))))))
-	(when (derl-node-p name)
-	  (setq erl-nodename-cache name))
-	name))))
+    (erl-read-nodename-from-user)))
+
+(defun erl-read-nodename-from-user ()
+  (let ((name-string (read-string "Node: ")))
+    (let ((name (intern (if (string-match "@" name-string)
+			    name-string
+			  (concat name-string
+				  "@" (erl-determine-hostname))))))
+      (when (derl-node-p name)
+	(setq erl-nodename-cache name))
+      name)))
+
+(defun erl-get-nodename ()
+  (interactive)
+    (erl-read-nodename-from-user))
 
 ;; ------------------------------------------------------------
 ;; RPC
@@ -170,17 +177,20 @@ Available commands:
   "Show a piece of information about process at point."
   (interactive (list (intern (read-string "Item: "))))
   (let ((pid (get-text-property (point) 'erl-pid)))
-    (if (null pid)
-	(message "No process at point.")
-      (erl-spawn
-	(erl-send-rpc (erl-pid-node pid)
-		      'distel 'process_info_item (list pid item))
-	(erl-receive (item pid)
-	    ((['rex ['ok string]]
-	      (display-message-or-view string "*pinfo item*"))
-	     (other
-	      (message "Error from erlang side of process_info:\n  %S"
-		       other))))))))
+    (cond ((null pid)
+	   (message "No process at point."))
+	  ((string= "" item)
+	   (erl-show-process-info))
+	  (t
+	   (erl-spawn
+	     (erl-send-rpc (erl-pid-node pid)
+			   'distel 'process_info_item (list pid item))
+	     (erl-receive (item pid)
+		 ((['rex ['ok string]]
+		   (display-message-or-view string "*pinfo item*"))
+		  (other
+		   (message "Error from erlang side of process_info:\n  %S"
+			    other)))))))))
 
 (defun display-message-or-view (msg bufname &optional select)
   "Like `display-buffer-or-message', but with `view-buffer-other-window'.

@@ -88,8 +88,12 @@ sequence. For general information about Emacs' online help, use
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
-    ("\M-*"      . erl-find-source-unwind) ; usually `pop-tag-mark'
-    ))
+    ("\M-*"      . erl-find-source-unwind) ; usually `tags-loop-continue'
+    )
+  (if erlang-extended-mode
+      (distel-init)
+    (distel-finish))
+  )
 
 ;; Setup mode-line info for erlang-extended-mode
 ;;
@@ -99,6 +103,41 @@ sequence. For general information about Emacs' online help, use
 (add-to-list 'minor-mode-alist
 	     '(erlang-extended-mode
 	       (" EXT" (edb-module-interpreted ":interpreted" ""))))
+
+(defun distel-init ()
+  (setq erlang-menu-items
+	(erlang-menu-add-below 'distel-menu-items
+			       'erlang-menu-compile-items
+			       erlang-menu-items))
+  (erlang-menu-init))
+
+(defun distel-finish ()
+  (setq erlang-menu-items
+	(erlang-menu-delete 'distel-menu-items erlang-menu-items))
+  (erlang-menu-init))
+  
+(defvar distel-menu-items
+  '(nil
+    ("Distel"
+     (("List all erlang processes" erl-process-list)
+      ("Eval an erlang expression" erl-eval-expression)
+      ("Reload an erlang module" erl-reload-module)
+      nil
+      ("Profile an erlang expression" fprof)
+      ("View profiler results" fprof-analyse)
+      nil
+      ("Toggle debug interpreting of the module" edb-toggle-interpret)
+      ("Toggle a breakpoint at current line" edb-toggle-breakpoint)
+      ("Popup the debugger process monitor" edb-monitor)
+      nil
+      ("Create an interactive erlang session buffer" erl-ie-show-session)
+      nil
+      ("Specify which node to connect to" erl-get-nodename)
+      )))
+  "*Description of the Distel menu used by Erlang Extended mode.
+
+Please see the documentation of `erlang-menu-base-items'.")
+
 
 ;; Bug reportage
 

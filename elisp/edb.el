@@ -16,6 +16,19 @@ or an attached process exiting."
   :type 'boolean
   :group 'distel)
 
+(defface edb-breakpoint-face
+  `((((type tty) (class color))
+     (:background "red" :foreground "black"))
+    (((type tty) (class mono))
+     (:inverse-video t))
+    (((class color) (background dark))
+     (:background "red" :foreground "black"))
+    (((class color) (background light))
+     (:background "tomato" :foreground "black"))
+    (t (:background "gray")))
+  "Face for marking a breakpoint definition."
+  :group 'distel)
+
 ;; ----------------------------------------------------------------------
 ;; Integration with erlang-extended-mode buffers.
 
@@ -26,16 +39,13 @@ This variable is meaningful in erlang-extended-mode buffers.
 The interpreted status refers to the node currently being monitored by
 edb."))
 
-(defun edb-update-interpreted-status ()
-  "Update `edb-module-interpreted' for current buffer."
-  (when erlang-extended-mode
-    (setq edb-module-interpreted
-	  (if (member (edb-source-file-module-name) edb-interpreted-modules)
-	      t
-	    nil))
-    (force-mode-line-update)))
+(defun edb-update-interpreted-buffer ()
+  (make-local-variable 'kill-buffer-hook)
+  (add-hook 'kill-buffer-hook 'edb-delete-buffer-breakpoints)
+  (edb-update-interpreted-status)
+  (edb-create-buffer-breakpoints))
 
-(add-hook 'erlang-extended-mode-hook 'edb-update-interpreted-status)
+(add-hook 'erlang-extended-mode-hook 'edb-update-interpreted-buffer)
 
 ;; ----------------------------------------------------------------------
 ;; EDB minor mode for erlang-mode source files
@@ -101,9 +111,6 @@ edb."))
 
 (defvar edb-interpreted-modules '()
   "Set of modules being interpreted on the currently monitored node.")
-
-(defvar edb-breakpoints '()
-  "Set of (MODULE . LINE) breakpoints on the currently monitored node.")
 
 (unless edb-monitor-mode-map
   (setq edb-monitor-mode-map (make-sparse-keymap))
@@ -215,7 +222,7 @@ Returns NIL if this cannot be ensured."
     (erl-receive (node)
 	((['rex [interpreted breaks snapshot]]
 	  (setq edb-interpreted-modules interpreted)
-	  (setq edb-breakpoints breaks)
+	  (edb-init-breakpoints breaks)
 	  (edb-update-source-buffers)
 	  (setq edb-processes
 		(ewoc-create 'edb-monitor-insert-process
@@ -260,27 +267,42 @@ Tracks events and state changes from the Erlang node."
 	(edb-update-source-buffers mod))
        ;;
        (['int ['no_break mod]]
-	(setq edb-breakpoints
-	      (remove-if (lambda (bp)
-			   (mcase bp
-			     ([,mod _] t)
-			     (_        nil)))
-			 edb-breakpoints)))
+	(edb-delete-breakpoints mod))
        ;;
-       (['int ['new_break [pos _info]]]
-	(push pos edb-breakpoints))
+       (['int ['new_break [[mod line] _info]]]
+	(edb-create-breakpoints mod line))
        ;;
-       (['int ['delete_break pos]]
-	(setq edb-breakpoints
-	      (remove pos edb-breakpoints))))
+       (['int ['delete_break [mod line]]]
+	(edb-delete-breakpoint mod line)))
     (ewoc-refresh edb-processes)    
     (&edb-monitor-loop)))
+
+(defun edb-get-buffer (mod)
+  (edb-get-buffer2 mod (buffer-list)))
+
+(defun edb-get-buffer2 (mod bufl)
+  (if (null bufl) nil
+    (with-current-buffer (car bufl)
+      (if (and erlang-extended-mode
+	       (eq (edb-source-file-module-name) mod))
+	  (car bufl)
+	(edb-get-buffer2 mod (cdr bufl))))))
+
 
 (defun edb-interesting-event-p (pid status info)
   (or (and (eq status 'exit)
 	   (edb-attached-p pid))
       (and (eq status 'break)
 	   (not (edb-attached-p pid)))))
+
+(defun edb-update-interpreted-status ()
+  "Update `edb-module-interpreted' for current buffer."
+  (when erlang-extended-mode
+    (setq edb-module-interpreted
+	  (if (member (edb-source-file-module-name) edb-interpreted-modules)
+	      t
+	    nil))
+    (force-mode-line-update)))
 
 (defun edb-update-source-buffers (&optional mod)
   "Update the debugging state of all Erlang buffers.
@@ -305,7 +327,7 @@ When MOD is given, only update those visiting that module."
 (defun edb-monitor-cleanup ()
   "Cleanup state after the edb process exits."
   (setq edb-interpreted-modules nil)
-  (setq edb-breakpoints nil)
+  (edb-delete-all-breakpoints)
   (edb-update-source-buffers))
 
 ;; ----------------------------------------------------------------------
@@ -326,6 +348,10 @@ When MOD is given, only update those visiting that module."
 (make-variable-buffer-local 
  (defvar edb-variables-buffer nil
    "Buffer showing variable bindings of attached process."))
+
+(make-variable-buffer-local 
+ (defvar edb-attach-buffer nil
+   "True if buffer is attach buffer."))
 
 (defvar edb-attach-with-new-frame nil
   "When true, attaching to a process opens a new frame.")
@@ -362,6 +388,9 @@ When MOD is given, only update those visiting that module."
      (rename-buffer (edb-attach-buffer-name pid))
      (erlang-mode)
      (edb-attach-mode t)
+     (setq edb-attach-buffer t)
+     (make-local-variable 'kill-buffer-hook)
+     (add-hook 'kill-buffer-hook 'edb-delete-attach-breakpoints)
      (message "Entered debugger. Press 'h' for help.")
      (setq buffer-read-only t)
      (erl-send-rpc (erl-pid-node pid)
@@ -482,6 +511,8 @@ Once loaded, reenters the attach loop."
 		   (let ((buffer-read-only nil))
 		     (erase-buffer)
 		     (insert-file-contents path))
+		   (edb-delete-attach-breakpoints)
+		   (edb-create-attach-breakpoints module)
 		   (edb-attach-goto-line line))
 	  (message "No such file: %s" path))))
     (&edb-attach-loop)))
@@ -547,5 +578,156 @@ Available commands:
 
 (defun edb-attach-meta-cmd (cmd)
   (erl-send edb-pid `[emacs meta ,cmd]))
+
+;; ----------------------------------------------------------------------
+;; Breakpoints
+
+(defvar edb-breakpoints '()
+  "List of all breakpoints on the currently monitored node.")
+
+(make-variable-buffer-local 
+ (defvar edb-buffer-breakpoints nil
+   "List of active buffer breakpoints."))
+
+(make-variable-buffer-local 
+ (defvar edb-attach-breakpoints nil
+   "List of active buffer breakpoints for current attach buffer."))
+
+;; breakpoints
+(defun make-bp (mod line) (list mod line))
+(defun bp-mod (bp) (car bp))
+(defun bp-line (bp) (cadr bp))
+
+;; buffer breakpoints
+(defun make-bbp (mod line ov) (list mod line ov))
+(defun bbp-mod (bbp) (car bbp))
+(defun bbp-line (bbp) (cadr bbp))
+(defun bbp-ov (bbp) (caddr bbp))
+
+(defun edb-init-breakpoints (breaks)
+  (setq edb-breakpoints
+	(mapcar (lambda (pos)
+		  (let ((mod (aref pos 0))
+			(line (aref pos 1)))
+		    (make-bp mod line)))
+		breaks)))
+
+(defun edb-create-breakpoints (mod line)
+  "Updates all internal structures in all buffers with new breakpoint."
+  (push (make-bp mod line) edb-breakpoints)
+  (mapc
+   (lambda (buf)
+     (with-current-buffer buf
+       (if (and erlang-extended-mode
+		(eq (edb-source-file-module-name) mod))
+	   (let ((bbp (make-bbp mod line (edb-make-breakpoint-overlay line))))
+	     (if edb-attach-buffer
+		 (push bbp edb-attach-breakpoints)
+	       (push bbp edb-buffer-breakpoints))))))
+   (buffer-list)))
+
+(defun edb-delete-all-breakpoints ()
+  "Updates all internal structures in all buffers."
+  (edb-del-breakpoints
+   (lambda (bp) t)
+   (lambda (bbp) t)))
+
+(defun edb-delete-breakpoints (mod)
+  "Updates all internal structures in all buffers."
+  (edb-del-breakpoints
+   (lambda (bp) (eq (bp-mod bp) mod))
+   (lambda (bbp) (eq (bbp-mod bbp) mod))
+   mod))
+
+(defun edb-delete-breakpoint (mod line)
+  "Updates all internal structures in all buffers."
+  (edb-del-breakpoints
+   (lambda (bp) (and (eq (bp-mod bp) mod)
+		     (eq (bp-line bp) line)))
+   (lambda (bbp) (and (eq (bbp-mod bbp) mod)
+		      (eq (bbp-line bbp) line)))
+   mod))
+
+(defun edb-create-buffer-breakpoints ()
+  "Creates buffer breakpoints in the current buffer."
+  (let ((mod (edb-source-file-module-name)))
+    (if (member mod edb-interpreted-modules)
+	(setq edb-buffer-breakpoints (edb-mk-bbps mod)))))
+	    
+(defun edb-delete-buffer-breakpoints ()
+  "Deletes all buffer breakpoints in the current buffer."
+  (setq edb-buffer-breakpoints 
+	(edb-del-bbps edb-buffer-breakpoints (lambda (bbp) t))))
+
+(defun edb-create-attach-breakpoints (mod)
+  "Creates buffer breakpoints in the current attach buffer."
+  (setq edb-attach-breakpoints (edb-mk-bbps mod)))
+
+(defun edb-delete-attach-breakpoints ()
+  "Deletes all buffer breakpoints in the current attach buffer."
+  (setq edb-attach-breakpoints 
+	(edb-del-bbps edb-attach-breakpoints (lambda (bbp) t))))
+
+;;
+
+(defun edb-del-breakpoints (bp-f bbp-f &optional mod)
+  "Updates all internal structures in all buffers."
+  (setq edb-breakpoints (remove-if bp-f edb-breakpoints))
+  (mapc
+   (lambda (buf)
+     (with-current-buffer buf
+       (if (and erlang-extended-mode
+		(or (not mod)
+		    (eq (edb-source-file-module-name) mod)))
+	   (if edb-attach-buffer
+	       (setq edb-attach-breakpoints
+		     (edb-del-bbps edb-attach-breakpoints bbp-f))
+	     (setq edb-buffer-breakpoints
+		   (edb-del-bbps edb-buffer-breakpoints bbp-f))))))
+   (buffer-list)))
+
+(defun edb-mk-bbps (mod)
+  (zf
+   (lambda (bp)
+     (let ((bmod (bp-mod bp))
+	   (line (bp-line bp)))
+       (if (eq bmod mod)
+	   (let ((ov (edb-make-breakpoint-overlay line)))
+	     (make-bbp bmod line ov))
+	 nil)))
+   edb-breakpoints))
+
+(defun edb-del-bbps (list pred)
+  (zf
+   (lambda (bbp)
+     (cond ((funcall pred bbp)
+	    (delete-overlay (bbp-ov bbp))
+	    nil)
+	   (t bbp)))
+   list))
+
+(defun edb-make-breakpoint-overlay (line)
+  "Creats an overlay at line"
+  (save-excursion
+    (goto-line line)
+    (let ((ov (make-overlay (point-at-bol)
+			    (line-beginning-position 2) ;could be (point-at-eol)
+			    (current-buffer)
+			    t
+			    t)))
+      (overlay-put ov 'face 'edb-breakpoint-face)
+      ;; store a marker and the line number, so we can
+      ;; re-set all break points after edit
+      ;; (let (marker (point-marker))
+      ;;		    (overlay-put ov 'edb-marker marker)
+      ;; (overlay-put ov 'edb-line line)
+      ov)))
+    
+(defun zf (f l)
+  (let ((res nil))
+    (dolist (x l)
+      (let ((r (funcall f x)))
+	(if r (push r res))))
+    res))
 
 (provide 'edb)

@@ -18,6 +18,11 @@
 (defvar erl-nodedown-hook nil
   "Called with one arg, NODE, a string of the form \"mynode@cockatoo\"")
 
+(defcustom derl-use-trace-buffer t
+  "*Store erlang message communication in a trace buffer."
+  :type 'boolean
+  :group 'distel)
+
 ;; Local variables
 
 (make-variable-buffer-local
@@ -388,10 +393,12 @@ buffer.")
     (derl-trace msg)))
 
 (defun derl-trace (string)
-  (with-current-buffer (get-buffer-create (format "*trace %S*" derl-connection-node))
-    (goto-char (point-max))
-    (insert string)
-    (insert "\n")))
+  (if derl-use-trace-buffer
+      (with-current-buffer (get-buffer-create
+			    (format "*trace %S*" derl-connection-node))
+	(goto-char (point-max))
+	(insert string)
+	(insert "\n"))))
 
 ;; ------------------------------------------------------------
 ;; Utility

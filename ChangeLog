@@ -1,3 +1,20 @@
+2002-11-28  Martin Bjorklund  <mbj@bluetail.com>
+
+	* elisp/edb.el: Added visual breakpoints, both in source files and
+	the attach buffer.  It uses the customizable face
+	'edb-breakpoint-face' for breakpoint highlighting.
+	
+	* elisp/distel.el: Extended the Erlang menu with a 'distel'
+	submenu, which contains the common distel functions.
+
+	* elisp/derl.el (derl-use-trace-buffer): Added a customizable
+	'derl-use-trace-buffer' (default t) which is used to turn on/off
+	the trace buffer.
+
+	* elisp/net-fsm.el (fsm-use-debug-buffer): Added a customizable
+	'fsm-use-debug-buffer' (default nil) which is used to turn on/off
+	the net-fsm debug buffer.
+
 2002-11-24  Luke Gorrie  <luke@bluetail.com>
 
 	* configure: Added configure script to CVS.

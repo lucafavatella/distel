@@ -11,7 +11,8 @@ people on non-GNU systems would be especially appreciated.
 - Autoloads
 
 * Debugger
-- Visual breakpoint markers
+- Temporary breakpoints
+- Re-apply breakpoints if the source changes
 
 * Profiler
 - Tree-view, like OptimizeIt for Java

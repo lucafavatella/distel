@@ -1,5 +1,10 @@
 ; Network state machine engine
 
+(defcustom fsm-use-debug-buffer nil
+  "*Store fsm debug messages in a buffer."
+  :type 'boolean
+  :group 'distel)
+
 (defvar fsm-buffer-p nil
   "Set to t in buffers belonging to FSMs, for sanity-checking.")
 (defvar fsm-state nil
@@ -139,11 +144,12 @@ available, is called with RESULT."
 
 (defun fsm-debug (fmt &rest args)
   "Print a debugging message to the *fsm-debug* buffer."
-  (with-current-buffer (get-buffer-create "*fsm-debug*")
-    (unless (featurep 'xemacs)
-      (set-buffer-multibyte nil))
-    (goto-char (point-max))
-    (insert (apply #'format (cons fmt (mapcar #'summarise args))))))
+  (if fsm-use-debug-buffer
+      (with-current-buffer (get-buffer-create "*fsm-debug*")
+	(unless (featurep 'xemacs)
+	  (set-buffer-multibyte nil))
+	(goto-char (point-max))
+	(insert (apply #'format (cons fmt (mapcar #'summarise args)))))))
 
 (defun check-event (event &rest allowed)
   "Ensure that an event is allowed. If EVENT is not one of ALLOWED, an
