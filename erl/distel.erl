@@ -27,6 +27,8 @@
 -compile(export_all).
 
 -define(L2B(X), list_to_binary(X)).
+-define(A2L, atom_to_list).
+-define(L2A, list_to_atom).
 
 %% ----------------------------------------------------------------------
 %% RPC entry point, adapting the group_leader protocol.
@@ -84,104 +86,156 @@ parse_expr(S) ->
     erl_parse:parse_exprs(Scan).
 
 find_source(Mod) ->
-    case code:ensure_loaded(Mod) of
-        {module, Mod} ->
-            case code:is_loaded(Mod) of
-                {file, preloaded} ->
-                    {error, ?L2B("\"preloaded\"")};
-                {file, RelName} ->
-                    Name = abs_beamfile_name(RelName),
-                    case guess_source_file(Name) of
-                        {ok, Fname} ->
-                            {ok, Fname};
-                        false ->
-                            case guess_source_file_from_modinfo(Mod) of
-                                {ok, Fname} ->
-                                    {ok, Fname};
-                                false ->
-                                    {error, fmt("Can't guess matching "
-                                                "source file from ~p",
-                                                [Name])}
-                            end
-                    end
-            end;
-        {error, nofile} ->
-            {error, fmt("Can't find module '~p' on ~p", [Mod, node()])};
-        {error, Why} ->
-            {error, fmt("~p", [Why])}
+    case beamfile(Mod) of
+	{ok, BeamFName} ->
+	    case guess_source_file(Mod, BeamFName) of
+		{true, SrcFName} ->
+		    {ok, SrcFName};
+		false ->
+		    {error, fmt("Can't guess matching source file from ~p",
+				[BeamFName])}
+	    end;
+	error ->
+            {error, fmt("Can't find module '~p' on ~p", [Mod, node()])}
     end.
+% find_source(Mod) ->
+%     case code:ensure_loaded(Mod) of
+%         {module, Mod} ->
+%             case code:is_loaded(Mod) of
+%                 {file, preloaded} ->
+%                     {error, ?L2B("\"preloaded\"")};
+%                 {file, RelName} ->
+%                     Name = abs_beamfile_name(RelName),
+%                     case guess_source_file(Name) of
+%                         {ok, Fname} ->
+%                             {ok, Fname};
+%                         false ->
+%                             case guess_source_file_from_modinfo(Mod) of
+%                                 {ok, Fname} ->
+%                                     {ok, Fname};
+%                                 false ->
+%                                     {error, fmt("Can't guess matching "
+%                                                 "source file from ~p",
+%                                                 [Name])}
+%                             end
+%                     end
+%             end;
+%         {error, nofile} ->
+%             {error, fmt("Can't find module '~p' on ~p", [Mod, node()])};
+%         {error, Why} ->
+%             {error, fmt("~p", [Why])}
+%     end.
 
-abs_beamfile_name(RelName) ->
-    case file:get_cwd() of
-        {ok, Cwd} ->
-            filename:join(Cwd, RelName);
-        _ ->
-            RelName
+% abs_beamfile_name(RelName) ->
+%     case file:get_cwd() of
+%         {ok, Cwd} ->
+%             filename:join(Cwd, RelName);
+%         _ ->
+%             RelName
+%     end.
+
+% guess_source_file_from_modinfo(Mod) ->
+%     case member(Mod, int:interpreted()) of
+%       true -> {ok, int:file(Mod)};
+%       false ->
+%           case get_cwd(Mod) of
+%               false -> false;
+%               {ok, CWD} ->
+%                   Src = filename:join([CWD, to_list(Mod)++".erl"]),
+%                   case file:read_file_info(Src) of
+%                       {ok, #file_info{type=regular}} -> {ok, Src};
+%                       _ -> false
+%                   end
+%           end
+%     end.
+
+% get_cwd(Mod) ->
+%     case [O || {options, O} <- Mod:module_info(compile)] of
+%       [Opts] -> 
+%           case [C || {cwd, C} <- Opts] of
+%               [C] -> {ok, to_list(C)};
+%               _ -> false
+%           end;
+%       _ -> 
+%           false
+%     end.
+
+% to_list(A) when atom(A) -> atom_to_list(A);
+% to_list(L) when list(L) -> L.
+
+%% Ret: {true, AbsName} | false
+guess_source_file(Mod, BeamFName) ->
+    Erl = ?A2L(Mod) ++ ".erl",
+    Dir = filename:dirname(BeamFName),
+    TryL = src_from_beam(BeamFName) ++
+	[Dir ++ "/" ++ Erl,
+	 filename:join(Dir ++ "../src/", Erl),
+	 filename:join(Dir ++ "../erl/", Erl)],
+    try_srcs(TryL).
+
+try_srcs([H | T]) ->
+    case file:read_file_info(H) of
+	{ok, #file_info{type = regular}} ->
+	    {true, H};
+	_ ->
+	    try_srcs(T)
+    end;
+try_srcs([]) ->
+    false.
+
+src_from_beam(BeamFile) ->
+    case beam_lib:chunks(BeamFile, ["CInf"]) of
+	{ok, {_, [{"CInf", Bin}]}} ->
+	    case catch binary_to_term(Bin) of
+		L when list(L) ->
+		    case lists:keysearch(source, 1, L) of
+			{value, {_, Source}} ->
+			    [Source];
+			_ ->
+			    []
+		    end;
+		_ ->
+		    []
+	    end;
+	_ ->
+	    []
     end.
+    
 
-guess_source_file_from_modinfo(Mod) ->
-    case member(Mod, int:interpreted()) of
-      true -> {ok, int:file(Mod)};
-      false ->
-          case get_cwd(Mod) of
-              false -> false;
-              {ok, CWD} ->
-                  Src = filename:join([CWD, to_list(Mod)++".erl"]),
-                  case file:read_file_info(Src) of
-                      {ok, #file_info{type=regular}} -> {ok, Src};
-                      _ -> false
-                  end
-          end
-    end.
-
-get_cwd(Mod) ->
-    case [O || {options, O} <- Mod:module_info(compile)] of
-      [Opts] -> 
-          case [C || {cwd, C} <- Opts] of
-              [C] -> {ok, to_list(C)};
-              _ -> false
-          end;
-      _ -> 
-          false
-    end.
-
-to_list(A) when atom(A) -> atom_to_list(A);
-to_list(L) when list(L) -> L.
-
-guess_source_file(Beam) ->
-    case regexp:sub(Beam, "\\.beam\$", ".erl") of
-        {ok, Src1, _} ->
-            case file:read_file_info(Src1) of
-                {ok, #file_info{type=regular}} ->
-                    {ok, Src1};
-                _ ->
-                    case regexp:sub(Src1, "/ebin/", "/src/") of
-                        {ok, Src2, _} ->
-                            case file:read_file_info(Src2) of
-                                {ok, #file_info{type=regular}} ->
-                                    {ok, Src2};
-                                _ ->
-                                    false
-                            end;
-                        _ ->
-                            %% This lets us find Distel's own sourcecode
-                            %% in the source tree layout
-                            case regexp:sub(Src1, "/ebin/", "/erl/") of
-                                {ok, Src2, _} ->
-                                    case file:read_file_info(Src2) of
-                                        {ok, #file_info{type=regular}} ->
-                                            {ok, Src2};
-                                        _ ->
-                                            false
-                                    end;
-                                _ ->
-                                    false
-                            end
-                    end
-            end;
-        _ ->
-            false
-    end.
+% guess_source_file(Beam) ->
+%     case regexp:sub(Beam, "\\.beam\$", ".erl") of
+%         {ok, Src1, _} ->
+%             case file:read_file_info(Src1) of
+%                 {ok, #file_info{type=regular}} ->
+%                     {ok, Src1};
+%                 _ ->
+%                     case regexp:sub(Src1, "/ebin/", "/src/") of
+%                         {ok, Src2, _} ->
+%                             case file:read_file_info(Src2) of
+%                                 {ok, #file_info{type=regular}} ->
+%                                     {ok, Src2};
+%                                 _ ->
+%                                     false
+%                             end;
+%                         _ ->
+%                             %% This lets us find Distel's own sourcecode
+%                             %% in the source tree layout
+%                             case regexp:sub(Src1, "/ebin/", "/erl/") of
+%                                 {ok, Src2, _} ->
+%                                     case file:read_file_info(Src2) of
+%                                         {ok, #file_info{type=regular}} ->
+%                                             {ok, Src2};
+%                                         _ ->
+%                                             false
+%                                     end;
+%                                 _ ->
+%                                     false
+%                             end
+%                     end
+%             end;
+%         _ ->
+%             false
+%     end.
 
 %% ----------------------------------------------------------------------
 %% Summarise all processes in the system.
@@ -622,19 +676,49 @@ attach_goto(Emacs, Meta, Mod, Line, Pos, Max) ->
 %% Returns: [ModName] of all modules starting with Prefix.
 %% ModName = Prefix = string()
 modules(Prefix) ->
-    Modnames = [atom_to_list(Mod) || {Mod, _Filename} <- code:all_loaded()],
-    {ok, lists:filter(fun(M) -> lists:prefix(Prefix, M) end, Modnames)}.
+%  FIXME: have to decide which approach is better - all loaded or all in path
+%         i, of course, prefer all in path (mbj)
+%    Modnames = [atom_to_list(Mod) || {Mod, _Filename} <- code:all_loaded()],
+%    {ok, lists:filter(fun(M) -> lists:prefix(Prefix, M) end, Modnames)}.
+    Dirs = code:get_path(),
+    {ok, sort(foldl(fun(Dir, Acc) -> fm_dir(Dir, Prefix, Acc) end, [], Dirs))}.
+
+fm_dir(Dir, Prefix, Acc) ->
+    case file:list_dir(Dir) of
+	{ok, Files} ->
+	    Mods = [filename:basename(F, ".beam") || F <- Files,
+						     lists:prefix(Prefix, F),
+						     lists:suffix(".beam", F)],
+	    Mods ++ Acc;
+	_ ->
+	    Acc
+    end.
 
 %% Returns: [FunName] of all exported functions of Mod starting with Prefix.
 %% Mod = atom()
 %% Prefix = string()
 functions(Mod, Prefix) ->
-    case catch Mod:module_info(exports) of
-        {'EXIT', _} ->
-            {error, fmt("Can't call module_info/1 on ~p", [Mod])};
-        List when list(List) ->
-            Fns = [atom_to_list(Fun) || {Fun, _Arity} <- List],
-            {ok, ordsets:to_list(ordsets:from_list(Fns))}
+%  FIXME: have to decide which approach is better - all loaded or all in path
+%         i, of course, prefer all in path (mbj)
+%    case catch Mod:module_info(exports) of
+%        {'EXIT', _} ->
+%            {error, fmt("Can't call module_info/1 on ~p", [Mod])};
+%        List when list(List) ->
+%            Fns = [atom_to_list(Fun) || {Fun, _Arity} <- List],
+%            {ok, ordsets:to_list(ordsets:from_list(Fns))}
+%    end.
+    case beamfile(Mod) of
+	{ok, BeamFile} ->
+	    case get_exports(BeamFile) of
+		{ok, Exports0} ->
+		    Exports = Exports0 -- [{"module_info",0},{"module_info",1}],
+		    Fns = [Fun || {Fun, _Arity} <- Exports],
+		    {ok, ordsets:to_list(ordsets:from_list(Fns))};
+		error ->
+		    {error, fmt("Can't get export list for ~p", [Mod])}
+	    end;
+	_ ->
+	    {error, fmt("Can't find beam file for ~p", [Mod])}
     end.
 
 %% ----------------------------------------------------------------------
@@ -698,7 +782,9 @@ describe(M, F, A, true) ->
     describe(M, F, A).
 
 describe(M, F, A) ->
-    fdoc_binaryify(fdoc:description(M, F, A)).
+%% FIXME using nonm-cached version instead.  remove old code
+    fdoc_binaryify(fdoc:describe2(M, F, A)).
+%    fdoc_binaryify(fdoc:description(M, F, A)).
 
 %% Converts strings to binaries, for Emacs
 fdoc_binaryify({ok, Matches}) ->
@@ -720,17 +806,34 @@ fdoc_binaryify(Other) -> Other.
 %% Return: [Arglist]
 %% Arglist = [string()]
 get_arglists(ModName, FunName) when list(ModName), list(FunName) ->
-    arglists(list_to_atom(ModName), list_to_atom(FunName)).
+    arglists(list_to_atom(ModName), FunName).
 
 arglists(Mod, Fun) ->
     case get_abst_from_debuginfo(Mod) of
 	{ok, Abst} ->
-	    case fdecls(Fun, Abst) of
+	    case fdecls(?L2A(Fun), Abst) of
 		[] -> error;
 		Fdecls -> map(fun derive_arglist/1, Fdecls)
 	    end;
 	error ->
-	    error
+	    case beamfile(Mod) of
+		{ok, BeamFile} ->
+		    case get_exports(BeamFile) of
+			{ok, Exports} ->
+			    Funs = [{Fun0, Arity0} || {Fun0, Arity0} <- Exports,
+						      Fun0 == Fun],
+			    case get_forms_from_src(Mod) of
+				{ok, Forms} ->
+				    get_arglist_from_forms(Funs, Forms);
+				_ ->
+				    error
+			    end;
+			_ ->
+			    error
+		    end;
+		_ ->
+		    error
+	    end
     end.
 
 %% Find the {function, ...} entry for the named function in the
@@ -757,6 +860,14 @@ get_abst_from_debuginfo(Mod) ->
 	    error
     end.
 
+get_forms_from_src(Mod) ->
+    case find_source(Mod) of
+	{ok, SrcFName} ->
+	    epp_dodger:parse_file(SrcFName);
+	_ ->
+	    error
+    end.
+
 %% Return the name of the beamfile for Mod.
 beamfile(Mod) ->
     case code:which(Mod) of
@@ -768,8 +879,8 @@ beamfile(Mod) ->
 
 %% Read the abstract syntax tree from a debug info in a beamfile.
 read_abst(Beam) ->
-    case beam_lib:chunks(Beam, [exports,"Abst"]) of
-	{ok, {_Mod, [{exports, _Exp}, {"Abst", Abst}]}} when Abst/=<<>> ->
+    case beam_lib:chunks(Beam, ["Abst"]) of
+	{ok, {_Mod, [{"Abst", Abst}]}} when Abst /= <<>> ->
 	    {ok, Abst};
 	_ -> error
     end.
@@ -812,6 +923,12 @@ best_arg(Args) ->
 %% 'unknown' useless, type description is better, variable name is best.
 best_arg(unknown, A2)          -> A2;
 best_arg(A1, unknown)          -> A1;
+best_arg(A1, A2) when atom(A1),atom(A2) ->
+    %% ... and the longer the variable name the better
+    case length(?A2L(A2)) > length(?A2L(A1)) of
+	true -> A2;
+	false -> A1
+    end;
 best_arg(A1, A2) when atom(A1) -> A1;
 best_arg(A1, A2)               -> A2.
 
@@ -825,4 +942,91 @@ thing_to_list(X) when integer(X) -> integer_to_list(X);
 thing_to_list(X) when float(X)	 -> float_to_list(X);
 thing_to_list(X) when atom(X)	 -> atom_to_list(X);
 thing_to_list(X) when list(X)	 -> X.		%Assumed to be a string
+
+get_arglist_from_forms(Funs, Forms) ->
+    map(fun({Fun, Arity}) -> src_args(Forms, ?L2A(Fun), Arity) end, Funs).
+
+src_args(_, _, 0) -> [];
+src_args([{tree,function,_,{function,{tree,atom,_,Func}, Clauses}} = H | T],
+	 Func, Arity) ->
+    case erl_syntax_lib:analyze_function(H) of
+	{_, Arity} ->
+	    ArgsL0 = [Args || {tree, clause, _, {clause,Args,_,_}} <- Clauses],
+	    ArgsL1 = [map(fun argname/1, Args) || Args <- ArgsL0],
+	    Args = merge_args(ArgsL1),
+	    map(fun thing_to_list/1, Args);
+	_ ->
+	    src_args(T, Func, Arity)
+    end;
+src_args([_ |T], Func, Arity) ->
+    src_args(T, Func, Arity).
+%% if we get to [] we have a serious error
+
+get_exports(BeamFile) ->
+    case beam_lib:chunks(BeamFile, ["Atom", "ExpT"]) of
+	{ok, {_, [{"Atom", AtomBin}, {"ExpT", ExpBin}]}} ->
+	    Atoms = beam_disasm_atoms(AtomBin),
+	    {ok, beam_disasm_exports(ExpBin, Atoms)};
+	_ ->
+	    error
+    end.
+%%-----------------------------------------------------------------------
+%% BEGIN Code snitched from beam_disasm.erl; slightly modified
+%%-----------------------------------------------------------------------
+beam_disasm_atoms(AtomTabBin) ->
+    {_NumAtoms,B} = get_int(AtomTabBin),
+    disasm_atoms(B).
+
+disasm_atoms(AtomBin) ->
+    disasm_atoms(binary_to_list(AtomBin),1).
+
+disasm_atoms([Len|Xs],N) ->
+    {AtomName,Rest} = get_atom_name(Len,Xs),
+    [{N,AtomName}|disasm_atoms(Rest,N+1)];
+disasm_atoms([],_) ->
+    [].
+
+get_atom_name(Len,Xs) ->
+    get_atom_name(Len,Xs,[]).
+
+get_atom_name(N,[X|Xs],RevName) when N > 0 ->
+    get_atom_name(N-1,Xs,[X|RevName]);
+get_atom_name(0,Xs,RevName) ->
+    { lists:reverse(RevName), Xs }.
+
+beam_disasm_exports(none, _) -> none;
+beam_disasm_exports(ExpTabBin, Atoms) ->
+    {_NumAtoms,B} = get_int(ExpTabBin),
+    disasm_exports(B,Atoms).
+
+disasm_exports(Bin,Atoms) ->
+    resolve_exports(collect_exports(binary_to_list(Bin)),Atoms).
+
+collect_exports([F3,F2,F1,F0,A3,A2,A1,A0,_L3,_L2,_L1,_L0|Exps]) ->
+    [{i32([F3,F2,F1,F0]),  % F = function (atom ID)
+      i32([A3,A2,A1,A0])}  % A = arity (int)
+%      i32([L3,L2,L1,L0])}  % L = label (int)
+     |collect_exports(Exps)];
+collect_exports([]) ->
+    [].
+
+resolve_exports(Exps,Atoms) ->
+    [ {lookup_key(F,Atoms), A} || {F,A} <- Exps ].
+
+lookup_key(Key,[{Key,Val}|_]) ->
+    Val;
+lookup_key(Key,[_|KVs]) ->
+    lookup_key(Key,KVs);
+lookup_key(Key,[]) ->
+    exit({lookup_key,{key_not_found,Key}}).
+
+i32([X1,X2,X3,X4]) ->
+    (X1 bsl 24) bor (X2 bsl 16) bor (X3 bsl 8) bor X4.
+
+get_int(B) ->
+    {I, B1} = split_binary(B, 4),
+    {i32(binary_to_list(I)), B1}.
+%%-----------------------------------------------------------------------
+%% END Code snitched from beam_disasm.erl
+%%-----------------------------------------------------------------------
 
