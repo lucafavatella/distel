@@ -11,7 +11,7 @@
 
 -include_lib("kernel/include/file.hrl").
 
--import(lists, [flatten/1, member/2]).
+-import(lists, [flatten/1, member/2, sort/1]).
 
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
@@ -292,6 +292,8 @@ fmt(X, A) -> l2b(io_lib:format(X, A)).
 
 l2b(X) -> list_to_binary(X).
 
+pad(X, A) when atom(A) ->
+    pad(X, atom_to_list(A));
 pad(X, S) when length(S) < X ->
     S ++ lists:duplicate(X - length(S), $ ).
 
@@ -384,19 +386,32 @@ debug_attach_init(Emacs, Pid) ->
     link(Emacs),
     case int:attached(Pid) of
         {ok, Meta} ->
-            debug_attach_loop(Emacs, Meta);
+            debug_attach_loop(Emacs, Meta, false);
         error ->
             exit({error, {unable_to_attach, Pid}})
     end.
 
-debug_attach_loop(Emacs, Meta) ->
+debug_attach_loop(Emacs, Meta, Broken) ->
     receive
+	{Meta, {break_at, Mod, Line, Pos}} ->
+	    Bs = sort(int:meta(Meta, bindings, Pos)),
+	    Vars = [fmt("~s = ~w", [pad(10, Name), Val]) || {Name,Val} <- Bs],
+	    Emacs ! {meta, {break_at, Mod, Line, Pos}},
+	    Emacs ! {variables, Vars},
+	    ?MODULE:debug_attach_loop(Emacs, Meta, true);
+	{Meta, running} ->
+	    Emacs ! {meta, running},
+	    ?MODULE:debug_attach_loop(Emacs, Meta, false);
         {Meta, Msg} ->
-            Emacs ! {meta, Msg};
-        {emacs, meta, Cmd, Args} ->
-	    apply(int, meta, [Meta,Cmd|Args]);
-	{emacs, meta_query, Cmd, Args} ->
-	    Emacs ! {result, Cmd, Args, apply(int, meta, [Meta,Cmd|Args])}
-    end,
-    ?MODULE:debug_attach_loop(Emacs, Meta).
+            Emacs ! {meta, Msg},
+	    ?MODULE:debug_attach_loop(Emacs, Meta, Broken);
+	{emacs, meta, Cmd} ->
+	    case Broken of
+		true ->
+		    int:meta(Meta, Cmd);
+		false ->
+		    Emacs ! {message, <<"Not in break">>}
+	    end,
+	    ?MODULE:debug_attach_loop(Emacs, Meta, Broken)
+    end.
 

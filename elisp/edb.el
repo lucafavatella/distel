@@ -163,17 +163,23 @@
 ;; ----------------------------------------------------------------------
 ;; Attach process
 
-(defvar edb-attached-pid nil
-  "Pid of attached process.")
-(make-local-variable 'edb-attached-pid)
+(make-variable-buffer-local
+ (defvar edb-pid nil
+   "Pid of attached process."))
 
-(defvar edb-attached-node nil
-  "Node of attached process.")
-(make-local-variable 'edb-attached-node)
+(make-variable-buffer-local
+ (defvar edb-node nil
+   "Node of attached process."))
 
-(defvar edb-attached-module nil
-  "Current module source code in attach buffer.")
-(make-local-variable 'edb-attached-module)
+(make-variable-buffer-local
+ (defvar edb-module nil
+   "Current module source code in attach buffer."))
+
+(make-variable-buffer-local 
+ (defvar edb-variables-buffer nil
+   "Buffer showing variable bindings of attached process."))
+
+;; Attach setup
 
 (defun edb-attach-command ()
   (interactive)
@@ -183,9 +189,10 @@
       (error "No process at point."))))
 
 (defun edb-attach (pid)
-  (setq erl-old-window-configuration (current-window-configuration))
-  (switch-to-buffer (edb-attach-buffer pid)))
-
+  (let ((old-window-config (current-window-configuration)))
+    (delete-other-windows)
+    (switch-to-buffer (edb-attach-buffer pid))
+    (setq erl-old-window-configuration old-window-config)))
 
 (defun edb-attach-buffer (pid)
   (let ((bufname (edb-attach-buffer-name pid)))
@@ -199,15 +206,36 @@
      (rename-buffer (edb-attach-buffer-name pid))
      (erlang-mode)
      (edb-attach-mode t)
+     (save-excursion (edb-make-variables-window))
      (setq buffer-read-only t)
      (erl-send-rpc (erl-pid-node pid)
 		   'distel 'debug_attach (list erl-self pid))
      (erl-receive ()
 	 (([tuple rex Pid]
 	   (assert (erl-pid-p pid))
-	   (setq edb-attached-pid pid)
-	   (setq edb-attached-node (erl-pid-node pid))))
+	   (setq edb-pid pid)
+	   (setq edb-node (erl-pid-node pid))))
        (&edb-attach-init)))))
+
+;; Variables listing window
+
+(defun edb-make-variables-window ()
+  "Make a window and buffer for viewing variable bindings.
+The *Variables* buffer is killed with the current buffer."
+  (split-window-vertically (edb-variables-window-height))
+  (let ((vars-buf (generate-new-buffer "*Variables*")))
+    (setq edb-variables-buffer vars-buf)
+    (make-local-variable 'kill-buffer-hook)
+    (add-hook 'kill-buffer-hook
+	      (lambda () (kill-buffer edb-variables-buffer)))
+    (other-window 1)
+    (switch-to-buffer vars-buf)
+    (other-window -1)))
+
+(defun edb-variables-window-height ()
+  (- (min (/ (window-height) 2) 12)))
+
+;; Attach process states
 
 (defun &edb-attach-init ()
   "Handle initial {attached, Module, Line, Trace}, then enter attach loop."
@@ -221,8 +249,8 @@
   "Attached process loop."
   (erl-receive ()
       (([tuple meta [tuple break_at Mod Line Trace]]
-	(setq header-line-format
-	      (format "Status: break at %S:%S" mod line))
+	(let ((msg (format "Status: break at %S:%S" mod line)))
+	  (setq header-line-format msg))
 	(&edb-attach-goto-source mod line))
        ([tuple meta Status]
 	(unless (memq status '(running idle))
@@ -230,25 +258,37 @@
 	(setq header-line-format (format "Status: %S" status))
 	(setq overlay-arrow-position nil)
 	(&edb-attach-loop))
+       ([tuple variables Vars]
+	;; {variables, [{Name, String}]}
+	(when (buffer-live-p edb-variables-buffer)
+	  (with-current-buffer edb-variables-buffer
+	    (erase-buffer)
+	    (mapc (lambda (b)
+		    (insert (format "%s\n" b)))
+		  vars)))
+	(&edb-attach-loop))
+       ([tuple message Msg]
+	(message msg)
+	(&edb-attach-loop))
        (Other
 	(message "Other: %S" other)
 	(&edb-attach-loop)))))
 
 (defun &edb-attach-goto-source (module line)
   "Display MODULE:LINE in the attach buffer and reenter attach loop."
-  (if (eq edb-attached-module module)
+  (if (eq edb-module module)
       (progn (edb-attach-goto-line line)
 	     (&edb-attach-loop))
     (&edb-attach-find-source module line)))
 
 (defun &edb-attach-find-source (module line)
-  "Load the source code for MODULE into buffer at LINE.
+  "Load the source code for MODULE into current buffer at LINE.
 Once loaded, reenters the attach loop."
-  (erl-send-rpc edb-attached-node 'distel 'find_source (list module))
+  (erl-send-rpc edb-node 'distel 'find_source (list module))
   (erl-receive (module line)
       (([tuple rex [tuple ok Path]]
 	(if (file-regular-p path)
-	    (progn (setq edb-attached-module module)
+	    (progn (setq edb-module module)
 		   (let ((buffer-read-only nil))
 		     (erase-buffer)
 		     (insert-file-contents path))
@@ -289,6 +329,6 @@ Once loaded, reenters the attach loop."
   (edb-attach-meta-cmd 'continue))
 
 (defun edb-attach-meta-cmd (cmd)
-  (erl-send edb-attached-pid `[tuple emacs meta ,cmd]))
+  (erl-send edb-pid `[tuple emacs meta ,cmd]))
 
 (provide 'edb)
