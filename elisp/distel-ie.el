@@ -13,12 +13,9 @@
 ;;; (it's probably going to be released onto an unexpecting public under
 ;;;  some sort of BSD license).
 
-;;; TODO: erl-interactive-shell should check if the distel_ie server
-;;;       is up and running, otherwise start it.
 
 (require 'erlang)
 ;(require 'erl-service)
-
 
 ;;
 ;; erl-ie-session
@@ -37,7 +34,8 @@
     (with-current-buffer buf (erlang-mode))
     (set-window-buffer (selected-window) buf)
 
-    (insert (erl-ie-welcome-message))))
+    (insert (erl-ie-welcome-message))
+    buf))
 
 
 ;;
@@ -63,32 +61,45 @@
 ;; want to change to (interactive "r") somehow ...
 
 (defun erl-ie-evaluate (start end node)
+  "Evaluates a marked region. The marked region can be a function definition, a function call or an expression."
   (interactive (list 
 		(region-beginning)
 		(region-end)
 		(erl-read-nodename)))
   (let ((string (buffer-substring-no-properties start end))
 	(buffer (current-buffer)))
-
+    
     (erl-spawn
       (erl-send (tuple 'distel_ie node) 
 		(tuple 'evaluate erl-self string))
-
-    ;; move cursor to after the marked region
-    (goto-char (+ end 1))
-
-    ;; should check the buffer for first non-whitespace before we do:
-    (newline 2)
-
-    (erl-receive (buffer)
-	(([ok Value]
-	  (with-current-buffer buffer 
-	    (insert "--> ") (insert value) (newline 1)))
-	 ([error Reason]
-	  (with-current-buffer buffer
-	    (insert "Error: ") (insert reason) (newline 1)))
-	 (Other
-	  (message "Unexpected: %S" other)))))))
+      
+      ;; move cursor to after the marked region
+      (goto-char (+ end 1))
+      
+      (erl-receive (buffer)
+	  
+	  (([ok Value]
+	    (with-current-buffer buffer 
+	      
+	      ;; TODO: should check the buffer for first non-whitespace 
+	      ;; before we do:
+	      (newline 1)
+	      (insert "--> ") (insert value) (newline 1)))
+	   
+	   ([msg Msg]
+	    (with-current-buffer buffer
+	      (message msg)))
+	   
+	   ([error Reason]
+	    (with-current-buffer buffer
+	      
+	      ;; TODO: should check the buffer for first non-whitespace 
+	      ;; before we do:
+	      (newline 1)
+	      (insert "Error: ") (insert reason) (newline 1)))
+	   
+	   (Other
+	    (message "Unexpected: %S" other)))))))
 
 
 ;;
@@ -102,7 +113,16 @@
     (&erl-ie-group-leader-loop buf)))
 
 
-;; semantic-beginning-of-context
-;; semantic-end-of-context
+;;
+;; erl-ie-fiddle-with-me
+
+(defun erl-ie-fiddle-with-me (node)
+  "Takes the content of the current buffer and opens a distel_ie session with it. This can be useful for debugging a file without ruining the content by mistake."
+  (interactive (list (erl-read-nodename)))
+  (let ((cloned-buffer (buffer-string)))
+
+    (with-current-buffer (erl-ie-session node)
+      (insert cloned-buffer))))
+
 
 (provide 'distel-ie)
