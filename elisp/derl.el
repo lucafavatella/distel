@@ -397,10 +397,12 @@ decimal printed representation."
     (shell-command-to-string command)))
 
 (defun ensure-have-dec32 ()
-  (unless (string= (shell-command-to-string "which dec32 &>/dev/null;
-                                             echo $?")
-		   "0\n")
+  (unless (have-program-p "dec32")
     (error "dec32 helper program not found in PATH")))
+
+(defun have-program-p (program)
+  "Returns true iff PROGRAM is in the PATH."
+  (locate-library program t (split-string (getenv "PATH") path-separator)))
 
 (defun hexstring-to-binstring (s)
   "Convert the hexidecimal string S into a binary number represented
