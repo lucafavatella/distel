@@ -102,7 +102,7 @@ edb."))
   (interactive (list (erl-read-nodename)
 		     (edb-module)
 		     (edb-line-number)))
-  (unless edb-module-interpreted
+  (unless (edb-module-interpreted-p module)
     (error "Module is not interpreted, can't set breakpoints."))
   (if edb-buffer-breakpoints-stale
       (edb-toggle-stale-breakpoint module line)
@@ -127,6 +127,9 @@ edb."))
 	    (message "Enabled breakpoint at %S:%S" module line))
 	   (['rex 'disabled]
 	    (message "Disabled breakpoint at %S:%S" module line)))))))
+
+(defun edb-module-interpreted-p (module)
+  (assoc module edb-interpreted-modules))
 
 (defun edb-line-number ()
   "Current line number."
@@ -468,6 +471,7 @@ When MOD is given, only update those visiting that module."
      ;; it by entering erlang-mode in an empty buffer
      (let ((erlang-new-file-hook nil))
        (erlang-mode))
+     (erlang-extended-mode t)
      (edb-attach-mode t)
      (setq edb-attach-buffer t)
      (message "Entered debugger. Press 'h' for help.")
