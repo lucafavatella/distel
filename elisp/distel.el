@@ -38,7 +38,7 @@
 
 (defun distel-erlang-mode-hook ()
   "Function to enable the Distel extensions to Erlang mode.
-You can add this to erlang-mode-hook with:
+You can add this to `erlang-mode-hook' with:
   (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)"
   (erlang-extended-mode t))
 
@@ -119,10 +119,10 @@ sequence. For general information about Emacs' online help, use
 	       (" EXT" (edb-module-interpreted ":interpreted" ""))))
 
 (add-hook 'erlang-extended-mode-hook
-	  (lambda ()
-	    (if erlang-extended-mode
-		(distel-init)
-	      (distel-finish))))
+	  '(lambda ()
+	     (if erlang-extended-mode
+		 (distel-init)
+	       (distel-finish))))
 
 (defun distel-init ()
   (setq erlang-menu-items
@@ -167,11 +167,14 @@ Please see the documentation of `erlang-menu-base-items'.")
 (defvar distel-bugs-address "distel-hackers@lists.sourceforge.net"
   "Email address to send distel bugs to.")
 
+(eval-when-compile (require 'font-lock))
+
 (defun report-distel-problem (summary)
   "Report a bug to the distel-hackers mailing list."
   (interactive (list (read-string "One-line summary: ")))
   (compose-mail distel-bugs-address
 		(format "PROBLEM: %s" summary))
+  (require 'font-lock)
   (insert (propertize "\
 ;; Distel bug report form.
 ;;
