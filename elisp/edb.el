@@ -181,7 +181,9 @@ Available commands:
       (with-current-buffer edb-monitor-buffer
 	(setq erl-old-window-configuration
 	      (current-window-configuration))))
-    (pop-to-buffer edb-monitor-buffer)))
+    (pop-to-buffer edb-monitor-buffer)
+    (goto-char (point-max))
+    (forward-line -2)))
 
 (defun edb-ensure-monitoring (node)
   "Make sure the debug monitor is watching the node.
@@ -716,7 +718,7 @@ Available commands:
 			    (line-beginning-position 2) ;could be (point-at-eol)
 			    (current-buffer)
 			    t
-			    t)))
+			    nil)))
       (overlay-put ov 'face 'edb-breakpoint-face)
       ;; store a marker and the line number, so we can
       ;; re-set all break points after edit

@@ -1,3 +1,15 @@
+2002-12-06  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el (edb-monitor): Now putting the point at the last
+	process after popping up the monitor (patch from Mats Cronqvist.)
+
+2002-11-30  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el (edb-make-breakpoint-overlay): Tiny tweak of
+	setting the overlay "rear advance" to nil. This means that if you
+	open a new line following a breakpoint, the overlay won't spill
+	over onto it.
+
 2002-11-28  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/edb.el (edb-attach-mode): Bound "b" to
