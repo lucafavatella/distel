@@ -4,6 +4,11 @@
 	handle text like "foo:bar/2" - i.e. reads the arity correctly, so
 	you can jump to definitions from e.g. export lists. Actual change
 	made in `erl-get-arity'.
+	(erl-find-source-under-point): When arity can't be determined,
+	finds the first matching function of any arity. This is useful
+	when you're writing a function call and can't remember what
+	arguments/arities a function has - you can jump to the definition
+	and see.
 
 	* All: XEmacs and Emacs20 compatibility fixes (tested edb,
 	erl-process-list).
