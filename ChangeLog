@@ -1,3 +1,7 @@
+2003-03-26  Luke Gorrie  <luke@bluetail.com>
+
+	* Release: 3.3!
+
 2003-03-11  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/derl.el (erl-dec32): Portability fix for Win32, thanks to
