@@ -36,10 +36,13 @@ elements of KARGS."
     (erl-send-rpc node m f a)
     (erl-rpc-receive k kargs)))
 
-(defun erl-send-rpc (node m f a)
-  (erl-send (tuple 'rex node)
-	    ;; {Who, {call, M, F, A, GroupLeader}}
-	    (tuple erl-self (tuple 'call m f a erl-group-leader))))
+(defun erl-send-rpc (node mod fun args)
+  (let ((m 'distel)
+	(f 'rpc_entry)
+	(a (list mod fun args)))
+    (erl-send (tuple 'rex node)
+	      ;; {Who, {call, M, F, A, GroupLeader}}
+	      (tuple erl-self (tuple 'call m f a erl-group-leader)))))
   
 (defun erl-rpc-receive (k kargs)
   "Receive the reply to an `erl-rpc'."
@@ -314,6 +317,30 @@ time it spent in subfunctions."
       (if (file-exists-p string)
 	  string
 	nil))))
+
+;;
+
+(defun erl-eval-expression (node string)
+  (interactive (list (erl-read-nodename)
+		     (read-string "Expression: ")))
+  (erl-spawn
+    (erl-send-rpc node
+		  'distel
+		  'eval_expression
+		  (list (erl-add-terminator string)))
+    (erl-receive ()
+	(([tuple rex [tuple ok String]]
+	  (display-message-or-buffer string))
+	 ([tuple rex [tuple error Reason]]
+	  (message "Error: %S" reason))
+	 (Other
+	  (message "Unexpected: %S" other))))))
+
+(defun erl-add-terminator (s)
+  "Make sure S terminates with a dot (.)"
+  (if (string-match "\\.\\s *$" s)
+      s
+    (concat s ".")))
 
 (provide 'erl-service)
 
