@@ -285,6 +285,8 @@ itself.")
 			    (erlext-read-obj) ; node
 			    (erlext-read4) ; id
 			    (erlext-read1))) ; creation
+      ((smallBig)   (erlext-read-small-bignum))
+      ((largeBig)   (erlext-read-large-bignum))
      (t
       (error "Unknown tag: %S" tag)))))
 
@@ -335,6 +337,17 @@ itself.")
 
 (defun erlext-read-binary ()
   (erlext-readn (erlext-read4)))
+
+;; We don't actually support bignums. When we get one, we skip over it
+;; and return the symbol {SMALL|LARGE}-BIGNUM.
+
+(defun erlext-read-small-bignum ()
+  (erlext-read (erlext-read1))
+  'SMALL-BIGNUM)
+
+(defun erlext-read-large-bignum ()
+  (erlext-read (erlext-read4))
+  'LARGE-BIGNUM)
 
 ;; ------------------------------------------------------------
 ;; Helpers

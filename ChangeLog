@@ -1,3 +1,9 @@
+2002-11-05  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erlext.el (erlext-read-obj): Bignums are now skipped over,
+	giving the symbol SMALL-BIGNUM or LARGE-BIGNUM instead of an
+	error.
+
 2002-10-30  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-reload-module): Convenience function
