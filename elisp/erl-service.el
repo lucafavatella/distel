@@ -461,7 +461,31 @@ look in, with the following algorithm:
   (let ((mfa (erl-get-call-mfa)))
     (when (null mfa)
       (error "Couldn't determine MFA of call"))
+    (if distel-tags-compliant
+	(let* ((module (erlang-get-module))
+	       (str (cond ((null (caddr mfa))  ; no arity (e.g. an apply)
+			   (format "%s" (cadr mfa)))
+			  ((eq (intern module) (car mfa))
+			   (apply #'format (cons "%s/%s" (cdr mfa))))
+			  (t 
+			   (apply #'format (cons "%s:%s/%s" mfa)))))
+	       (mfastr 
+		(read-string (format "Find erlang function: (default %s) " str)
+			     nil nil str)))
+		(setq mfa (erl-get-call-mfa-from-string mfastr))))
     (apply #'erl-find-source (cons node mfa))))
+
+(defun erl-get-call-mfa-from-string (str)
+  (with-temp-buffer
+    (with-syntax-table erlang-mode-syntax-table
+      (switch-to-buffer (current-buffer))
+      (insert str)
+      (insert " ")
+      (goto-char (point-min))
+      (let ((mfa (erl-get-call-mfa module)))
+	(when (null mfa)
+	  (error "Couldn't determine MFA of call"))
+	mfa))))
 
 (defun erl-find-source-unwind ()
   "Unwind back from uses of `erl-find-source-under-point'."
@@ -475,7 +499,7 @@ look in, with the following algorithm:
 	;; If this buffer was deleted, recurse to try the next one
 	(erl-find-source-unwind)))))
 
-(defun erl-get-call-mfa ()
+(defun erl-get-call-mfa (&optional module)
   "Return (MODULE FUNCTION ARITY) of the function call under point.
 If there is no function call under point, returns nil.
 ARITY is returned NIL if it cannot be determined."
@@ -485,6 +509,7 @@ ARITY is returned NIL if it cannot be determined."
       (let ((mf (erlang-get-function-under-point)))
 	(unless (null mf)
 	  (let ((module (intern (or (car mf)
+				    module
 				    (erlang-get-module))))
 		(function (intern (cadr mf))))
 	    (list module function arity)))))))

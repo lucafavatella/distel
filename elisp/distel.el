@@ -152,3 +152,5 @@ sequence. For general information about Emacs' online help, use
     (insert string)
     (indent-rigidly pos (point) level)))
 
+(defvar distel-tags-compliant '()
+  "Tags compliant, i.e. let M-. ask for confirmation.")

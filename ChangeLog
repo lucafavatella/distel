@@ -1,3 +1,8 @@
+2002-11-21  Martin Bjorklund  <mbj@bluetail.com>
+
+	* elisp/distel.el (distel-tags-compliant): New variable for making
+	M-. prompt for which function to find.
+
 2002-11-21  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl.el: Various minor fixes: added erl-group-leader
