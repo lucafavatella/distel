@@ -1,3 +1,18 @@
+2003-03-06  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el: Improved breakpoint handling.
+
+	* elisp/erl-service.el (erl-fdoc-apropos, erl-fdoc-describe):
+	Added commands for finding documentation via 'fdoc'.
+
+2003-02-17  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-check-backend): Now using the
+	`erl-nodeup-hook' to automatically check that the `distel' module
+	is loadable by Erlang nodes we connect to, and print a warning if
+	not. You can avoid this by setting `distel-inhibit-backend-check'
+	to t.
+
 2003-01-15  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-read-nodename): The universal prefix
