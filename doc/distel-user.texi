@@ -252,6 +252,97 @@ Read a module name from the minibuffer and reload that module in an
 Erlang node. (@code{erl-reload-module})
 @end table
 
+@node Refactoring
+@section Refactoring
+
+@emph{The Refactoring feature requires the syntax-tools package to be
+in the Erlang node's code path. You can download syntax-tools from the
+erlang.org ``User Contributions'' area.}
+
+Expressions within functions can be automatically ``refactored'' into
+their own sub-functions by using the @code{erl-refactor-subfunction}
+command (@kbd{C-c C-d f}). The command takes the text of the
+expression, determines which variables it needs from the original
+function, and then generates the new function and puts it on the kill
+ring for insertion by hand (with @code{yank}, @kbd{C-y}). The original
+function is rewritten with a call to the subfunction where the
+refactored expression used to be.
+
+For example, suppose we want to refactor the following function:
+
+@example
+eval_expression(S) ->
+    case parse_expr(S) of
+        @{ok, Parse@} ->
+            case catch erl_eval:exprs(Parse, []) of
+                @{value, V, _@} ->
+                    @{ok, flatten(io_lib:format("~p", [V]))@};
+                @{'EXIT', Reason@} ->
+                    @{error, Reason@}
+            end;
+        @{error, @{_, erl_parse, Err@}@} ->
+            @{error, Err@}
+    end.
+@end example
+
+In this example we will take the inner @code{case} expression and move
+it into a new function called @code{try_evaluation}. We do this by
+setting the Emacs region (using the mouse or @kbd{C-SPC}) from the
+word @code{case} until the end of the word @code{end} -- marking
+exactly one whole expression. We then enter @kbd{C-c C-d f} to
+refactor, and when prompted for the function name we respond with
+``@code{try_evaluation}''. The original function is then rewritten to:
+
+@example
+eval_expression(S) ->
+    case parse_expr(S) of
+       @{ok, Parse@} ->
+           try_evaluation(Parse);
+       @{error, @{_, erl_parse, Err@}@} ->
+           @{error, Err@}
+    end.
+@end example
+
+And at the front of the kill ring we have the new function definition,
+which can be pasted into the buffer wherever we want. The actual
+definition we get is:
+
+@example
+try_evaluation(Parse) ->
+    case catch erl_eval:exprs(Parse, []) of
+       @{value, V, _@} ->
+           @{ok, flatten(io_lib:format("~p", [V]))@};
+       @{'EXIT', Reason@} ->
+           @{error, Reason@}
+    end.
+@end example
+
+@strong{Important note:} This command is not a ``pure'' refactoring,
+because although it will import variables from the parent function
+into the subfunction, it will not export new bindings created in the
+subfunction back to the parent. However, if you follow good
+programming practice and never ``export'' variables from inner
+expressions, this is not a problem. An example of @emph{bad} code that
+will not refactor correctly is this @code{if} expression:
+
+@example
+if A < B -> X = true;
+   B > A -> X = false
+end,
+foo(X)
+@end example
+
+This is in poor style -- a variable created inside the @code{if} is
+used by code at an outer level of nesting. To work with refactoring,
+and to be in better style, it should be rewritten like this:
+
+@example
+X = if A < B -> true;
+       B > A -> false
+    end,
+foo(X)
+@end example
+
 @node Documentation,  , Evaluation, Programming Aids
 @section Documentation
 
@@ -260,7 +351,7 @@ called @code{fdoc}. The documentation is automatically scanned out of
 source files by building a searchable database of the comments
 appearing before each function. Naturally, the quality of
 documentation provided by this scheme will depend on the style in
-which the sourcefiles are commented.
+which the source files are commented.
 
 @table @kbd
 @item C-c C-d d
@@ -438,6 +529,18 @@ Synchronise breakpoints by discarding the ones in the Erlang node and
 then re-setting them from those in the Emacs buffer.
 @end table
 
+@iftex
+The overall debugger state machine for Erlang-mode buffers is shown in
+this figure:
+
+@image{dbg, 6in}
+
+In the ``Normal'' state, no breakpoints exist. In the ``Interpreted''
+state, all breakpoints are fresh. In the ``Out of sync'' state, all
+breakpoints are stale. The transitions illustrate how you can navigate
+between the states.
+@end iftex
+
 Care must be taken to only synchronise breakpoints when the Erlang
 node is actually running the same code that is in the Emacs
 buffer. Otherwise, the Erlang processes may break in unexpected
@@ -513,7 +616,7 @@ Load and display prerecorded profiler data, from a file created by
 
 After an expression is profiled, the results are popped up in
 ``profiler results'' buffer. The buffer contains one line to describe
-each function that was called, each with the following columns:
+each function that was called, with the following columns:
 
 @table @code
 @item Calls
