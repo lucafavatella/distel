@@ -815,7 +815,7 @@ the node, version 1.2 (or perhaps later.)"
 		(indent-according-to-mode)
 		;; Now generate the function and stick it on the kill ring
 		(kill-new (with-temp-buffer
-			    (insert (format "%s%s ->\n%s\n" name arglist body))
+			    (insert (format "%s%s ->\n%s.\n" name arglist body))
 			    (erlang-mode)
 			    (indent-region (point-min) (point-max))
 			    (buffer-string)))
