@@ -1,3 +1,9 @@
+2002-10-23  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/distel.el (report-distel-problem): New automated bug
+	reporting command. Creates a bug report email template including
+	some recent trace information.
+
 2002-10-08  Luke Gorrie  <luke@bluetail.com>
 
 	* distel.erl, elisp/edb.el (edb-toggle-interpret): Fixes for

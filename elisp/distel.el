@@ -85,3 +85,63 @@ sequence. For general information about Emacs' online help, use
 	     '(erlang-extended-mode
 	       (" EXT" (edb-module-interpreted ":interpreted" ""))))
 
+;; Bug reportage
+
+(defvar distel-bugs-address "distel-hackers@lists.sourceforge.net"
+  "Email address to send distel bugs to.")
+
+(defun report-distel-problem (summary)
+  "Report a bug to the distel-hackers mailing list."
+  (interactive (list (read-string "One-line summary: ")))
+  (compose-mail distel-bugs-address
+		(format "PROBLEM: %s" summary))
+  (insert (propertize "\
+;; Distel bug report form.
+;;
+;; This is an email message buffer for you to fill in information
+;; about your problem. When finished, you can enter \"C-c C-c\" to
+;; send the report to the distel-hackers mailing list - or update the
+;; 'To: ' header line to send it somewhere else.
+;;
+;; Please describe the problem in detail in this blank space:
+
+"
+		      'face font-lock-comment-face))
+  (save-excursion
+    (insert (propertize "\
+
+
+;; Below is some automatically-gathered debug information. Please make
+;; sure it doesn't contain any secrets that you don't want to send. If
+;; you decide to censor it or have any other special notes, please
+;; describe them here:
+
+
+
+"
+			'face font-lock-comment-face))
+    (insert "[ ---- Automatically gathered trace information ---- ]\n\n")
+    (insert (format "Emacs node name: %S\n\n" erl-node-name))
+    (insert (format "Node of most recent command: %S\n\n" erl-nodename-cache))
+    (insert "Recent *Messages*:\n")
+    (distel-indented-insert (distel-last-lines "*Messages*" 15) 2)
+    (insert "\n\n")
+    (when erl-nodename-cache
+      (insert (format "Recent interactions with %S:\n" erl-nodename-cache))
+      (distel-indented-insert (distel-last-lines
+			       (format "*trace %S*" erl-nodename-cache) 50)
+			      2))
+    (insert "\n\nThe End.\n\n")))
+
+(defun distel-last-lines (buffer n)
+  (with-current-buffer buffer
+    (save-excursion
+      (goto-char (point-max))
+      (forward-line (- n))
+      (buffer-substring (point) (point-max)))))
+
+(defun distel-indented-insert (string level)
+  (let ((pos (point)))
+    (insert string)
+    (indent-rigidly pos (point) level)))
+
