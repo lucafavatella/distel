@@ -18,7 +18,7 @@ The body of the first matching pattern is executed, with pattern
 variables bound to their matching values. If no patterns match, an
 error is signaled.
 
-See `pmatch' for a description of pattern syntax."
+See `mlet' for a description of pattern syntax."
   `(mcase* ,object ,(mcase-parse-clauses clauses)))
 
 (defun mcase-parse-clauses (clauses)
@@ -41,6 +41,8 @@ Pattern variable: x, my-variable
   Variable that the pattern should bind. If the same variable
   appears several times in a pattern, then all of its bindings must
   match.
+  Within the body of a successful pattern match, lisp variables are
+  bound for all pattern variables.
 Constant: 'symbol, '(1 2 3), ...
   Quoted constant, matched with `equal'.
 Bound variable: ,var
