@@ -1,9 +1,29 @@
 ;;; edb.el --- Erlang debugger front-end
 
+(require 'cl)
 (require 'erl)
 (require 'erl-service)
 (require 'erlang)
 (require 'ewoc)
+
+;; ----------------------------------------------------------------------
+;; Integration with erlang-extended-mode buffers.
+
+(make-variable-buffer-local
+ (defvar edb-module-interpreted nil
+   "Non-nil means that the buffer's Erlang module is interpreted.
+This variable is meaningful in erlang-extended-mode buffers.
+The interpreted status refers to the node currently being monitored by
+edb."))
+
+(defun edb-update-interpreted-status ()
+  "Update `edb-module-interpreted' for current buffer."
+  (when erlang-extended-mode
+    (setq edb-module-interpreted
+	  (member (edb-source-file-module-name) edb-interpreted-modules))
+    (force-mode-line-update)))
+
+(add-hook 'erlang-extended-mode-hook 'edb-update-interpreted-status)
 
 ;; ----------------------------------------------------------------------
 ;; EDB minor mode for erlang-mode source files
@@ -38,7 +58,6 @@
 	 ([rex disabled]
 	  (message "Disabled breakpoint at %S:%S" module line))))))
 
-
 (defun edb-line-number ()
   "Current line number."
   ;; Taken from `count-lines' in gud.el
@@ -59,10 +78,10 @@
 (defvar edb-monitor-mode-map nil
   "Keymap for Erlang debug monitor mode.")
 
-(defvar edb-monitor-interpreted-modules '()
+(defvar edb-interpreted-modules '()
   "Set of modules being interpreted on the currently monitored node.")
 
-(defvar edb-monitor-breakpoints '()
+(defvar edb-breakpoints '()
   "Set of (MODULE . LINE) breakpoints on the currently monitored node.")
 
 (unless edb-monitor-mode-map
@@ -119,7 +138,7 @@ Available commands:
 
 (defun edb-monitor (node)
   (interactive (list (erl-read-nodename)))
-  (cond ((edb-node-change-p node)
+  (cond ((edb-monitor-node-change-p node)
 	 (when (y-or-n-p (format "Attach debugger to %S instead of %S? "
 				 node edb-monitor-node))
 	   ;; Kill existing edb then start again
@@ -132,7 +151,7 @@ Available commands:
 
 (defun edb-monitor-node-change-p (node)
   "Do we have to detach/reattach to debug on NODE?"
-  (and (ed-monitor-live-p)
+  (and (edb-monitor-live-p)
        (not (equal node edb-monitor-node))))
 
 (defun edb-monitor-live-p ()
@@ -150,11 +169,13 @@ Available commands:
     (setq edb-monitor-buffer (current-buffer))
     (rename-buffer (edb-monitor-buffer-name node))
     (edb-monitor-mode)
+    (add-hook 'kill-buffer-hook 'edb-monitor-cleanup)
     (erl-send-rpc node 'distel 'debug_subscribe (list erl-self))
     (erl-receive (node)
 	(([rex [Interpreted Breaks Snapshot]]
-	  (setq edb-monitor-interpreted-modules interpreted)
-	  (setq edb-monitor-breakpoints breaks)
+	  (setq edb-interpreted-modules interpreted)
+	  (setq edb-breakpoints breaks)
+	  (edb-update-source-buffers)
 	  (setq edb-processes
 		(ewoc-create 'edb-monitor-insert-process
 			     (edb-monitor-header)))
@@ -182,27 +203,49 @@ Available commands:
 					    mfa
 					    status
 					    info)))
+       ([int [interpret Mod]]
+	(push mod edb-interpreted-modules)
+	(edb-update-source-buffers mod))
        ([int [no_interpret Mod]]
-	(setq edb-monitor-interpreted-modules
-	      (remq mod edb-monitor-interpreted-modules)))
+	(setq edb-interpreted-modules (remq mod edb-interpreted-modules))
+	(edb-update-source-buffers mod))
        ([int [no_break Mod]]
-	(setq edb-monitor-breakpoints
+	(setq edb-breakpoints
 	      (remove-if (lambda (bp)
 			   (mcase bp
 			     ([,mod _] t)
 			     (_        nil)))
-			 edb-monitor-breakpoints)))
+			 edb-breakpoints)))
        ([int [new_break [Pos _Info]]]
-	(push pos edb-monitor-breakpoints))
+	(push pos edb-breakpoints))
        ([int [delete_break Pos]]
-	(setq edb-monitor-breakpoints
-	      (remove pos edb-monitor-breakpoints))))
+	(setq edb-breakpoints
+	      (remove pos edb-breakpoints))))
     (ewoc-refresh edb-processes)    
     (&edb-monitor-loop)))
+
+(defun edb-update-source-buffers (&optional mod)
+  (mapc (lambda (buf)
+	  (with-current-buffer buf
+	    (when (and erlang-extended-mode
+		       (or (null mod)
+			   (eq (edb-source-file-module-name) mod)))
+	      (edb-update-interpreted-status))))
+	(buffer-list)))
+
+(defun edb-source-file-module-name ()
+  (let ((name (erlang-get-module)))
+    (if name (intern name) nil)))
 
 (defun edb-monitor-lookup (pid)
   (car (ewoc-collect edb-processes
 		     (lambda (p) (equal (edb-process-pid p) pid)))))
+
+(defun edb-monitor-cleanup ()
+  "Cleanup state after the edb process exits."
+  (setq edb-interpreted-modules nil)
+  (setq edb-breakpoints nil)
+  (edb-update-source-buffers))
 
 ;; ----------------------------------------------------------------------
 ;; Attach process

@@ -1,5 +1,15 @@
 2002-08-21  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/edb.el, elisp/distel.erl: Erlang-extended-mode buffers now
+	indicate via the mode line whether they are currently being
+	interpreted. Also extended/improved the recent debug monitoring
+	changes.
+
+	* elisp/erl.el (erl-reductions): Added reductions counter, saying
+	how many times a process has been executed (_not_ how many calls
+	it has made, like Erlang reductions). This can be inspected
+	directly for debug purposes.
+
 	* config/emacs-init-snippet.el.in: Using autoconf on the .emacs
 	snippet to setup the right load-path. It seems that just making a
 	directory in ${prefix}/share/emacs/site-lisp/ doesn't get you
