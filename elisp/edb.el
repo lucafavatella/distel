@@ -376,7 +376,7 @@ Tracks events and state changes from the Erlang node."
       (setq edb-module-interpreted nil)
       ;; the erlang debugger automatically removes breakpoints when a
       ;; module becomes uninterpreted, so we match it here
-      (edb-delete-breakpoints mod))
+      (edb-delete-breakpoints (edb-source-file-module-name)))
     (force-mode-line-update)))
 
 (defun edb-update-source-buffers (&optional mod)
