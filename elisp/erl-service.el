@@ -140,6 +140,7 @@ When BURY is non-nil, buries the buffer instead of killing it."
   (setq process-list-mode-map (make-sparse-keymap))
   (define-key process-list-mode-map [?u] 'erl-process-list)
   (define-key process-list-mode-map [?q] 'erl-quit-viewer)
+  (define-key process-list-mode-map [?k] 'erl-pman-kill-process)
   (define-key process-list-mode-map [return] 'erl-show-process-info)
   (define-key process-list-mode-map [(control m)] 'erl-show-process-info)
   (define-key process-list-mode-map [?i] 'erl-show-process-info-item)
@@ -153,6 +154,7 @@ Available commands:
 
 \\[erl-quit-viewer]	- Quit the process listing viewer, restoring old window config.
 \\[erl-process-list]	- Update the process list.
+\\[erl-pman-kill-process]	- Send an EXIT signal with reason 'kill' to process at point.
 \\[erl-show-process-info]	- Show process_info for process at point.
 \\[erl-show-process-info-item]	- Show a piece of process_info for process at point.
 \\[erl-show-process-backtrace]	- Show a backtrace for the process at point.
@@ -221,6 +223,15 @@ truncate to fit on the screen."
 (defun erl-show-process-backtrace ()
   (interactive)
   (erl-show-process-info-item 'backtrace))
+
+(defun erl-pman-kill-process ()
+  "Kill process at point in a summary buffer."
+  (interactive)
+  (let ((pid (get-text-property (point) 'erl-pid)))
+    (if (null pid)
+	(message "No process at point.")
+      (message "Sent EXIT (kill) signal ")
+      (erl-exit 'kill pid))))
 
 ;; ------------------------------------------------------------
 ;; Single process viewer

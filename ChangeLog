@@ -1,5 +1,10 @@
 2002-12-06  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/erl-service.el (erl-pman-kill-process): Added "kill this
+	process" command, bound to 'k' (patch from Mats Cronqvist.)
+
+	* elisp/erl.el (erl-exit): Fixed stupid bug.
+
 	* elisp/edb.el (edb-monitor): Now putting the point at the last
 	process after popping up the monitor (patch from Mats Cronqvist.)
 
