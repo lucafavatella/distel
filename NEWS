@@ -1,11 +1,30 @@
-Version 3.2 (unreleased):
+Version 3.2:
 
 	Completion of module and function names. So list:keyso
 	completes to lists:keysort, etc. Bound to M-TAB and (since
 	some window managers take that) M-?. Also has popups for
-	ambiguous completions and all that good stuff. REALLY NICE!
+	ambiguous completions and all that good stuff.
 	(Thanks Mikael Karlsson for suggesting this often enough that
 	it finally sunk in :-))
+
+	Major debugger extensions by Martin Björklund:
+
+	- Visual breakpoints: lines with breakpoints set are now
+          highlighted in red. If the buffer is modified, the
+          breakpoints turn purple to indicate that they may be out of
+          sync with the line numbers in the Erlang node. Once editing
+          is finished at the code is reloaded, the breakpoints can be
+          resynchronized with C-c C-d s.
+
+	  Note that using "l(module)" in the shell seems to go behind
+          the debugger's back, so to reload an interpreted module you
+          should use either C-c C-d L in Emacs, or i(...) in the
+          shell.
+
+	- Save (C-c C-d S) and Restore (C-c C-d R) of debugger state
+          (set of interpreted modules and breakpoints.) This can be
+          used to temprarily save your debug settings while restarting
+          a node, etc. The settings are stored inside Emacs.
 
         Group for Customization (M-x customize), so customizable
         variables can be configured interactively. It's in
@@ -13,21 +32,33 @@ Version 3.2 (unreleased):
 
         More faithful tags-compliance (i.e. prompting for which tag to
         follow after M-.) optionally available, via the (Customizable)
-        `distel-tags-compliant' variable (thanks Martin Bjorklund.)
+        `distel-tags-compliant' variable (Martin Björklund.)
+
+	Distel commands now appear in the Erlang pull-down menu
+	(Martin Björklund)
 
 	Improved "Interactive Session" support. Now C-j evaluates the
 	previous expression and inserts the result in-line, and C-M-x
 	evaluates a function definition and prints the result as a
-	message.
+	message. The binding for creating/showing a session is now 
+	C-c C-d e.
 
 	Improved process-manager support, with many small UI
-	enhancements: 'u' updates the list, fewer buffers are created,
-	better errors when inspecting dead processes, ...
+	enhancements: 'u' updates the list, 'k' kills a process, fewer
+	buffers are created, better errors when inspecting dead
+	processes, ... (thanks Martin Björklund and Mats Cronqvist)
 
 	EXIT signals are now generated for remote processes when the
 	link goes down. This solves some long-standing problems like
 	the debug monitor hanging if you restart the node you were
 	debugging on.
+
+	Option to explicitly set a cookie in the variable
+	`derl-cookie' (Mats Cronqvist)
+
+	Now you can connect several Emacsen to the same Erlang node,
+	because Distel now uses a unique distel_<pid>@<host> node name
+	for each Emacs.
 
 Version 3.1:
 

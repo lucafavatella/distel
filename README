@@ -1,4 +1,4 @@
-distel 3.1 -- Distributed Emacs Lisp for Erlang.
+distel 3.2 -- Distributed Emacs Lisp for Erlang.
 ------------------------------------------------------------
 
 Distel is a library for Emacs<->Erlang communication, plus a suite of
@@ -21,17 +21,19 @@ find this description:
   use. This name will be cached for future commands. To override the
   cache, give a prefix argument with C-u before using the command.
 
-  C-c C-d l     - List all Erlang processes ("pman").
-  M-.           - Jump from a function call to its definition.
-  M-*           - Jump back from a function definition (multi-level).
-  C-c C-d :     - Evaluate an erlang expression from the minibuffer.
-  C-c C-d p     - Profile (with fprof) an expression from the minibuffer.
-  C-c C-d i     - Toggle debug interpreting of the module.
-  C-c C-d b     - Toggle a debugger breakpoint at the current line.
-  C-c C-d m     - Popup the debugger's process monitor buffer.
-  C-c C-d s     - Create an interactive "session" buffer.
-  C-c C-d c     - Create an interactive "session" buffer from current buffer.
-  C-c C-d r     - Create an interactive "session" buffer from region.
+  C-c C-d l	- List all Erlang processes ("pman").
+  M-?		- Complete a module or remote function name.
+  M-.		- Jump from a function call to its definition.
+  M-*		- Jump back from a function definition (multi-level).
+  C-c C-d :	- Evaluate an erlang expression from the minibuffer.
+  C-c C-d L	- Reload an Erlang module.
+  C-c C-d p	- Profile (with fprof) an expression from the minibuffer.
+  C-c C-d P	- View profiler results from an "fprof:analyse" file.
+  C-c C-d i	- Toggle debug interpreting of the module.
+  C-c C-d b	- Toggle a debugger breakpoint at the current line.
+  C-c C-d S	- Synchronizes current breakpoints to erlang.
+  C-c C-d m	- Popup the debugger's process monitor buffer.
+  C-c C-d s	- Create an interactive "session" buffer.
 
   Most commands that pop up new buffers will save your original window
   configuration, so that you can restore it by pressing 'q'. Use
