@@ -97,6 +97,8 @@ edb."))
 
 (unless edb-monitor-mode-map
   (setq edb-monitor-mode-map (make-sparse-keymap))
+  (define-key edb-monitor-mode-map [return] 'edb-attach-command)
+  (define-key edb-monitor-mode-map [(control m)] 'edb-attach-command)
   (define-key edb-monitor-mode-map [?a] 'edb-attach-command)
   (define-key edb-monitor-mode-map [?q] 'erl-bury-viewer)
   (define-key edb-monitor-mode-map [?k] 'erl-quit-viewer))
@@ -114,7 +116,7 @@ edb."))
 
 Available commands:
 \\[edb-attach-command]	- Attach to the process at point.
-\\[edb-bury-viewer]	- Hide the monitor window.
+\\[erl-bury-viewer]	- Hide the monitor window.
 \\[erl-quit-viewer]	- Quit monitor."
   (interactive)
   (kill-all-local-variables)
