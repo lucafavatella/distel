@@ -96,6 +96,14 @@ dist: distclean configure
 			${PACKAGE}-${VERSION}/ebin)
 	rm ../${PACKAGE}-${VERSION}
 
+wc:
+	@echo "* Emacs Lisp"
+	@wc -l */*.el | sort -nr
+	@echo "* Erlang"
+	@wc -l */*.erl | sort -nr
+	@echo "* C"
+	@wc -l */*.c | sort -nr
+
 ########################################
 # Targets to automatically update ~/.emacs and ~/.erlang
 #
