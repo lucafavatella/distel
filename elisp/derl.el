@@ -243,7 +243,7 @@ gen_digest() function:
 	    (setq ctl (erlext-read-whole-obj))
 	    (when (< (point) (point-max))
 	      (setq req (erlext-read-whole-obj)))))
-	(ecase (erl-tuple-elt ctl 1)
+	(ecase (tuple-elt ctl 1)
 	  ((1) ;; link: [1 FROM TO]
 	   (let ((from (tuple-elt ctl 2))
 		 (to   (tuple-elt ctl 3)))
