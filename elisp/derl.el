@@ -162,7 +162,7 @@ complete and we become live."
    (fsm-build-message
      (fsm-encode1 110)			; tag (n)
      (fsm-encode2 5)			; version
-     (fsm-encode4 0)			; flags (none!)
+     (fsm-encode4 4)			; flagss: extended references
      (fsm-insert (symbol-name erl-node-name)))))
 
 (defun derl-send-challenge-reply (challenge)

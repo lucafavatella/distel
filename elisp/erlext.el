@@ -156,7 +156,9 @@ itself.")
 	       ((erl-port)
 		(apply #'erlext-write-port elts))
 	       ((erl-ref)
-		(apply #'erlext-write-ref elts))))))
+		(apply #'erlext-write-ref elts))
+	       ((erl-new-ref)
+		(apply #'erlext-write-new-ref elts))))))
         ((integerp obj)
          (erlext-write-int obj))
         (t
@@ -249,6 +251,12 @@ itself.")
   (erlext-write-obj node)
   (erlext-write4 id)
   (erlext-write1 creation))
+(defun erlext-write-new-ref (node creation id)
+  (erlext-write1 (erlext-get-code 'newRef))
+  (erlext-write2 (/ (length id) 4))
+  (erlext-write-obj node)
+  (erlext-write1 creation)
+  (erlext-writen id))
 
 ;; ------------------------------------------------------------
 ;; Decoding
@@ -297,6 +305,7 @@ itself.")
 			    (erlext-read-obj) ; node
 			    (erlext-read4) ;id
 			    (erlext-read1))) ; creation
+      ((newRef)     (erlext-read-newref))
       ((smallBig)   (erlext-read-small-bignum))
       ((largeBig)   (erlext-read-large-bignum))
      (t
@@ -349,6 +358,13 @@ itself.")
 
 (defun erlext-read-binary ()
   (erlext-readn (erlext-read4)))
+
+(defun erlext-read-newref ()
+  (let* ((len (erlext-read2))
+	 (node (erlext-read-obj))
+	 (creation (erlext-read1))
+	 (id (erlext-readn (* 4 len))))
+    (vector erl-tag 'erl-new-ref node creation id)))
 
 ;; We don't actually support bignums. When we get one, we skip over it
 ;; and return the symbol {SMALL|LARGE}-BIGNUM.
