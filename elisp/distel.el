@@ -48,7 +48,7 @@ use. This name will be cached for future commands. To override the
 cache, give a prefix argument with C-u before using the command.
 \\<erlang-extended-mode-map>
 \\[erl-process-list]	- List all Erlang processes (\"pman\").
-\\[erl-complete]	- Complete a module or remote function name.
+\\[erl-complete]		- Complete a module or remote function name.
 \\[erl-find-source-under-point]		- Jump from a function call to its definition.
 \\[erl-find-source-unwind]		- Jump back from a function definition (multi-level).
 \\[erl-eval-expression]	- Evaluate an erlang expression from the minibuffer.
@@ -83,6 +83,7 @@ sequence. For general information about Emacs' online help, use
     ("\C-c\C-d," . erl-find-source-unwind)
     ("\C-c\C-dl" . erl-process-list)
     ("\C-\M-i"   . erl-complete)	; M-TAB
+    ("\M-?"      . erl-complete)	; Some windowmanagers hijack M-TAB..
     ("\C-c\C-ds" . erl-ie-show-session)
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
