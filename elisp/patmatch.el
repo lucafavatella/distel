@@ -205,7 +205,7 @@ EXPECTED is either 'fail or a list of bindings (in any order)."
 		   ((call Ref 'lists 'length (_))
 		    'yes)
 		   (_ 'no))))
-  t)
+  (message "Smooth sailing"))
 
 (provide 'patmatch)
 
