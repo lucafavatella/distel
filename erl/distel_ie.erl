@@ -225,6 +225,8 @@ add_remote_call_info({var, L, Var}, Defs) -> {var, L, Var} ;
 add_remote_call_info({atom, L, Atom}, Defs) -> {atom, L, Atom} ;
 
 add_remote_call_info({integer, L, Value}, Defs) -> {integer, L, Value} ;
+
+add_remote_call_info({string, L, String}, Defs) -> {string, L, String} ;
     
 add_remote_call_info([{call, L, {atom, L2, Name}, Body} | Rs], Defs) ->
 
@@ -258,6 +260,7 @@ add_remote_call_info([{tuple, L, Values} | Rs], Defs) ->
 
     F = fun(X) -> add_remote_call_info(X, Defs) end,
     [{tuple, L, lists:map(F, Values)} | add_remote_call_info(Rs, Defs)] ;
+
 
 add_remote_call_info([{Type, L, Hdr, Body} | Rs], Defs) when list(Body) ->
 
