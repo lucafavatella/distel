@@ -8,15 +8,14 @@ RECIPIENT, except for the symbol `exit' which is a shutdown message.
 The server registers the name `echo'."
   (erl-spawn
     (erl-register 'echo)
-    (erl-continue 'erlex-echo-loop recipient)))
+    (erlex-echo-loop recipient)))
 
 (defun erlex-echo-loop (recipient)
   "The 'receive loop' of the echo server."
-  (while erl-mailbox
-    (mcase (pop erl-mailbox)
-      (exit (erl-exit 'normal))
-      (Msg (erl-send recipient msg))))
-  (erl-continue 'erlex-echo-loop recipient))
+  (erl-receive (recipient)
+   (exit t)
+   (Msg (erl-send recipient msg)
+	(erlex-echo-loop recipient))))
 
 (defun erlex-echo-test ()
   "Test an echo server by having it forward some messages to the null
@@ -24,7 +23,7 @@ process. These messages will end up in the *erl-lost-msgs* buffer -
 check for them there!"
   (interactive)
   (erl-spawn
-    (erlex-echo erl-null-pid)
+    (erlex-spawn-echo erl-null-pid)
     (erl-send 'echo "Hey,")
     (erl-send 'echo "it works!")
     (erl-send 'echo 'exit)))
@@ -34,12 +33,12 @@ check for them there!"
 (defun spawn-counter ()
   (erl-spawn
     (erl-register 'counter)
-    (erl-continue 'counter-loop 0)))
+    (counter-loop 1)))
 
 (defun counter-loop (count)
-  (while erl-mailbox
-    (message "Got message #%S: %S" (incf count) (pop erl-mailbox)))
-  (erl-continue 'counter-loop count))
+  (erl-receive (count)
+    (Msg (message "Got message #%S: %S" count msg)
+	 (counter-loop (1+ count)))))
 
 (defun counter-test ()
   (interactive)

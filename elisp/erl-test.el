@@ -42,6 +42,18 @@
 		     (tuple 'EXIT a 'stop))))
     t))
 
+(defun erl-binding-capture-test ()
+  (interactive)
+  (let (bs
+	(x 1)
+	(y 'foo)
+	(z '(error "z")))
+    (setq bs (capture-bindings x y z))
+    (equal '(1 foo (error "z"))
+	   (with-bindings bs
+	     (list x y z)))))
+    
+
 (defun erl-continue-forever ()
   (erl-continue #'erl-continue-forever))
 

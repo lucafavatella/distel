@@ -81,8 +81,8 @@ Always bound in a process' buffer, but in
 other buffers defaults to `erl-null-pid'.")
 (defprocvar erl-mailbox nil
   "Process mailbox.
-Contains messages for the process, which it's
-supposed to process and remove.")
+Contains messages for the process, which it's supposed to process and
+remove. Messages are ordered from oldest to newest.")
 (defprocvar erl-group-leader erl-null-pid
   "Group leader process.")
 (defprocvar erl-continuation nil
@@ -100,6 +100,26 @@ supposed to process and remove.")
   "Execute BODY in PID's buffer. This is a full context-switch."
   `(with-current-buffer (erl-pid->buffer ,pid)
      ,@body))
+
+;; Bindings capture helpers
+
+(defmacro capture-bindings (&rest vars)
+  "Create a data structure representing the bidings of VARS.
+These bindings can be restored by `with-bindings' or
+`call-with-bindings'."
+  `(list ',vars (list ,@vars)))
+
+(defmacro with-bindings (bindings &rest body)
+  "Run BODY with BINDINGS restored.
+BINDINGS is created by `capture-bindings'"
+  `(call-with-bindings ,bindings (lambda () ,@body)))
+
+(defun call-with-bindings (bindings fn)
+  "Call FN with BINDINGS restored.
+BINDINGS is created by `capture-bindings'"
+  (let ((vars (car bindings))
+	(vals (cadr bindings)))
+    (eval `(apply (lambda ,vars (funcall ,fn)) ',vals))))
 
 ;; Process API functions
 
@@ -136,8 +156,8 @@ alternative."
 
 (defun erl-send (who message)
   "Send the term MESSAGE to the process WHO.
-WHO can be a pid, a registered name (symbol), or a tuple of [tuple
-REGNAME NODENAME]."
+WHO can be a pid, a registered name (symbol), or a tuple of
+[tuple REGNAME NODENAME]."
   (cond ((erl-null-pid-p who)
 	 (erl-lose-msg message))
 	((erl-local-pid-p who)
@@ -173,13 +193,54 @@ normally."
   (setq erl-continuation k)
   (setq erl-continuation-args args))
 
+;; receive
+
+(defmacro erl-receive (vars &rest clauses)
+  "Receive a message, matched by pattern.
+If the mailbox contains a matching message, the pattern's body is
+executed immediately. Otherwise, `erl-continue' is used to make the
+process continue matching when new messages arrive. The crucial
+difference from Erlang's receive is that erl-receive returns
+immediately when nothing is matched, but will automatically resume
+after a new message arrives and the process is rescheduled.
+
+Since the the process may return and be rescheduled before the
+matching message is received, the clause's body might not be executed
+in the original dynamic environment. Consequently, any local variable
+bindings that need to be preserved should be named in VARS.
+
+The overall syntax for receive is:
+
+  (erl-receive (VAR-NAME ...)
+    (PATTERN . BODY)
+    ...)
+
+The pattern syntax is the same as `pmatch'."
+  `(erl-receive* (capture-bindings ,@vars)
+		 ,(mcase-parse-clauses clauses)))
+
+(defun erl-receive* (bs clauses)
+  (erl-receive-loop bs clauses erl-mailbox))
+
+(defun erl-receive-loop (bs clauses msgs &optional acc)
+  (if (null msgs) 
+      (erl-continue #'erl-receive* bs clauses)
+    (let ((action (mcase-choose (car msgs) clauses)))
+      (if (null action)
+	  (erl-receive-loop bs clauses (cdr msgs) (cons (car msgs) acc))
+	(setq erl-mailbox (append (reverse acc) (cdr msgs)))
+	(call-with-bindings bs action)))))
+
 (defun erl-register (name &optional process)
+  "Register PROCESS with NAME."
   (if (get-buffer (regname-to-bufname name))
       (erl-exit (tuple 'badarg (tuple 'already-registered name)))
     (with-erl-process (or process erl-self)
       (rename-buffer (regname-to-bufname name)))))
 
 (defun erl-whereis (name)
+  "Get the PID of the process registered with NAME, or nil if the name
+is unregistered."
   (let ((buf (get-buffer (regname-to-bufname name))))
     (if buf
 	(with-current-buffer buf erl-self))))
@@ -243,13 +304,23 @@ Invokes the scheduler if necessary."
 (defun erl-schedule-once ()
   "Schedule the next process to run. Returns true if a process was scheduled."
   (when erl-schedulable-processes
-    (erl-run-process (pop erl-schedulable-processes))
+    (erl-schedule-process (pop erl-schedulable-processes))
     t))
 
 (defun erl-maybe-schedule ()
   "Schedule processes, unless the scheduler is already running."
   (unless erl-in-scheduler-loop
     (erl-schedule)))
+
+(defun erl-schedule-process (%pid)
+  (cond ((not (erl-local-pid-alive-p %pid))
+	 (message "STRANGE: %S scheduled but dead; removing" %pid)
+	 (erl-make-unschedulable %pid))
+	((with-erl-process %pid (null erl-continuation))
+	 (message "STRANGE: %S is a zombie! killing" %pid)
+	 (with-erl-process %pid (erl-terminate 'zombie)))
+	(t
+	 (erl-run-process %pid))))
 
 (defun erl-run-process (%pid)
   "Run a process.
@@ -258,9 +329,12 @@ Calls the current continuation from within the process' buffer."
     ;; The %ugly-names are to avoid shadowing the caller's dynamic
     ;; bindings.
     (let ((%k erl-continuation)
-	  (%args erl-continuation-args))
+	  (%args erl-continuation-args)
+	  (%buffer (current-buffer)))
       (setq erl-continuation nil)
       (setq erl-continuation-args nil)
+      ;; FIXME: must do something about errors, currently they can
+      ;; create zombie processes.
       (condition-case data
 	  (progn (apply %k %args)
 		 (unless erl-continuation ; don't have a next continuation?
@@ -270,8 +344,9 @@ Calls the current continuation from within the process' buffer."
 (defun erl-make-schedulable (pid)
   "Add PID to the list of runnable processes, so that it will execute
 during the next `erl-schedule'."
-  (setq erl-schedulable-processes
-	(append erl-schedulable-processes (list pid))))
+  (unless (member pid erl-schedulable-processes)
+    (setq erl-schedulable-processes
+	  (append erl-schedulable-processes (list pid)))))
 
 (defun erl-make-unschedulable (pid)
   "Remove PID from the list of schedulable processes."
@@ -403,6 +478,8 @@ during the next `erl-schedule'."
 (put 'with-erl-process 'lisp-indent-function 1)
 (put 'erl-spawn 'lisp-indent-function 'defun)
 (put 'erl-spawn-async 'lisp-indent-function 'defun)
+(put 'erl-receive 'lisp-indent-function 1)
+(put 'with-bindings 'lisp-indent-function 1)
 
 (provide 'erl)
 

@@ -32,7 +32,7 @@ The first argument to K is the result from the RPC, followed by the
 elements of KARGS."
   (erl-spawn
     (erl-send-rpc node m f a)
-    (erl-continue #'erl-rpc-receive k kargs)))
+    (erl-rpc-receive k kargs)))
 
 (defun erl-send-rpc (node m f a)
   (erl-send (tuple 'rex node)
@@ -40,10 +40,9 @@ elements of KARGS."
 	    (tuple erl-self (tuple 'call m f a erl-group-leader))))
   
 (defun erl-rpc-receive (k kargs)
-  "This is essentially the receive clause of `erl-rpc'."
-  (pmatch [tuple rex Reply]
-      (pop erl-mailbox)
-    (apply k (cons reply kargs))))
+  "Receive the reply to an `erl-rpc'."
+  (erl-receive (k kargs)
+    ([tuple rex Reply] (apply k (cons reply kargs)))))
 
 (defun erpc (node m f a)
   "Make an RPC to an erlang node."
@@ -143,7 +142,7 @@ INFO is [tuple PID SUMMARY-STRING]."
     (setq viewed-pid pid)
     (erl-send-rpc (erl-pid-node pid)
 		  'distel 'process_summary_and_trace (list erl-self pid))
-    (erl-continue #'erl-rpc-receive #'erl-process-summary-init (list pid)))
+    (erl-rpc-receive #'erl-process-summary-init (list pid)))
   (message "Sent async query.."))
 
 (defun erl-process-summary-init (summary pid)
@@ -154,7 +153,7 @@ INFO is [tuple PID SUMMARY-STRING]."
   (insert summary)
   (goto-char (point-min))
   (select-window (display-buffer (current-buffer)))
-  (erl-continue #'erl-process-trace-loop))
+  (erl-process-trace-loop))
 
 (defvar process-view-mode-map nil
   "Keymap for Process View mode.")
@@ -173,12 +172,11 @@ INFO is [tuple PID SUMMARY-STRING]."
   (run-hooks 'process-view-mode-hook))
 
 (defun erl-process-trace-loop ()
-  (while erl-mailbox
-    (pmatch [tuple trace_msg Text]
-	(pop erl-mailbox)
-      (goto-char (point-max))
-      (insert text)))
-  (erl-continue #'erl-process-trace-loop))
+  (erl-receive ()
+    ([tuple trace_msg Text]
+     (goto-char (point-max))
+     (insert text)
+     (erl-process-trace-loop))))
 
 (provide 'erl-service)
 
