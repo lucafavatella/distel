@@ -1,3 +1,27 @@
+2002-08-17  Luke Gorrie  <luke@bluetail.com>
+
+	* Buildscripts: Revamped the makefiles, inspired by host fast
+	Ghostscript does "the null make" without recursions. Stole all the
+	code from Darius Bacon's idel package - very handy.
+
+	Anyhoo, now you can do "./configure && make && make install" and
+	you get the files installed in all the usual bits of /usr/local/ -
+	even the manual in your Info directory.
+
+	For really lazy people, you can do "make conf_install", which will
+	patch your .emacs and .erlang to setup the right hooks to run
+	everything (this Should Be perfectly safe, not that I'd trust
+	someone else's program to do it to mine..)
+
+	You can also do "make dist" to build a distributable package (in
+	../) -- but if I start finding cheap knock-off Distel CDs selling
+	in china, I'm gonna come after you.
+
+	NOTE: When you checkout this from CVS, you will have to do
+	"autoconf && ./configure" to generate your Makefile.
+	
+	* doc/distel.texi: Brought up-to-date with recent changes.
+
 2002-08-14  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/edb.el (edb-attach-with-new-frame): Setting this variable

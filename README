@@ -1,58 +1,30 @@
-distel -- Distributed Emacs Lisp for Erlang.
+distel 3.0a -- Distributed Emacs Lisp for Erlang.
+------------------------------------------------------------
 
-Installation steps:
+This package provides a library for Emacs<->Erlang communication plus
+a growing suite of tools built on top of it, includig a debugger front
+end.
 
-1. Do a "make" (NOTE: if you use xemacs, edit elisp/Makefile first to
-   use the right compiler.)
-2. Copy "c/dec32" somewhere into your path
-3. Add the "erl/" directory to your erlang code path, by adding a line
-   to your ~/.erlang like:
-       code:add_pathz("/path/to/distel/erl").
-4. Add the "elisp/" directory to your emacs load path and have it
-   loaded on startup, by adding lines to your ~/.emacs like:
-      (add-to-list 'load-path "/path/to/distel/elisp")
-      (require 'erl)
+Once you do the INSTALL procedure, you'll automatically use an
+erlang-extended minor mode when you edit files. By typing "C-h m"
+(describe-mode) you can see what it has to offer, and explore from
+there.
 
-Recommended:
+As a small spoiler, here's the current mode description:
 
-5. You can setup the "extended" erlang mode, which gives you some more
-   commands. You can load this mode with:
+  Erlang-Extended minor mode (indicator EXT):
+  Extensions to erlang-mode for communicating with a running Erlang node.
 
-    (require 'erlang-mode-ext)
+  C-c C-d l       - List all Erlang processes ("pman").
+  M-.             - Jump to the definition of a function call (dynamic TAGS).
+  M-,             - Go back from the last function definition we jumped to.
+  C-c C-d :       - Evaluate an erlang expression from the minibuffer.
+  C-c C-d p       - Profile (with fprof) an expression from the minibuffer.
+  C-c C-d i       - Toggle debug interpreting of the module.
+  C-c C-d b       - Toggle a debugger breakpoint at the current line.
+  C-c C-d m       - Popup the debugger's process monitor buffer.
 
-   And then enable it by putting this into your erlang-mode hook:
+Hope you enjoy, and please send hacks or feedback to luke@bluetail.com!
 
-     (erlang-extended-mode t)
-
-   If you don't already have an erlang-mode hook, the complete code is:
-
-     (add-hook 'erlang-mode-hook 'my-erlang-mode-hook)
-     (defun my-erlang-mode-hook ()
-       (erlang-extended-mode t))
-
-   Then when you edit an erlang file you should see "EXT" in the
-   mode-line to say that you're in the extended mode. Using "C-h m"
-   (describe-mode) you can find the available commands, all of which
-   are prefixed with "C-c C-d".
-
-That's all! Now you can use commands like "M-x erl-process-list".
-
-Mac OSX:
-
-David Wallin reports the following procedure to run Distel to work on
-an OSX machine without a network connection:
-
-1. Start NetInfo Manager.app (in /Applications/Utilities)
-2. From NetInfo Manager, select the directory path
-   "/machines/localhost" and mark property "name" and (and anytime
-   before here: click on the lock and enter the password) choose
-   "Append Value" from the "Directory" menu.
-3. Enter your machine name as the appended value and Save.
-
-This procedure is like putting "127.0.0.1 <hostname>" into /etc/hosts
-on a UNIX machine. It's necessary so that Emacs can open sockets to
-the localhost via the hostname part of a nodename without talking to
-DNS.
-
--- luke@bluetail.com
+PS: The "dynamic TAGS" with M-. and M-, is the coolest bit!
 

@@ -1,3 +1,10 @@
+Version 3.0: (Work in progress)
+
+	Debugger, dynamic TAGS, and generally "end-user" applications.
+	
+	Thanks are due to David Wallin, Torbjörn Törnkvist, and Darius
+	Bacon (so far..) for hacks and ideas.
+
 Version 2.0:
 
 	Major additions are pattern matching and `erl-receive'. This

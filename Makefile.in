@@ -1,0 +1,121 @@
+PACKAGE := distel
+VERSION := 3.0a
+
+prefix      = @prefix@
+exec_prefix = @exec_prefix@
+bindir      = @bindir@
+datadir     = @datadir@
+infodir     = @infodir@
+erlc        = @erlc@
+emacs       = @emacs@
+
+ELISP_DIR = ${datadir}/emacs/site-lisp/distel
+EBIN_DIR = ${datadir}/distel/ebin
+ERL_SRC_DIR = ${datadir}/distel/src
+
+########################################
+## Main part
+
+ERL_SRC := $(wildcard erl/*.erl)
+ERL_OBJ := $(patsubst erl/%.erl,ebin/%.beam,${ERL_SRC})
+
+ELISP_SRC := elisp/erlext.el
+ELISP_OBJ := $(patsubst %.el,%.elc,${ELISP_SRC})
+
+C_SRC := c/dec32.c
+C_OBJ := c/dec32
+
+DOC_SRC := doc/distel.texi
+DOC_OBJ := doc/distel.ps doc/distel.info
+
+OBJECTS := ${ERL_OBJ} ${ELISP_OBJ} ${C_OBJ} ${DOC_OBJ}
+
+all: ${OBJECTS}
+
+########################################
+## Rules
+
+## Erlang
+ebin/%.beam: erl/%.erl
+	erlc -W -o ebin +debug_info $<
+
+## Elisp
+elisp/%.elc: elisp/%.el
+	${emacs} -batch -f batch-byte-compile $<
+
+## Documentation
+doc/distel.ps: doc/distel.dvi
+	dvips -o $@ $<
+
+doc/distel.dvi: ${DOC_SRC}
+	texi2dvi -o $@ $<
+
+doc/distel.info: ${DOC_SRC}
+	makeinfo -o $@ $<
+
+## C
+c/dec32: c/dec32.c
+	gcc -o $@ $<
+
+########################################
+
+configure: configure.in Makefile.in
+	autoconf
+
+clean:
+	-rm -f ${OBJECTS} 2>/dev/null
+
+distclean: clean
+	-rm -f config.* configure.scan Makefile *~ */*~ 2>/dev/null
+
+install: all
+	@echo "* Installing C helper"
+	install -m 775 c/dec32 ${bindir}/dec32
+	@echo
+	@echo "* Installing Emacs Lisp Library"
+	install -m 775 -d ${ELISP_DIR} ${EBIN_DIR} ${ERL_SRC_DIR}
+	install -m 775 elisp/*.el elisp/*.elc ${ELISP_DIR}
+	@echo
+	@echo "* Installing Erlang Library"
+	install -m 775 ebin/*.beam ${EBIN_DIR}
+	install -m 775 erl/*.erl ${ERL_SRC_DIR}
+	@echo
+	@echo "* Installing Info documentation (Postscript will be left in doc/)"
+	install-info --info-dir=${infodir} --section Emacs Emacs doc/distel.info
+	cp doc/distel.info ${infodir}
+
+	@echo
+	@echo "*** Successfully installed. See README for final setup instructions."
+	@echo
+
+dist: distclean configure
+	cd .. && ln -sf ${PACKAGE} ${PACKAGE}-${VERSION}
+	cd .. && (find ${PACKAGE}-${VERSION} -follow -type f | \
+		  egrep -v '(^attic/)|/CVS/|\.cvsignore' | \
+		  xargs tar czf ${PACKAGE}-${VERSION}.tar.gz \
+			${PACKAGE}-${VERSION}/ebin)
+	rm ../${PACKAGE}-${VERSION}
+
+########################################
+# Targets to automatically update ~/.emacs and ~/.erlang
+#
+# This code is pretty ugly right now, but since it only appends
+# there's not much room for harm.
+
+config_install: dot_erlang dot_emacs
+
+dot_erlang:
+	true
+
+dot_emacs: all
+	(grep distel-erlang-mode-hook ${HOME}/.emacs || \
+		cat config/emacs-init-snippet.el >> ${HOME}/.emacs) \
+	>/dev/null
+
+dot_erlang: all
+	(grep 'code:add_pathz("'${EBIN_DIR}'").' ${HOME}/.erlang || \
+		echo -e "\n%% The following line was automatically added by Distel config_install:\n"'code:add_pathz("'${EBIN_DIR}'").' >> ${HOME}/.erlang) \
+	>/dev/null
+
+.INTERMEDIATE: doc/distel.dvi
+

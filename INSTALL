@@ -1,0 +1,45 @@
+Installation
+------------
+
+1. Build and install the software in the usual way:
+     ./configure && make && [sudo] make install
+
+[The following two steps can be done manually, or you can just do
+"make config_install" instead. It will append these lines to your
+~/.emacs and ~/.erlang (but only if they aren't already there). I
+ain't touchin' yer dotfiles without permission.]
+
+2. To have Distel's erlang support libraries available in all your
+   nodes, add this line to your ~/.erlang:
+
+     code:add_pathz("/usr/local/share/distel/ebin").
+
+3. To automatically enable the erlang-extended-mode for editing Erlang
+   files, add this to your ~/.emacs:
+
+     (require 'erlang-mode-ext)
+
+     (defun distel-erlang-mode-hook ()
+       (erlang-extended-mode t))
+
+     (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)
+
+============================================================
+
+Special notes for Mac OSX:
+
+David Wallin reports the following procedure to setup Distel to work
+on an OSX machine with no network connection:
+
+1. Start NetInfo Manager.app (in /Applications/Utilities)
+2. From NetInfo Manager, select the directory path
+   "/machines/localhost" and mark property "name" and (and anytime
+   before here: click on the lock and enter the password) choose
+   "Append Value" from the "Directory" menu.
+3. Enter your machine name as the appended value and Save.
+
+This procedure is like putting "127.0.0.1 <hostname>" into /etc/hosts
+on a UNIX machine. It's necessary so that Emacs can open sockets to
+the localhost via the hostname part of a nodename without talking to
+DNS.
+
