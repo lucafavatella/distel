@@ -1,3 +1,32 @@
+Version 3.2 (unreleased):
+
+	Completion of module and function names. So list:keyso
+	completes to lists:keysort, etc. Bound to M-TAB and (since
+	some window managers take that) M-?. Also has popups for
+	ambiguous completions and all that good stuff. REALLY NICE!
+
+        Group for Customization (M-x customize), so customizable
+        variables can be configured interactively. It's in
+        Programming->Tools->Distel.
+
+        More faithful tags-compliance (i.e. prompting for which tag to
+        follow after M-.) optionally available, via the (Customizable)
+        `distel-tags-compliant' variable (thanks Martin Bjorklund.)
+
+	Improved "Interactive Session" support. Now C-j evaluates the
+	previous expression and inserts the result in-line, and C-M-x
+	evaluates a function definition and prints the result as a
+	message.
+
+	Improved process-manager support, with many small UI
+	enhancements: 'u' updates the list, fewer buffers are created,
+	better errors when inspecting dead processes, ...
+
+	EXIT signals are now generated for remote processes when the
+	link goes down. This solves some long-standing problems like
+	the debug monitor hanging if you restart the node you were
+	debugging on.
+
 Version 3.1:
 
 	Compatibility with R9.
