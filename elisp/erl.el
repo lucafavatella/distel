@@ -620,15 +620,20 @@ during the next `erl-schedule'."
 (defun &erl-group-leader-loop ()
   (erl-receive ()
       ((['put_chars s]
-	(goto-char (point-max))
-	(insert s)
-	(when erl-popup-on-output
-	  (display-buffer (current-buffer)))))
+        (condition-case err
+            (save-excursion
+              (save-selected-window
+                (if erl-popup-on-output
+                    (select-window (or (get-buffer-window (current-buffer))
+                                       (display-buffer (current-buffer)))))
+                (goto-char (point-max))
+                (insert s)))
+          (error (message "Error in group leader: %S" err)))))
     (&erl-group-leader-loop)))
 
-(setq erl-default-group-leader
-      (erl-spawn
-	(rename-buffer "*erl-output*")
-	(&erl-group-leader-loop)))
-
+(when (null erl-group-leader)
+  (setq erl-default-group-leader
+        (erl-spawn
+          (rename-buffer "*erl-output*")
+          (&erl-group-leader-loop))))
 
