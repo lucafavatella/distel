@@ -22,7 +22,7 @@ or an attached process exiting."
     (((type tty) (class mono))
      (:inverse-video t))
     (((class color) (background dark))
-     (:background "red" :foreground "black"))
+     (:background "darkred" :foreground "white"))
     (((class color) (background light))
      (:background "tomato" :foreground "black"))
     (t (:background "gray")))
