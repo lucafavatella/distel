@@ -83,8 +83,8 @@ description(M, F, A) ->
 
 %% Stop the fdoc server. You can use this to flush the database.
 stop() ->
-    catch (fdoc ! stop),
-    ok.
+    catch (fdoc ! {stop, self()}),
+    receive {stop, ok} -> ok end.
 
 %% Internals
 
@@ -116,7 +116,8 @@ init_db() ->
 
 loop() ->
     receive
-	stop ->
+	{stop, From} ->
+	    From ! {stop, ok},
 	    ok;
 	{apropos, From, RE} ->
 	    Matches = [{M,F,A,D} || {M,F,A,D} <- ets:tab2list(?MODULE),
