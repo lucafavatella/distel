@@ -59,12 +59,6 @@ Sequence: (pat1 ...), [pat1 ...]
 	(eval `(let ,(alist-to-list result)
 		 ,@action))))))
 
-(defun alist-to-list (alist)
-  "Convert an alist into a normal list, e.g. ((A . B)) => ((A B))"
-  (mapcar (lambda (cell)
-	    (list (car cell) (cdr cell)))
-	  alist))
-
 (defun patmatch (pattern object &optional bindings)
   "Match OBJECT with PATTERN, and return an alist of bindings."
   (if (eq bindings 'fail)
@@ -148,6 +142,17 @@ Example: (QUOTE QUOTE)"
 (defun pmatch-bound-var-name (sym)
   (intern (substring (symbol-name sym) 1)))
 
+(defun alist-to-list (alist)
+  "Convert an alist into a normal list, e.g. ((A . B)) => ((A B))"
+  (mapcar (lambda (cell)
+	    (list (car cell) (cdr cell)))
+	  alist))
+
+(defun pmatch-alist-keysort (alist)
+  (sort alist (lambda (a b)
+		(string< (symbol-name (car a))
+			 (symbol-name (car b))))))
+
 ;;; Test suite
 
 (defun pmatch-expect (pattern object expected)
@@ -163,11 +168,6 @@ EXPECTED is either 'fail or a list of bindings (in any order)."
 	t
       (error "Patmatch: %S %S => %S, expected %S"
 	     pattern object actual expected))))
-
-(defun pmatch-alist-keysort (alist)
-  (sort alist (lambda (a b)
-		(string< (symbol-name (car a))
-			 (symbol-name (car b))))))
 
 (defun pmatch-test ()
   "Test the pattern matcher."
