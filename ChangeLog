@@ -1,3 +1,29 @@
+2002-12-16  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/derl.el (derl-cookie): Variable for explicitly setting
+	cookie (from Mats Cronqvist)
+
+	* elisp/distel.el (erlang-extended-mode): Some new key bindings:
+	C-d C-d e: erl-ie-show-session (moved from C-c C-d s)
+	C-c C-d s: edb-synch-breakpoints
+	C-c C-d S: edb-save-dbg-state
+	C-c C-d R: edb-restore-dbg-state
+
+	* elisp/erl-service.el (erl-reload-module): Bugfix - if a module
+	is interpreted, then we reinterpret it instead of
+	reloading. Avoids problem of quietly uninterpreting modules.
+
+	* elisp/erl.el (erl-node-name): Now including the unix pid of
+	Emacs in the node name, so that multiple Emacsen can connect to
+	the same erlang node. Previously there was a naming conflict.
+
+2002-12-15  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el (edb-make-breakpoints-stale): Never mark
+	breakpoints as stale in attach buffer.
+	(edb-breakpoint-stale-face): Switched stale breakpoint colour to
+	purple (no decent dark yellow, at least on LCD screen.)
+
 2002-12-13  Martin Bjorklund  <mbj@bluetail.com>
 
 	* elisp/edb.el (edb-save-dbg-state): Save debugger state
