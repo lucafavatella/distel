@@ -439,7 +439,7 @@ during the next `erl-schedule'."
 (defun erl-terminate (why)
   "Exit the current process."
   (unless (eq why 'normal)
-    (message "EXIT: %S %S %s" erl-self why
+    (message "EXIT: %s %S %s" (erl-pid-to-string erl-self) why
 	     (if erl-process-name
 		 (concat "\n  Process name: " erl-process-name)
 	       "")))
