@@ -3,6 +3,9 @@
 	* elisp/distel-ie.el (erl-ie-inline-results): Added variable to
 	control how results are reported (inline in buffer, or in message
 	area). Uses the message area by default, prefix argument inverts.
+	(erl-ie-show-session): This is the new "create a blank session"
+	command (calls erl-ie-session and pops up the buffer, something
+	I'd broken)
 
 2002-08-28  Luke Gorrie  <luke@bluetail.com>
 

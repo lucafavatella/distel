@@ -66,7 +66,7 @@ sequence. For general information about Emacs' online help, use
     ("\C-c\C-dl" . erl-process-list)
 
     ;; distel-ie keybindings:
-    ("\C-c\C-ds" . erl-ie-session)
+    ("\C-c\C-ds" . erl-ie-show-session)
     ("\C-c\C-dc" . erl-ie-copy-buffer-to-session)
     ("\C-c\C-dr" . erl-ie-copy-region-to-session)
     ("\C-\M-x"   . erl-ie-evaluate)
