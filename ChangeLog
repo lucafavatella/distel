@@ -1,3 +1,25 @@
+2002-11-21  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl.el: Various minor fixes: added erl-group-leader
+	function (if the variable is nil in a non-process buffer, it takes
+	the default), improved erl-pid-to-string, rearranged some things.
+
+	* elisp/erl-service.el (erl-send-rpc): Using a new
+	erl-group-leader function instead of the variable of the same
+	name, to fix a problem when sending RPCs from non-process buffers.
+
+	* elisp/edb.el (edb-monitor-format): Avoiding trailing spaces in
+	summary lines, so that it doesn't unnecessarily wrap lines on < 80
+	column displays (was needed for the big font I used in the EUC
+	presentation.)
+
+	* elisp/distel-ie.el: Added a couple of `push-mark' calls, so that
+	after you evaluate a definition the mark will be placed where the
+	cursor is (and thus when you type a new expression, the region
+	will be around your new text, ready for M-x). But what we really
+	need to do is change M-x so that it grabs a whole expression
+	instead of using the region.
+
 2002-11-12  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/derl.el (erl-connect): Now printing an error if we try to
