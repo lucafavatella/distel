@@ -1,0 +1,5 @@
+2002-04-20  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/*.el: Added 'receive' construct, and updated existing
+	programs to use it.
+

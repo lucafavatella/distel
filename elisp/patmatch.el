@@ -18,7 +18,13 @@ variables bound to their matching values. If no patterns match, an
 error is signaled.
 
 See `pmatch' for a description of pattern syntax."
-  `(mcase* ,object ',clauses))
+  `(mcase* ,object ,(mcase-parse-clauses clauses)))
+
+(defun mcase-parse-clauses (clauses)
+  `(list ,@(mapcar #'(lambda (clause)
+		       `(list ',(car clause)
+			      (lambda () ,@(cdr clause))))
+		   clauses)))
 
 (defmacro pmatch (pattern object &rest body)
   "Match PATTERN with OBJECT, and execute BODY with all bindings.
@@ -49,17 +55,23 @@ Sequence: (pat1 ...), [pat1 ...]
 			   (list (tuple 'badmatch ',pattern ,var))))))))
 
 (defun mcase* (object clauses)
-  "Clauses = ((TEST . ACTIONS) ...)"
+  (let ((clause (mcase-choose object clauses)))
+    (if clause
+	(funcall clause)
+      (signal 'erl-exit-signal '(case-clause)))))
+
+(defun mcase-choose (object clauses)
   (if (null clauses)
-      (signal 'erl-exit-signal '(case-clause))
+      nil
     (let* ((clause  (car clauses))
 	   (pattern (car clause))
-	   (action  (cdr clause))
+	   (action  (cadr clause))
 	   (result  (patmatch pattern object)))
       (if (eq result 'fail)
-	  (mcase* object (cdr clauses))
-	(eval `(let ,(alist-to-letlist result)
-		 ,@action))))))
+	  (mcase-choose object (cdr clauses))
+	`(lambda ()
+	   (let ,(alist-to-letlist result)
+	     (funcall ,action)))))))
 
 (defun alist-to-letlist (alist)
   "Convert an alist into `let' binding syntax, eg: ((A . B)) => ((A 'B))"
@@ -190,9 +202,6 @@ EXPECTED is either 'fail or a list of bindings (in any order)."
 		    'yes)
 		   (_ 'no))))
   t)
-
-;; Automatically run test
-(pmatch-test)
 
 (provide 'patmatch)
 
