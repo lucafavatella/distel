@@ -24,6 +24,8 @@ ain't touchin' yer dotfiles without permission.]
 
      (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)
 
+And you should be all set! README says how to get started.
+
 ============================================================
 
 Special notes for Mac OSX:
