@@ -1,3 +1,11 @@
+2004-05-21  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-openparen): New command to print the
+	argument list for a function call. Automatically runs when you
+	type '('.
+
+	* erl/distel.erl (get_arglists): The Erlang part.
+
 2004-03-23  Dave Love  <fx@gnu.org>
 
 	* doc/distel.texi: Fix some @xref usages.
