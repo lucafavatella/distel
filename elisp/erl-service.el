@@ -613,7 +613,7 @@ When FUNCTION is specified, the point is moved to its start."
   ;; Add us to the history list
   (ring-insert-at-beginning erl-find-history-ring
 			    (copy-marker (point-marker)))
-  (if (eq module (intern (erlang-get-module)))
+  (if (equal (symbol-name module) (erlang-get-module))
       (when function
 	(erl-search-function function arity))
     (let ((node (erl-read-nodename)))

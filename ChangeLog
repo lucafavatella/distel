@@ -5,6 +5,19 @@
 	saved state can be restored after e.g. a node restart with
 	edb-restore-dbg-state.
 
+2002-12-12  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el (edb-synch-breakpoints): When calculating the line
+	number of a breakpoint overlay, now counting lines from
+	(point-min) (beginning of buffer) instead of (window-start)
+	(beginning of visible part of buffer).
+
+2002-12-08  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-find-source): Fixed problem where
+	erl-find-source would only work from files with -module(..)
+	declarations. Now it works in any erlang-mode buffer.
+
 2002-12-08  Martin Bjorklund  <mbj@bluetail.com>
 
 	* elisp/erl-service.el (erl-find-source-under-point): Don't ask
