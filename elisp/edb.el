@@ -35,9 +35,9 @@ or an attached process exiting."
     (((type tty) (class mono))
      (:inverse-video t))
     (((class color) (background dark))
-     (:background "yellow"))
+     (:background "purple4"))
     (((class color) (background light))
-     (:background "light goldenrod" :foreground "black"))
+     (:background "medium purple" :foreground "black"))
     (t (:background "dark gray")))
   "Face for marking a stale breakpoint definition."
   :group 'distel)
@@ -753,7 +753,8 @@ I.e. deletes all old breakpoints, and re-applies them at the current line."
       (setq edb-buffer-breakpoints-stale nil))))
 
 (defun edb-make-breakpoints-stale (begin end length)
-  (when (not edb-buffer-breakpoints-stale)
+  (when (and (not edb-attach-buffer)
+	     (not edb-buffer-breakpoints-stale))
     (mapc (lambda (bbp)
 	    (let ((ov (bbp-ov bbp)))
 	      (overlay-put ov 'face 'edb-breakpoint-stale-face)))
