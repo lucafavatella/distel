@@ -35,8 +35,6 @@ behaviour to this default is used.")
   "Return the erl-ie-session for NODE, creating it if necessary."
   (interactive (list (erl-ie-read-nodename)))
 
-  (erl-ie-ensure-registered node)
-
   (or (get-buffer (erl-ie-buffer-name node))
       (erl-ie-create-session node)))
 
@@ -48,8 +46,11 @@ behaviour to this default is used.")
     (setq erl-ie-node node)
 
     ;; hiijack stdin/stdout :
-    (setq erl-group-leader 
-	  (erl-spawn (&erl-ie-group-leader-loop (current-buffer))))
+    (let ((output-buffer (current-buffer)))
+      (setq erl-group-leader 
+	    (erl-spawn (&erl-ie-group-leader-loop output-buffer))))
+
+    (erl-ie-ensure-registered node)
 
     (current-buffer)))
 
