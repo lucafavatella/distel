@@ -107,11 +107,16 @@ Sequence: (pat1 ...), [pat1 ...]
 	   (pmatch-bind-var pattern object bindings))
 	  ((pmatch-trivial-p pattern) ; nil, t, any-symbol
 	   (if (equal pattern object) bindings 'fail))
-	  ((sequencep pattern)
-	   (if (eq (type-of pattern) (type-of object))
-	       (patmatch (pmatch-tail pattern) (pmatch-tail object)
-		       (patmatch (elt pattern 0) (elt object 0) bindings))
-	     'fail))
+          ((consp pattern)
+           (if (consp object)
+               (patmatch (cdr pattern) (cdr object)
+                         (patmatch (car pattern) (car object) bindings))
+             'fail))
+          ((vectorp pattern)
+           (if (and (vectorp object)
+                    (= (length pattern) (length object)))
+               (patmatch (coerce pattern 'list) (coerce object 'list) bindings)
+             'fail))
 	  (t
 	   'fail))))
 
