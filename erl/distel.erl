@@ -17,10 +17,10 @@
          process_list/0, process_summary/1,
          process_summary_and_trace/2, fprof/3, fprof_analyse/1,
          debug_toggle/2, debug_subscribe/1, debug_add/1,
-	 break_toggle/2, break_delete/2, break_add/2, break_restore/1,
-	 modules/1, functions/2,
-	 free_vars/1, free_vars/2,
-	 apropos/1, apropos/2, describe/3, describe/4]).
+         break_toggle/2, break_delete/2, break_add/2, break_restore/1,
+         modules/1, functions/2,
+         free_vars/1, free_vars/2,
+         apropos/1, apropos/2, describe/3, describe/4]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
@@ -73,10 +73,10 @@ eval_expression(S) ->
 
 try_evaluation(Parse) ->
     case catch erl_eval:exprs(Parse, []) of
-	{value, V, _} ->
-	    {ok, flatten(io_lib:format("~p", [V]))};
-	{'EXIT', Reason} ->
-	    {error, Reason}
+        {value, V, _} ->
+            {ok, flatten(io_lib:format("~p", [V]))};
+        {'EXIT', Reason} ->
+            {error, Reason}
     end.
 
 parse_expr(S) ->
@@ -90,33 +90,33 @@ find_source(Mod) ->
                 {file, preloaded} ->
                     {error, ?L2B("\"preloaded\"")};
                 {file, RelName} ->
-		    Name = abs_beamfile_name(RelName),
+                    Name = abs_beamfile_name(RelName),
                     case guess_source_file(Name) of
                         {ok, Fname} ->
                             {ok, Fname};
                         false ->
-			    case guess_source_file_from_modinfo(Mod) of
-				{ok, Fname} ->
-				    {ok, Fname};
-				false ->
-				    {error, fmt("Can't guess matching "
-						"source file from ~p",
-						[Name])}
-			    end
-		    end
-	    end;
-	{error, nofile} ->
-	    {error, fmt("Can't find module '~p' on ~p", [Mod, node()])};
+                            case guess_source_file_from_modinfo(Mod) of
+                                {ok, Fname} ->
+                                    {ok, Fname};
+                                false ->
+                                    {error, fmt("Can't guess matching "
+                                                "source file from ~p",
+                                                [Name])}
+                            end
+                    end
+            end;
+        {error, nofile} ->
+            {error, fmt("Can't find module '~p' on ~p", [Mod, node()])};
         {error, Why} ->
             {error, fmt("~p", [Why])}
     end.
 
 abs_beamfile_name(RelName) ->
     case file:get_cwd() of
-	{ok, Cwd} ->
-	    filename:join(Cwd, RelName);
-	_ ->
-	    RelName
+        {ok, Cwd} ->
+            filename:join(Cwd, RelName);
+        _ ->
+            RelName
     end.
 
 guess_source_file_from_modinfo(Mod) ->
@@ -164,20 +164,20 @@ guess_source_file(Beam) ->
                                     false
                             end;
                         _ ->
-			    %% This lets us find Distel's own sourcecode
-			    %% in the source tree layout
-			    case regexp:sub(Src1, "/ebin/", "/erl/") of
-				{ok, Src2, _} ->
-				    case file:read_file_info(Src2) of
-					{ok, #file_info{type=regular}} ->
-					    {ok, Src2};
-					_ ->
-					    false
-				    end;
-				_ ->
-				    false
-			    end
-		    end
+                            %% This lets us find Distel's own sourcecode
+                            %% in the source tree layout
+                            case regexp:sub(Src1, "/ebin/", "/erl/") of
+                                {ok, Src2, _} ->
+                                    case file:read_file_info(Src2) of
+                                        {ok, #file_info{type=regular}} ->
+                                            {ok, Src2};
+                                        _ ->
+                                            false
+                                    end;
+                                _ ->
+                                    false
+                            end
+                    end
             end;
         _ ->
             false
@@ -225,17 +225,17 @@ iformat(A1, A2, A3, A4) ->
 %% Returns: {ok, String} | {error, Rsn}
 process_info_item(Pid, Item) ->
     case process_info(Pid, Item) of
-	{backtrace, Bin} ->
-	    {ok, Bin};
-	{Item, Term} ->
-	    {ok, fmt("~p~n", [Term])};
-	undefined ->
-	    case is_process_alive(Pid) of
-		true ->
-		    {ok, <<"undefined">>};
-		false ->
-		    {ok, fmt("dead process: ~p", [Pid])}
-	    end
+        {backtrace, Bin} ->
+            {ok, Bin};
+        {Item, Term} ->
+            {ok, fmt("~p~n", [Term])};
+        undefined ->
+            case is_process_alive(Pid) of
+                true ->
+                    {ok, <<"undefined">>};
+                false ->
+                    {ok, fmt("dead process: ~p", [Pid])}
+            end
     end.
 
 %% Returns: Summary : binary()
@@ -250,11 +250,11 @@ process_summary(Pid) ->
 %%    {trace_msg, binary()}
 process_summary_and_trace(Tracer, Pid) ->
     case is_process_alive(Pid) of
-	true ->
-	    spawn_tracer(Tracer, Pid),
-	    process_summary(Pid);
-	false ->
-	    {error, fmt("dead process: ~p", [Pid])}
+        true ->
+            spawn_tracer(Tracer, Pid),
+            process_summary(Pid);
+        false ->
+            {error, fmt("dead process: ~p", [Pid])}
     end.
 
 spawn_tracer(Tracer, Tracee) ->
@@ -346,7 +346,7 @@ fprof_process_info({spawned_by, Who}) ->
     fmt("  ~s: ~s", [pad(16, "spawned_by"), Who]);
 fprof_process_info({spawned_as, What}) ->
     fmt("  ~s: ~s", [pad(16, "spawned as"),
-		   fprof_tag_name(What)]);
+                   fprof_tag_name(What)]);
 fprof_process_info({initial_calls, Calls}) ->
     fmt("  ~s: ~p~n", [pad(16, "initial calls"), Calls]);
 fprof_process_info(Info) ->
@@ -392,11 +392,11 @@ pad(X, S) ->
 
 null_gl() ->
     receive
-	{io_request, From, ReplyAs, _} ->
-	    From ! { io_reply, ReplyAs, ok},
-	    null_gl();
-	die ->
-	    ok
+        {io_request, From, ReplyAs, _} ->
+            From ! { io_reply, ReplyAs, ok},
+            null_gl();
+        die ->
+            ok
     end.
 
 %% ----------------------------------------------------------------------
@@ -409,6 +409,7 @@ debug_toggle(Mod, Filename) ->
             int:n(Mod),
             uninterpreted;
         false ->
+            code:ensure_loaded(Mod),
             case int:i(Filename) of
                 {module, Mod} ->
                     interpreted;
@@ -419,13 +420,13 @@ debug_toggle(Mod, Filename) ->
 
 debug_add(Modules) ->
     lists:foreach(fun([Mod, FileName]) ->
-			  %% FIXME: want to reliably detect whether
-			  %% the module is interpreted, but
-			  %% 'int:interpreted()' can give the wrong
-			  %% answer if code is reloaded behind its
-			  %% back.. -luke
-			  int:i(FileName)
-		  end, Modules),
+                          %% FIXME: want to reliably detect whether
+                          %% the module is interpreted, but
+                          %% 'int:interpreted()' can give the wrong
+                          %% answer if code is reloaded behind its
+                          %% back.. -luke
+                          int:i(FileName)
+                  end, Modules),
     ok.
 
 break_toggle(Mod, Line) ->
@@ -445,7 +446,7 @@ break_delete(Mod, Line) ->
         true ->
             ok = int:delete_break(Mod, Line);
         false ->
-	    ok
+            ok
     end.
 
 break_add(Mod, Line) ->
@@ -461,7 +462,7 @@ break_add(Mod, Line) ->
 break_restore(L) ->
     lists:foreach(
       fun([Mod, Lines]) ->
-	      lists:foreach(fun(Line) -> int:break(Mod, Line) end, Lines)
+              lists:foreach(fun(Line) -> int:break(Mod, Line) end, Lines)
       end, L),
     ok.
 
@@ -477,7 +478,7 @@ debug_subscribe(Pid) ->
     %% server is started (int:subscribe doesn't do this, probably a
     %% bug).
     Interpreted = lists:map(fun(Mod) -> [Mod, fname(Mod)] end,
-			    int:interpreted()),
+                            int:interpreted()),
     spawn_link(?MODULE, debug_subscriber_init, [self(), Pid]),
     receive ready -> ok end,
     {Interpreted,
@@ -504,10 +505,10 @@ debug_subscriber(Pid) ->
                           fmt("~p:~p/~p", [M,F,length(A)]),
                           Status,
                           fmt("~w", [Info])]}};
-	{int, {interpret, Mod}} ->
-	    Pid ! {int, {interpret, Mod, fname(Mod)}};
-	Msg ->
-	    Pid ! Msg
+        {int, {interpret, Mod}} ->
+            Pid ! {int, {interpret, Mod, fname(Mod)}};
+        Msg ->
+            Pid ! Msg
     end,
     debug_subscriber(Pid).
 
@@ -528,46 +529,46 @@ debug_attach(Emacs, Pid) ->
     spawn_link(?MODULE, attach_init, [Emacs, Pid]).
 
 %% State for attached process, based on `dbg_ui_trace' in the debugger.
--record(attach, {emacs,			% pid()
-		 meta,			% pid()
-		 status,		% break | running | idle | ...
-		 where,			% {Mod, Line}
-		 stack			% {CurPos, MaxPos}
-		}).
+-record(attach, {emacs,                 % pid()
+                 meta,                  % pid()
+                 status,                % break | running | idle | ...
+                 where,                 % {Mod, Line}
+                 stack                  % {CurPos, MaxPos}
+                }).
 
 attach_init(Emacs, Pid) ->
     link(Emacs),
     case int:attached(Pid) of
         {ok, Meta} ->
             attach_loop(#attach{emacs=Emacs,
-					meta=Meta,
-					status=idle,
-					stack={undefined,undefined}});
+                                        meta=Meta,
+                                        status=idle,
+                                        stack={undefined,undefined}});
         error ->
             exit({error, {unable_to_attach, Pid}})
     end.
 
 attach_loop(Att = #attach{emacs=Emacs, meta=Meta}) ->
     receive
-	{Meta, {break_at, Mod, Line, Pos}} ->
-	    Att1 = Att#attach{status=break,
-			      where={Mod, Line},
-			      stack={Pos, Pos}},
-	    attach_goto(Emacs, Meta, Mod, Line, Pos, Pos),
-	    ?MODULE:attach_loop(Att1);
-	{Meta, Status} when atom(Status) ->
-	    Emacs ! {status, Status},
-	    ?MODULE:attach_loop(Att#attach{status=Status,
-					   where=undefined});
-	{Meta, Other} ->
-	    %% FIXME: there are more messages to handle, like
-	    %% re_entry, exit_at
-	    ?MODULE:attach_loop(Att);
-	{emacs, meta, Cmd} when Att#attach.status == break ->
-	    attach_loop(attach_meta_cmd(Att, Cmd));
-	{emacs, meta, Cmd} ->
-	    Emacs ! {message, <<"Not in break">>},
-	    ?MODULE:attach_loop(Att)
+        {Meta, {break_at, Mod, Line, Pos}} ->
+            Att1 = Att#attach{status=break,
+                              where={Mod, Line},
+                              stack={Pos, Pos}},
+            attach_goto(Emacs, Meta, Mod, Line, Pos, Pos),
+            ?MODULE:attach_loop(Att1);
+        {Meta, Status} when atom(Status) ->
+            Emacs ! {status, Status},
+            ?MODULE:attach_loop(Att#attach{status=Status,
+                                           where=undefined});
+        {Meta, Other} ->
+            %% FIXME: there are more messages to handle, like
+            %% re_entry, exit_at
+            ?MODULE:attach_loop(Att);
+        {emacs, meta, Cmd} when Att#attach.status == break ->
+            attach_loop(attach_meta_cmd(Att, Cmd));
+        {emacs, meta, Cmd} ->
+            Emacs ! {message, <<"Not in break">>},
+            ?MODULE:attach_loop(Att)
     end.
 
 attach_meta_cmd(Att, Cmd) when Att#attach.status /= break ->
@@ -575,42 +576,42 @@ attach_meta_cmd(Att, Cmd) when Att#attach.status /= break ->
     Att;
 attach_meta_cmd(Att = #attach{emacs=Emacs, meta=Meta, stack={Pos,Max}}, Cmd) ->
     case Cmd of
-	_ when Cmd == up; Cmd == down ->
-	    case int:meta(Meta, stack_frame, {Cmd, Pos}) of
-		{NewPos, Mod, Line} ->
-		    attach_goto(Emacs, Meta, Mod, Line, NewPos, Max),
-		    Att#attach{stack={NewPos, Max}};
-		X when X == top; X == bottom, Pos == Max ->
-		    Emacs ! {message, <<"Can't go further">>},
-		    Att;
-		bottom ->
-		    %% Special case: `int' tells us we're at the
-		    %% bottom, but really we're trying to go down from
-		    %% the second-last frame. Here we take ourselves
-		    %% directly to the bottom when this happens.
-		    {Mod, Line} = Att#attach.where,
-		    attach_goto(Emacs, Meta, Mod, Line, Max, Max),
-		    Att#attach{stack={Max, Max}}
-	    end;
-	{get_binding, Var} ->
-	    Bs = int:meta(Meta, bindings, Pos),
-	    case lists:keysearch(Var, 1, Bs) of
-		{value, Val} ->
-		    Emacs ! {show_variable, fmt("~p~n", [Val])};
-		false ->
-		    Emacs ! {message, fmt("No such variable: ~p",
-					  [Var])}
-	    end,
-	    Att;
-	_ ->
-	    int:meta(Meta, Cmd),
-	    Att
+        _ when Cmd == up; Cmd == down ->
+            case int:meta(Meta, stack_frame, {Cmd, Pos}) of
+                {NewPos, Mod, Line} ->
+                    attach_goto(Emacs, Meta, Mod, Line, NewPos, Max),
+                    Att#attach{stack={NewPos, Max}};
+                X when X == top; X == bottom, Pos == Max ->
+                    Emacs ! {message, <<"Can't go further">>},
+                    Att;
+                bottom ->
+                    %% Special case: `int' tells us we're at the
+                    %% bottom, but really we're trying to go down from
+                    %% the second-last frame. Here we take ourselves
+                    %% directly to the bottom when this happens.
+                    {Mod, Line} = Att#attach.where,
+                    attach_goto(Emacs, Meta, Mod, Line, Max, Max),
+                    Att#attach{stack={Max, Max}}
+            end;
+        {get_binding, Var} ->
+            Bs = int:meta(Meta, bindings, Pos),
+            case lists:keysearch(Var, 1, Bs) of
+                {value, Val} ->
+                    Emacs ! {show_variable, fmt("~p~n", [Val])};
+                false ->
+                    Emacs ! {message, fmt("No such variable: ~p",
+                                          [Var])}
+            end,
+            Att;
+        _ ->
+            int:meta(Meta, Cmd),
+            Att
     end.
 
 attach_goto(Emacs, Meta, Mod, Line, Pos, Max) ->
     Bs = sort(int:meta(Meta, bindings, Pos)),
     Vars = [{Name, fmt("~s = ~P~n", [pad(10, Name), Val, 9])} ||
-	       {Name,Val} <- Bs],
+               {Name,Val} <- Bs],
     Emacs ! {variables, Vars},
     Emacs ! {location, Mod, Line, Pos, Max}.
 
@@ -629,11 +630,11 @@ modules(Prefix) ->
 %% Prefix = string()
 functions(Mod, Prefix) ->
     case catch Mod:module_info(exports) of
-	{'EXIT', _} ->
-	    {error, fmt("Can't call module_info/1 on ~p", [Mod])};
-	List when list(List) ->
-	    Fns = [atom_to_list(Fun) || {Fun, _Arity} <- List],
-	    {ok, ordsets:to_list(ordsets:from_list(Fns))}
+        {'EXIT', _} ->
+            {error, fmt("Can't call module_info/1 on ~p", [Mod])};
+        List when list(List) ->
+            Fns = [atom_to_list(Fun) || {Fun, _Arity} <- List],
+            {ok, ordsets:to_list(ordsets:from_list(Fns))}
     end.
 
 %% ----------------------------------------------------------------------
@@ -656,14 +657,14 @@ free_vars(Text, StartLine) ->
     Ts1 = lists:reverse(strip(lists:reverse(Ts))),
     Ts2 = [{'begin', 1}] ++ Ts ++ [{'end', EndLine}, {dot, EndLine}],
     case erl_parse:parse_exprs(Ts2) of
-	{ok, Es} ->
-	    E = erl_syntax:block_expr(Es),
-	    E1 = erl_syntax_lib:annotate_bindings(E, ordsets:new()),
-	    {value, {free, Vs}} = lists:keysearch(free, 1,
-						  erl_syntax:get_ann(E1)),
-	    {ok, Vs};
-	{error, {_Line, erl_parse, Reason}} ->
-	    {error, fmt("~s", [Reason])}
+        {ok, Es} ->
+            E = erl_syntax:block_expr(Es),
+            E1 = erl_syntax_lib:annotate_bindings(E, ordsets:new()),
+            {value, {free, Vs}} = lists:keysearch(free, 1,
+                                                  erl_syntax:get_ann(E1)),
+            {ok, Vs};
+        {error, {_Line, erl_parse, Reason}} ->
+            {error, fmt("~s", [Reason])}
     end.
 
 strip([{',', _}   | Ts]) -> strip(Ts);
