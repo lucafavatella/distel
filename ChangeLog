@@ -1,3 +1,15 @@
+2003-01-14  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-refactor-subfunction): New refactoring
+	command: takes all expressions in the region and makes a new
+	function out of them. The original text is replaced by a call to
+	the new function, and all needed variables are passed as
+	parameters. The function itself is placed on the kill ring, for
+	manual placement. Bound to "C-c C-d f".
+
+	* erl/distel.erl: Erlang-side refactoring support, requires
+	syntax_tools version 1.2 (from erlang.org contributions.)
+
 2003-01-11  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/edb.el: Toggling stale breakpoints is now a local
