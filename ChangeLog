@@ -1,3 +1,7 @@
+2002-04-21  Luke Gorrie  <luke@bluetail.com>
+
+	*  elisp/*.el: XEmacs compatibility fixes.
+
 2002-04-20  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/*.el: Added 'receive' construct, and updated existing
