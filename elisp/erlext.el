@@ -37,47 +37,26 @@
 (eval-when-compile (require 'cl))
 (eval-when-compile (load "cl-extra"))
 
-;; These macros make the "ifdef" decisions at compile-time, so the
-;; resulting bytecode file won't be portable between GNU and XEmacs.
-
-(defmacro xemacs-only (&rest body)
-  (when (featurep 'xemacs)
-    (cons 'progn body)))
-
-(defmacro gnu-only (&rest body)
-  (unless (featurep 'xemacs)
-    (cons 'progn body)))
-
-;; Some runtime tests to make sure the right compiler was used.
-
-(xemacs-only
- (unless (featurep 'xemacs)
-   (error "Error: This file (erlext.elc) was compiled for XEmacs.")))
-
-(gnu-only
- (when (featurep 'xemacs)
-   (error "Error: This file (erlext.elc) was not compiled for XEmacs.")))
-
 ;; type tags
 
 (defconst erlext-tag-alist
-  '((smallInt 	. 97)
-    (int 	. 98)
-    (float 	. 99)
-    (atom 	. 100)
-    (cached 	. 67)
-    (ref 	. 101)
-    (port 	. 102)
-    (pid 	. 103)
+  '((smallInt	. 97)
+    (int	. 98)
+    (float	. 99)
+    (atom	. 100)
+    (cached	. 67)
+    (ref	. 101)
+    (port	. 102)
+    (pid	. 103)
     (smallTuple . 104)
     (largeTuple . 105)
-    (null 	. 106)
-    (string 	. 107)
-    (list 	. 108)
-    (bin 	. 109)
-    (smallBig 	. 110)
-    (largeBig 	. 111)
-    (newRef 	. 114)))
+    (null	. 106)
+    (string	. 107)
+    (list	. 108)
+    (bin	. 109)
+    (smallBig	. 110)
+    (largeBig	. 111)
+    (newRef	. 114)))
 
 (defconst erlext-max-atom-length 255 "The maximum length of an erlang atom.")
 (defconst erlext-protocol-version 131)
@@ -97,19 +76,19 @@ itself.")
 (defun erlext-binary-to-term (string)
   "Decode and return the elisp representation of `string'."
   (assert (stringp string))
-  (with-temp-buffer
-    (gnu-only (set-buffer-multibyte nil))
-    (insert string)
-    (goto-char (point-min))
-    (erlext-read-whole-obj)))
+  (let (default-enable-multibyte-characters)
+    (with-temp-buffer
+      (insert string)
+      (goto-char (point-min))
+      (erlext-read-whole-obj))))
 
 (defun erlext-term-to-binary (term)
   "Encode `term' as erlext and return the result as a string."
-  (with-temp-buffer
-    (gnu-only (set-buffer-multibyte nil))
-    (insert erlext-protocol-version)
-    (erlext-write-obj term)
-    (buffer-string)))
+  (let (default-enable-multibyte-characters)
+    (with-temp-buffer
+      (insert erlext-protocol-version)
+      (erlext-write-obj term)
+      (buffer-string))))
 
 ;; Tuple datatype: (tuple X Y Z) => [X Y Z]
 
@@ -139,12 +118,12 @@ itself.")
 
 (defun erlext-write-obj (obj)
   (cond ((listp obj)                    ; lists at top since (symbolp '()) => t
-         (erlext-write-list obj))
-        ((stringp obj)
-         (erlext-write-string obj))
-        ((symbolp obj)
-         (erlext-write-atom obj))
-        ((vectorp obj)
+	 (erlext-write-list obj))
+	((stringp obj)
+	 (erlext-write-string obj))
+	((symbolp obj)
+	 (erlext-write-atom obj))
+	((vectorp obj)
 	 (if (tuplep obj)
 	     (erlext-write-tuple (tuple-to-list obj))
 	   (let* ((list (mapcar #'identity obj))
@@ -159,10 +138,10 @@ itself.")
 		(apply #'erlext-write-ref elts))
 	       ((erl-new-ref)
 		(apply #'erlext-write-new-ref elts))))))
-        ((integerp obj)
-         (erlext-write-int obj))
-        (t
-         (error "erlext can't marshal %S" obj))))
+	((integerp obj)
+	 (erlext-write-int obj))
+	(t
+	 (error "erlext can't marshal %S" obj))))
 
 (defun erlext-write1 (n)
   (assert (integerp n))
@@ -170,13 +149,13 @@ itself.")
 (defun erlext-write2 (n)
   (assert (integerp n))
   (insert (logand (ash n -8) 255)
-          (logand n 255)))
+	  (logand n 255)))
 (defun erlext-write4 (n)
   (assert (integerp n))
   (insert (logand (ash n -24) 255)
-          (logand (ash n -16) 255)
-          (logand (ash n -8) 255)
-          (logand n 255)))
+	  (logand (ash n -16) 255)
+	  (logand (ash n -8) 255)
+	  (logand n 255)))
 (defun erlext-writen (bytes)
   (assert (stringp bytes))
   (insert bytes))
@@ -188,7 +167,7 @@ itself.")
 (defun erlext-write-atom (atom)
   (assert (symbolp atom))
   (let* ((string (symbol-name atom))
-         (len    (length string)))
+	 (len    (length string)))
     (assert (<= len erlext-max-atom-length))
     (erlext-write1 (erlext-get-code 'atom))
     (erlext-write2 (length string))
@@ -196,20 +175,20 @@ itself.")
 (defun erlext-write-int (n)
   (assert (integerp n))
   (cond ((= n (logand n 255))
-         (erlext-write1 (erlext-get-code 'smallInt))
-         (erlext-write1 n))
-        ;; elisp has small numbers so 32bit on the wire is as far as
-        ;; we need bother supporting
-        (t
-         (erlext-write1 (erlext-get-code 'int))
-         (erlext-write4 n))))
+	 (erlext-write1 (erlext-get-code 'smallInt))
+	 (erlext-write1 n))
+	;; elisp has small numbers so 32bit on the wire is as far as
+	;; we need bother supporting
+	(t
+	 (erlext-write1 (erlext-get-code 'int))
+	 (erlext-write4 n))))
 (defun erlext-write-list (lst)
   (assert (listp lst))
   (if (null lst)
       (erlext-write-null)
     (progn (erlext-write-list-head (length lst))
-           (mapc 'erlext-write-obj lst)
-           (erlext-write-null))))
+	   (mapc 'erlext-write-obj lst)
+	   (erlext-write-null))))
 (defun erlext-write-string (str)
   (assert (stringp str))
   (erlext-write1 (erlext-get-code 'string))
@@ -230,10 +209,10 @@ itself.")
   (assert (listp elts))
   (let ((arity (length elts)))
     (if (< arity 256)
-        (progn (erlext-write1 (erlext-get-code 'smallTuple))
-               (erlext-write1 arity))
+	(progn (erlext-write1 (erlext-get-code 'smallTuple))
+	       (erlext-write1 arity))
       (progn (erlext-write1 (erlext-get-code 'largeTuple))
-             (erlext-write4 arity))))
+	     (erlext-write4 arity))))
   (mapc 'erlext-write-obj elts))
 (defun erlext-write-pid (node id serial creation)
   (erlext-write1 (erlext-get-code 'pid))
@@ -262,15 +241,15 @@ itself.")
 ;; Decoding
 ;; ------------------------------------------------------------
 
-(xemacs-only
- ;; convert character to string
- (defsubst erlext-read1 ()
-   (prog1 (char-int (following-char))
-     (forward-char 1))))
-(gnu-only
- (defsubst erlext-read1 ()
-   (prog1 (following-char)
-     (forward-char 1))))
+(eval-and-compile
+  (if (fboundp 'char-int)
+      ;; convert character to string
+      (defsubst erlext-read1 ()
+	(prog1 (char-int (following-char))
+	  (forward-char 1)))
+    (defsubst erlext-read1 ()
+      (prog1 (following-char)
+	(forward-char 1)))))
 
 (defun erlext-read-whole-obj ()
   (let ((version (erlext-read1)))
@@ -319,20 +298,23 @@ itself.")
 ;; read1 moved above so that it can be inlined
 (defun erlext-read2 ()
   (logior (ash (erlext-read1) 8)
-          (erlext-read1)))
+	  (erlext-read1)))
 (defun erlext-read4 ()
   (logior (ash (erlext-read1) 24)
-          (ash (erlext-read1) 16)
-          (ash (erlext-read1) 8)
-          (erlext-read1)))
+	  (ash (erlext-read1) 16)
+	  (ash (erlext-read1) 8)
+	  (erlext-read1)))
 (defun erlext-readn (n)
   (assert (integerp n))
   (let ((start (point))
-        (end   (+ (point) n)))
+	(end   (+ (point) n)))
     (prog1 (let ((string (buffer-substring start end)))
 	     (if (featurep 'xemacs)
 		 string
-	       (string-as-unibyte string)))
+	       (string-as-unibyte string))) ; fixme: should be
+					    ; string-make-unibyte?
+					    ; Why is it necessary
+					    ; anyhow?
       (goto-char end))))
 (defun erlext-read-atom ()
   (let ((length (erlext-read2)))
@@ -408,4 +390,3 @@ it and making sure that it's unchanged."
     (error (error "test failed for %S: %S" term (error-message-string x)))))
 
 (provide 'erlext)
-
