@@ -1,4 +1,4 @@
-distel 3.0 -- Distributed Emacs Lisp for Erlang.
+distel 3.1 -- Distributed Emacs Lisp for Erlang.
 ------------------------------------------------------------
 
 Distel is a library for Emacs<->Erlang communication, plus a suite of
@@ -23,7 +23,7 @@ find this description:
 
   C-c C-d l     - List all Erlang processes ("pman").
   M-.           - Jump from a function call to its definition.
-  M-,           - Jump back from a function definition (multi-level).
+  M-*           - Jump back from a function definition (multi-level).
   C-c C-d :     - Evaluate an erlang expression from the minibuffer.
   C-c C-d p     - Profile (with fprof) an expression from the minibuffer.
   C-c C-d i     - Toggle debug interpreting of the module.
@@ -50,7 +50,7 @@ README.ie-session.
 
 Hope you enjoy, and please send hacks or feedback to luke@bluetail.com!
 
-PS: The "dynamic TAGS" with M-. and M-, is the coolest bit to get
+PS: The "dynamic TAGS" with M-. and M-* is the coolest bit to get
 started with!
 
 Compatibility notes:
@@ -58,7 +58,7 @@ Compatibility notes:
   The profiler front end requires >= R8B (to get fprof)
   The debugger front end requires >= R8B-1
 
-  Distel itself is tested with GNU Emacs 20.x and 21.x, and XEmacs
-  21.x. Snapshots from CVS may sometimes only work with GNU Emacs 21
-  (or, of course, not work at all :-))
+  Distel itself is tested with Erlang R8 and R9, GNU Emacs 20.x and
+  21.x, and XEmacs 21.x. Snapshots from CVS may sometimes only work
+  with GNU Emacs 21 (or, of course, not work at all :-))
 

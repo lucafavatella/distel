@@ -1,3 +1,28 @@
+Version 3.1:
+
+	Compatibility with R9.
+
+	New and incompatible pattern syntax:
+          [foo Bar] becomes ['foo bar].
+	In other words, symbols without quotes are now variables, even
+	if they're lower case.
+
+	References can now be sent and received, and also created with
+	(erl-make-ref).
+
+	Greatly improved support for helping the debugger find the
+	code for the modules you want to interpret, courtesy of Mats
+	Cronqvist <etxmacr@cbe.ericsson.se>.
+
+	Automated bug reporting with "M-x report-distel-problem",
+	which generates an email template addressed to the mailing
+	list, populated with some trace information.
+
+	M-. (erl-find-source-under-point) doesn't RPC on local
+	function lookups, making it faster. M-* now does the same as
+	M-, (jump back from a function definition), since it is more
+	consistent with TAGS. (M-, still works too.)
+
 Version 3.0:
 
 	Lots and lots and lots.

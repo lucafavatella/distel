@@ -6,6 +6,8 @@
 
 (provide 'distel)
 
+(defconst distel-version "3.1")
+
 ;; Compatibility with XEmacs
 (unless (fboundp 'define-minor-mode)
   (defalias 'define-minor-mode 'easy-mmode-define-minor-mode))
@@ -78,6 +80,7 @@ sequence. For general information about Emacs' online help, use
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
+    ("\M-*"      . erl-find-source-unwind) ; usually `tags-loop-continue'
     ))
 
 ;; Setup mode-line info for erlang-extended-mode
