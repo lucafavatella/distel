@@ -11,7 +11,7 @@
 
 -include_lib("kernel/include/file.hrl").
 
--import(lists, [flatten/1, member/2, sort/1, map/2]).
+-import(lists, [flatten/1, member/2, sort/1, map/2, foldl/3]).
 
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
@@ -393,7 +393,7 @@ pad(X, S) ->
 null_gl() ->
     receive
         {io_request, From, ReplyAs, _} ->
-            From ! { io_reply, ReplyAs, ok},
+            From ! {io_reply, ReplyAs, ok},
             null_gl();
         die ->
             ok
@@ -704,4 +704,125 @@ describe(M, F, A) ->
 fdoc_binaryify({ok, Matches}) ->
     {ok, [{M, F, A, list_to_binary(Doc)} || {M, F, A, Doc} <- Matches]};
 fdoc_binaryify(Other) -> Other.
+
+%% ----------------------------------------------------------------------
+%% Argument list snarfing
+%% ----------------------------------------------------------------------
+
+%% Given the name of a function we return the argument lists for each
+%% of its definitions (of different arities). The argument lists are
+%% heuristically derived from the patterns in each clause of the
+%% function. We try to derive the most human-meaningful arglist we
+%% can.
+
+%% Entry point;
+%% Get the argument lists for a function in a module.
+%% Return: [Arglist]
+%% Arglist = [string()]
+get_arglists(ModName, FunName) when list(ModName), list(FunName) ->
+    arglists(list_to_atom(ModName), list_to_atom(FunName)).
+
+arglists(Mod, Fun) ->
+    case get_abst_from_debuginfo(Mod) of
+	{ok, Abst} ->
+	    case fdecls(Fun, Abst) of
+		[] -> error;
+		Fdecls -> map(fun derive_arglist/1, Fdecls)
+	    end;
+	error ->
+	    error
+    end.
+
+%% Find the {function, ...} entry for the named function in the
+%% abstract syntax tree.
+%% Return: {ok, {function ...}} | error
+fdecls(Name, Abst) ->
+    {_Exports,Forms} = Abst,
+    [Fdecl || Fdecl <- Forms,
+	      element(1, Fdecl) == function,
+	      element(3, Fdecl) == Name].
+
+%% Get the abstrct syntax tree for `Mod' from beam debug info.
+%% Return: {ok, Abst} | error
+get_abst_from_debuginfo(Mod) ->
+    case beamfile(Mod) of
+	{ok, Filename} ->
+	    case read_abst(Filename) of
+		{ok, Abst} ->
+		    {ok, binary_to_term(Abst)};
+		error ->
+		    error
+	    end;
+	error ->
+	    error
+    end.
+
+%% Return the name of the beamfile for Mod.
+beamfile(Mod) ->
+    case code:which(Mod) of
+	File when list(File) ->
+	    {ok, File};
+	_ ->
+	    error
+    end.
+
+%% Read the abstract syntax tree from a debug info in a beamfile.
+read_abst(Beam) ->
+    case beam_lib:chunks(Beam, [exports,"Abst"]) of
+	{ok, {_Mod, [{exports, _Exp}, {"Abst", Abst}]}} when Abst/=<<>> ->
+	    {ok, Abst};
+	_ -> error
+    end.
+
+%% Derive a good argument list from a function declaration.
+derive_arglist(Fdecl) ->
+    Cs = clauses(Fdecl),
+    Args = merge_args(map(fun clause_args/1, Cs)),
+    map(fun thing_to_list/1, Args).
+
+clauses({function, _Line, _Name, _Arity, Clauses}) -> Clauses.
+clause_args({clause, _Line, Args, _Guard, _Body}) ->
+    map(fun argname/1, Args).
+
+%% Return a name for an argument.
+%% The result is either 'unknown' (meaning "nothing meaningful"), a
+%% string (meaning a type-description), or another atom (meaning a
+%% variable name).
+argname({var, _Line, V}) ->
+    case atom_to_list(V) of
+	"_"++_ -> unknown;
+	_      -> V
+    end;
+argname({Type, _Line, _})          -> atom_to_list(Type)++"()";
+argname({nil, _Line})              -> "list()";
+argname({cons, _Line, _Car, _Cdr}) -> "list()";
+argname({match, _Line, LHS, _RHS}) -> argname(LHS);
+argname(_)                         -> unknown.
+
+%% Merge the arglists of several clauses together to create the best
+%% single one we can.
+merge_args(Arglists) ->
+    map(fun best_arg/1, transpose(Arglists)).
+
+%% Return the heuristically best argument description in Args.
+best_arg(Args) ->
+    foldl(fun best_arg/2, hd(Args), tl(Args)).
+
+%% Return the better of two argument descriptions.
+%% 'unknown' useless, type description is better, variable name is best.
+best_arg(unknown, A2)          -> A2;
+best_arg(A1, unknown)          -> A1;
+best_arg(A1, A2) when atom(A1) -> A1;
+best_arg(A1, A2)               -> A2.
+
+%% transpose([[1,2],[3,4],[5,6]]) -> [[1,3,5],[2,4,6]]
+transpose([[]|_]) ->
+    [];
+transpose(L) ->
+    [[hd(X) || X <- L] | transpose([tl(X) || X <- L])].
+
+thing_to_list(X) when integer(X) -> integer_to_list(X);
+thing_to_list(X) when float(X)	 -> float_to_list(X);
+thing_to_list(X) when atom(X)	 -> atom_to_list(X);
+thing_to_list(X) when list(X)	 -> X.		%Assumed to be a string
 
