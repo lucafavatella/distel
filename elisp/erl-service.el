@@ -512,8 +512,9 @@ When FUNCTION is specified, the point is moved to its start."
     (goto-char (point-min))
     (while searching
       (cond ((search-forward str nil t)
-	     (beginning-of-line)
-	     (when (eq (erlang-get-function-arity) arity)
+	     (backward-char)
+	     (when (eq (erl-get-arity) arity)
+	       (beginning-of-line)
 	       (setq searching nil)))
 	    (t
 	     (setq searching nil)
