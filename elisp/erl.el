@@ -79,6 +79,14 @@ Processes spawned by other processes will inherit their GL, but
 (defvar erl-popup-on-output t
   "Popup *erl-output* when new output arrives.")
 
+(defvar erl-stop-on-error nil
+  "*When non-nil, prevents the scheduler from catching Elisp errors.
+Such errors are allowed to propagate, so you can debug them using
+`debug-on-error'.
+
+Because this interrupts the scheduling of processes, you must use the
+command `erl-schedule' to continue.")
+
 ;; Process-local variables
 
 (defmacro defprocvar (symbol &optional initvalue docstring)
@@ -388,24 +396,23 @@ Calls the current continuation from within the process' buffer."
     ;; The %ugly-names are to avoid shadowing the caller's dynamic
     ;; bindings.
     (let ((%k erl-continuation)
-	  (%args erl-continuation-args)
+	  (%kargs erl-continuation-args)
 	  (%buffer (current-buffer)))
       (setq erl-continuation nil)
       (setq erl-continuation-args nil)
-      (condition-case data
-	  (progn
-	    ;; if they (throw 'schedule-out value), we return the
-	    ;; value, otherwise nil
-	    (prog1 (catch 'schedule-out
-		     (prog1 nil
-		       (save-current-buffer (apply %k %args))))
-	      (unless erl-continuation ; don't have a next continuation?
-		(erl-terminate 'normal))))
-	(erl-exit-signal (erl-terminate (cadr data)))
-	;; FIXME: For now, any error causes the process to terminate
-	;; and scheduling to continue. Is this best?
-	(error           (erl-terminate (tuple 'emacs-error
-					       (format "%S" data))))))))
+      (if erl-stop-on-error
+	  (erl-invoke %k %kargs)
+	(condition-case data
+	    (erl-invoke %k %kargs)
+	  (error (erl-terminate `[emacs-error ,(format "%S" data)])))))))
+
+(defun erl-invoke (%k %kargs)
+  (condition-case data
+      (prog1 (catch 'schedule-out
+	       (prog1 nil (save-current-buffer (apply %k %kargs))))
+	(unless erl-continuation
+	  (erl-terminate 'normal)))
+    (erl-exit-signal (erl-terminate (cadr data)))))
 
 (defun erl-make-schedulable (pid)
   "Add PID to the list of runnable processes, so that it will execute

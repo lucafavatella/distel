@@ -175,24 +175,27 @@ Available commands:
 	      (message "Error from erlang side of process_info:\n  %S"
 		       other))))))))
 
-(defun display-message-or-view (msg bufname)
+(defun display-message-or-view (msg bufname &optional select)
   "Like `display-buffer-or-message', but with `view-buffer-other-window'.
 That is, if a buffer pops up it will be in view mode, and pressing q
-will get rid of it."
-  (let ((buf (save-window-excursion
-	       (let ((res (display-message-or-buffer msg)))
-		 (if (windowp res)
-		     (window-buffer res)
-		   nil)))))
-    (when buf
-      ;; Kill old buffer
-      (when (get-buffer bufname)
-	(kill-buffer bufname))
-      (with-current-buffer buf
-	(rename-buffer bufname))
-      (let ((win (selected-window)))
-	(view-buffer-other-window buf)
-	(select-window win)))))
+will get rid of it.
+
+Only uses the echo area for single-line messages - or more accurately,
+messages without embedded newlines. They may still need to wrap or
+truncate to fit on the screen."
+  (if (string-match "\n.*[^\\s-]" msg)
+      ;; Contains a newline with actual text after it, so display as a
+      ;; buffer
+      (with-current-buffer (get-buffer-create bufname)
+	(erase-buffer)
+	(insert msg)
+	(let ((win (display-buffer (current-buffer))))
+	  (when select (select-window win))))
+    ;; Print only the part before the newline (if there is
+    ;; one). Newlines in messages are displayed as "^J" in emacs20,
+    ;; which is ugly
+    (string-match "[^\r\n]*" string)
+    (message (match-string 0 string))))
 
 (defun erl-show-process-messages ()
   (interactive)
@@ -400,7 +403,7 @@ time it spent in subfunctions."
 		  (list string))
     (erl-receive ()
 	(([rex [ok String]]
-	  (display-message-or-buffer string))
+	  (display-message-or-view string "*Expression Result*"))
 	 ([rex [error Reason]]
 	  (message "Error: %S" reason))
 	 (Other
@@ -510,18 +513,18 @@ Should be called with point directly before the opening `('."
 (defun erl-find-source (node module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
 When FUNCTION is specified, the point is moved to its start."
-  (erl-spawn
-    (erl-send-rpc node 'distel 'find_source (list module))
-    (erl-receive (function arity)
-	(([rex [ok Path]]
-	  ;; Add us to the history list
-	  (ring-insert-at-beginning erl-find-history-ring
-				    (copy-marker (point-marker)))
-	  (find-file path)
-	  (when function
-	    (erl-search-function function arity)))
-	 ([rex [error Reason]]
-	  (message "Error: %s" reason))))))
+  (let ((origin (copy-marker (point-marker))))
+    (erl-spawn
+      (erl-send-rpc node 'distel 'find_source (list module))
+      (erl-receive (origin function arity)
+	  (([rex [ok Path]]
+	    ;; Add us to the history list
+	    (ring-insert-at-beginning erl-find-history-ring origin)
+	    (find-file path)
+	    (when function
+	      (erl-search-function function arity)))
+	   ([rex [error Reason]]
+	    (message "Error: %s" reason)))))))
 
 (defun erl-search-function (function arity)
   "Goto the definition of FUNCTION/ARITY in the current buffer."

@@ -1,32 +1,54 @@
 distel 3.0b -- Distributed Emacs Lisp for Erlang.
 ------------------------------------------------------------
 
-This package provides a library for Emacs<->Erlang communication plus
-a growing suite of tools built on top of it, including a debugger
-front end.
+Distel is a library for Emacs<->Erlang communication, plus a suite of
+tools built on top of it, such as a debugger front-end. It works by
+using the Erlang distribution protocol to connect Emacs with regular
+Erlang nodes, turning it into a very convenient user-interface
+toolkit.
 
-Once you do the INSTALL procedure, you'll automatically use an
-erlang-extended minor mode when you edit files. By typing "C-h m"
-(describe-mode) you can see what it has to offer, and explore from
-there.
+After the INSTALL procedure, you will have an extended Erlang mode any
+time you edit erlang files. You can see that this is enabled from the
+mode-line string "Erlang EXT", instead of just "Erlang". To see the
+available commands, use `describe-mode' (C-h m), which describes all
+the currently activated modes. Near the bottom of its output you will
+find this description:
 
-As a small spoiler, here's the current mode description:
-
-  Erlang-Extended minor mode (indicator EXT):
   Extensions to erlang-mode for communicating with a running Erlang node.
 
-  C-c C-d l       - List all Erlang processes ("pman").
-  M-.             - Jump to the definition of a function call (dynamic TAGS).
-  M-,             - Go back from the last function definition we jumped to.
-  C-c C-d :       - Evaluate an erlang expression from the minibuffer.
-  C-c C-d p       - Profile (with fprof) an expression from the minibuffer.
-  C-c C-d i       - Toggle debug interpreting of the module.
-  C-c C-d b       - Toggle a debugger breakpoint at the current line.
-  C-c C-d m       - Popup the debugger's process monitor buffer.
+  These commands generally communicate with an Erlang node. The first
+  time you use one, you will be prompted for the name of the node to
+  use. This name will be cached for future commands. To override the
+  cache, give a prefix argument with C-u before using the command.
+
+  C-c C-d l     - List all Erlang processes ("pman").
+  M-.           - Jump from a function call to its definition.
+  M-,           - Jump back from a function definition (multi-level).
+  C-c C-d :     - Evaluate an erlang expression from the minibuffer.
+  C-c C-d p     - Profile (with fprof) an expression from the minibuffer.
+  C-c C-d i     - Toggle debug interpreting of the module.
+  C-c C-d b     - Toggle a debugger breakpoint at the current line.
+  C-c C-d m     - Popup the debugger's process monitor buffer.
+  C-c C-d s     - Create an interactive "session" buffer.
+  C-c C-d c     - Create an interactive "session" buffer from current buffer.
+  C-c C-d r     - Create an interactive "session" buffer from region.
+
+  Most commands that pop up new buffers will save your original window
+  configuration, so that you can restore it by pressing 'q'. Use
+  `describe-mode' (C-h m) on any Distel buffer when you want
+  to know what commands are available. To get more information about a
+  particular command, use "C-h k" followed by the command's key
+  sequence. For general information about Emacs' online help, use
+  "C-h ?".
+
+If you want to write new commands of your own, the programmer's manual
+tells you how. You can make a postscript copy with "make postscript",
+or an Info version with "make info" and "make info_install".
 
 Hope you enjoy, and please send hacks or feedback to luke@bluetail.com!
 
-PS: The "dynamic TAGS" with M-. and M-, is the coolest bit!
+PS: The "dynamic TAGS" with M-. and M-, is the coolest bit to get
+started with!
 
 Compatibility notes:
 

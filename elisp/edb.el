@@ -10,8 +10,9 @@
 ;; Configurables
 
 (defvar edb-popup-monitor-on-event t
-  "Automatically popup the monitor on interesting events.
-An interesting event is an unattached process reaching a breakpoint.")
+  "*Automatically popup the monitor on interesting events.
+An interesting event is an unattached process reaching a breakpoint,
+or an attached process exiting.")
 
 ;; ----------------------------------------------------------------------
 ;; Integration with erlang-extended-mode buffers.
@@ -27,7 +28,9 @@ edb."))
   "Update `edb-module-interpreted' for current buffer."
   (when erlang-extended-mode
     (setq edb-module-interpreted
-	  (member (edb-source-file-module-name) edb-interpreted-modules))
+	  (if (member (edb-source-file-module-name) edb-interpreted-modules)
+	      t
+	    nil))
     (force-mode-line-update)))
 
 (add-hook 'erlang-extended-mode-hook 'edb-update-interpreted-status)
@@ -227,17 +230,17 @@ Tracks events and state changes from the Erlang node."
 	 (let ((proc (edb-monitor-lookup pid)))
 	   (if (null proc)
 	       (message "Unknown process: %s" (erl-pid-to-string pid))
-	     (setf (edb-process-status proc) status)
+	     (setf (edb-process-status proc) (symbol-name status))
 	     (setf (edb-process-info proc) info)
 	     (when (and edb-popup-monitor-on-event
-			(not (edb-attached-p pid)))
+			(edb-interesting-event-p pid status info))
 	       (display-buffer (current-buffer))))))
        ;;
        ([int [new_process (Pid MFA Status Info)]]
 	 (ewoc-enter-last edb-processes
 			  (make-edb-process pid
 					    mfa
-					    status
+					    (symbol-name status)
 					    info)))
        ;;
        ([int [interpret Mod]]
@@ -264,6 +267,12 @@ Tracks events and state changes from the Erlang node."
 	      (remove pos edb-breakpoints))))
     (ewoc-refresh edb-processes)    
     (&edb-monitor-loop)))
+
+(defun edb-interesting-event-p (pid status info)
+  (or (and (eq status 'exit)
+	   (edb-attached-p pid))
+      (and (eq status 'break)
+	   (not (edb-attached-p pid)))))
 
 (defun edb-update-source-buffers (&optional mod)
   "Update the debugging state of all Erlang buffers.

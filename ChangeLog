@@ -1,3 +1,13 @@
+2002-08-27  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl.el (erl-stop-on-error): Setting this variable to
+	non-nil stops the scheduler from trapping elisp errors, so you
+	can debug them normally. See variable docstring for details.
+
+	* elisp/distel.el (erlang-extended-mode): Fixed up the mode line
+	format for erlang-extended-mode. Working around a bug in Emacs 21,
+	I think.
+
 2002-08-24  david wallin  <david.wallin@ul.ie>
 
 	* elisp/derl.el (erl-connect): Well well well... who would have
@@ -6,6 +16,18 @@
 	  at least now you can connect to an erl node.
 
 2002-08-23  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (display-message-or-view): Emacs20
+	compatibility fix. Also, now only using the echo area for
+	single-line messages, even though Emacs21 can handle bigger
+	ones. This feels better for process info items, since it's
+	confusing to have e.g. one large backtrace in a buffer and then
+	another smaller one pop up in the echo area - better to always use
+	the buffer.
+
+	* elisp/edb.el (edb-monitor): Monitor buffer now pops up when an
+	attached process exits (as well as when an unattached process hits
+	a breakpoint).
 
 	* elisp/erl.el (erl-set-name): Added this function that processes
 	can call to give themself a name. This name is printed if the
