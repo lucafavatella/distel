@@ -102,6 +102,19 @@ edb."))
   (interactive (list (erl-read-nodename)
 		     (edb-module)
 		     (edb-line-number)))
+  (if edb-buffer-breakpoints-stale
+      (edb-toggle-stale-breakpoint module line)
+    (edb-toggle-real-breakpoint node module line)))
+
+(defun edb-toggle-stale-breakpoint (module line)
+  (let ((overlay (edb-first (lambda (ov) (overlay-get ov 'edb-breakpoint))
+			    (overlays-in (line-beginning-position)
+					 (1+ (line-end-position))))))
+    (if overlay
+	(delete-overlay overlay)
+      (edb-create-breakpoint module line))))
+
+(defun edb-toggle-real-breakpoint (node module line)
   (when (edb-ensure-monitoring node)
     (erl-spawn
       (erl-set-name "EDB RPC to toggle of breakpoint %S:%S on %S"
@@ -275,6 +288,7 @@ Returns NIL if this cannot be ensured."
     (setq edb-monitor-buffer (current-buffer))
     (rename-buffer (edb-monitor-buffer-name node))
     (edb-monitor-mode)
+    (make-local-variable 'kill-buffer-hook)
     (add-hook 'kill-buffer-hook 'edb-monitor-cleanup)
     (erl-send-rpc node 'distel 'debug_subscribe (list erl-self))
     (erl-receive (node)
@@ -357,10 +371,12 @@ Tracks events and state changes from the Erlang node."
 (defun edb-update-interpreted-status ()
   "Update `edb-module-interpreted' for current buffer."
   (when erlang-extended-mode
-    (setq edb-module-interpreted
-	  (if (assq (edb-source-file-module-name) edb-interpreted-modules)
-	      t
-	    nil))
+    (if (assq (edb-source-file-module-name) edb-interpreted-modules)
+	(setq edb-module-interpreted t)
+      (setq edb-module-interpreted nil)
+      ;; the erlang debugger automatically removes breakpoints when a
+      ;; module becomes uninterpreted, so we match it here
+      (edb-delete-breakpoints mod))
     (force-mode-line-update)))
 
 (defun edb-update-source-buffers (&optional mod)
@@ -827,6 +843,7 @@ I.e. deletes all old breakpoints, and re-applies them at the current line."
 			    (current-buffer)
 			    t
 			    nil)))
+      (overlay-put ov 'edb-breakpoint t)
       (if edb-buffer-breakpoints-stale
 	  (overlay-put ov 'face 'edb-breakpoint-stale-face)
 	(overlay-put ov 'face 'edb-breakpoint-face))
@@ -838,5 +855,10 @@ I.e. deletes all old breakpoints, and re-applies them at the current line."
       (let ((r (funcall f x)))
 	(if r (push r res))))
     res))
+
+(defun edb-first (pred list)
+  "Return the first element of LIST that satisfies PRED."
+  (loop for x in list
+	when (funcall pred x) return x))
 
 (provide 'edb)

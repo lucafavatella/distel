@@ -1,3 +1,11 @@
+2003-01-11  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el: Toggling stale breakpoints is now a local
+	operation - it doesn't talk to the erlang node. This fixes a
+	problem caused by the expected inconsistencies. Also, making a
+	buffer uninterpreted now removes all breakpoints (the erlang
+	debugger backend already quietly works this way.)
+
 2002-12-16  Luke Gorrie  <luke@bluetail.com>
 
 	* Release: 3.2!
