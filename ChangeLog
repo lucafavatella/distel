@@ -1,3 +1,16 @@
+2002-10-08  Luke Gorrie  <luke@bluetail.com>
+
+	* distel.erl, elisp/edb.el (edb-toggle-interpret): Fixes for
+	finding the right source code to interpret when debugging is
+	toggled on (patch by Mats Cronqvist). Now we use the absolute path
+	name of the Emacs buffer as the filename to interpret on the
+	Erlang node. This essentially assumes a common file system between
+	both nodes. The issue of "fully general" debugging on arbitrary
+	remote nodes still needs some thinking (e.g. if node and Emacs
+	have different versions of the code, etc.). But for now this is
+	more convenient for debugging nodes that do have a common file
+	system with Emacs.
+
 2002-10-04  Luke Gorrie  <luke@bluetail.com>
 
 	* erl/distel.erl, erl-service.el: Can now find the source file for

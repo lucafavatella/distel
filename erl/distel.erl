@@ -16,7 +16,7 @@
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
          process_summary_and_trace/2, fprof/3,
-         debug_toggle/1, break_toggle/2, debug_subscribe/1]).
+         debug_toggle/2, break_toggle/2, debug_subscribe/1]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
@@ -113,13 +113,17 @@ abs_beamfile_name(RelName) ->
     end.
 
 guess_source_file_from_modinfo(Mod) ->
-    case get_cwd(Mod) of
-      false -> false;
-      {ok, CWD} ->
-          Src = filename:join([CWD, to_list(Mod)++".erl"]),
-          case file:read_file_info(Src) of
-              {ok, #file_info{type=regular}} -> {ok, Src};
-              _ -> false
+    case member(Mod, int:interpreted()) of
+      true -> {ok, int:file(Mod)};
+      false ->
+          case get_cwd(Mod) of
+              false -> false;
+              {ok, CWD} ->
+                  Src = filename:join([CWD, to_list(Mod)++".erl"]),
+                  case file:read_file_info(Src) of
+                      {ok, #file_info{type=regular}} -> {ok, Src};
+                      _ -> false
+                  end
           end
     end.
 
@@ -384,13 +388,13 @@ null_gl() ->
 %% Debugging
 %% ----------------------------------------------------------------------
 
-debug_toggle(Mod) ->
+debug_toggle(Mod, Filename) ->
     case member(Mod, int:interpreted()) of
         true ->
             int:n(Mod),
             uninterpreted;
         false ->
-            case int:i(Mod) of
+            case int:i(Filename) of
                 {module, Mod} ->
                     interpreted;
                 error ->

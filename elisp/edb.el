@@ -38,22 +38,23 @@ edb."))
 ;; ----------------------------------------------------------------------
 ;; EDB minor mode for erlang-mode source files
 
-(defun edb-toggle-interpret (node module)
+(defun edb-toggle-interpret (node module file)
   "Toggle debug-interpreting of the current buffer's module."
   (interactive (list (erl-read-nodename)
-		     (edb-module)))
+		     (edb-module)
+		     buffer-file-name))
   (when (edb-ensure-monitoring node)
     (erl-spawn
       (erl-set-name "EDB RPC to toggle interpretation of %S on %S"
 		    module node)
-      (erl-send-rpc node 'distel 'debug_toggle (list module))
+      (erl-send-rpc node 'distel 'debug_toggle (list module file))
       (erl-receive (module)
 	  (([rex interpreted]
 	    (message "Interpreting: %S" module))
 	   ([rex uninterpreted]
 	    (message "Stopped interpreting: %S" module))
-	   ([rex error]
-	    (message "Failed!")))))))
+	   ([rex [badrpc Reason]]
+	    (message "Failed to interpret-toggle: %S" reason)))))))
 
 (defun edb-module ()
   (if (erlang-get-module)
