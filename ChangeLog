@@ -2,6 +2,8 @@
 
 	* elisp/erl-service.el (erl-bury-viewer): Add this command, which
 	is like `erl-quit-viewer' but buries rather than kills the buffer.
+	(erl-find-source): Improved error reportage, and now only adding
+	locations to the M-, history when we actually jump somewhere.
 
 	* elisp/edb.el: Various debugger improvements: Monitor buffer pops
 	up when an unattached process hits a breakpoint (unless

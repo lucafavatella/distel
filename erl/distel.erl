@@ -81,17 +81,20 @@ find_source(Mod) ->
         {module, Mod} ->
             case code:is_loaded(Mod) of
                 {file, preloaded} ->
-                    {error, preloaded};
+                    {error, ?L2B("\"preloaded\"")};
                 {file, Name} ->
                     case guess_source_file(Name) of
                         {ok, Fname} ->
                             {ok, Fname};
                         false ->
-                            {error, cannot_guess_sourcefile}
+                            {error, fmt("Can't guess matching source file from ~p",
+				       [Name])}
                     end
             end;
-        {error, What} ->
-            {error, What}
+	{error, nofile} ->
+	    {error, fmt("Can't find module '~p' on ~p", [Mod, node()])};
+        {error, Why} ->
+            {error, fmt("~p", [Why])}
     end.
 
 guess_source_file(Beam) ->

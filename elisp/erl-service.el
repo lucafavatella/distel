@@ -510,18 +510,18 @@ Should be called with point directly before the opening `('."
 (defun erl-find-source (node module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
 When FUNCTION is specified, the point is moved to its start."
-  ;; Add us to the history list
-  (ring-insert-at-beginning erl-find-history-ring
-			    (copy-marker (point-marker)))
   (erl-spawn
     (erl-send-rpc node 'distel 'find_source (list module))
     (erl-receive (function arity)
 	(([rex [ok Path]]
+	  ;; Add us to the history list
+	  (ring-insert-at-beginning erl-find-history-ring
+				    (copy-marker (point-marker)))
 	  (find-file path)
 	  (when function
 	    (erl-search-function function arity)))
 	 ([rex [error Reason]]
-	  (error "%S" reason))))))
+	  (message "Error: %s" reason))))))
 
 (defun erl-search-function (function arity)
   "Goto the definition of FUNCTION/ARITY in the current buffer."
