@@ -32,6 +32,8 @@ OBJECTS := ${ERL_OBJ} ${ELISP_OBJ} ${C_OBJ} ${DOC_OBJ}
 
 all: ${OBJECTS}
 
+erl: ${ERL_OBJ}
+
 ########################################
 ## Rules
 
@@ -61,6 +63,12 @@ c/dec32: c/dec32.c
 
 configure: configure.in Makefile.in
 	autoconf
+
+Makefile: Makefile.in config.status
+	./config.status
+
+config.status: configure
+	./config.status --recheck
 
 clean:
 	-rm -f ${OBJECTS} 2>/dev/null
