@@ -150,7 +150,13 @@ fprof_text({Name, Cnt, Acc, Own}) ->
 
 fprof_tags(C) -> [fprof_tag(Name) || {Name,_,_,_} <- C].
 
-fprof_beamfile({M,_,_}) -> l2b(code:which(M));
+fprof_beamfile({M,_,_}) ->
+    case code:which(M) of
+	Fname when list(Fname) ->
+	    l2b(Fname);
+	X ->
+	    undefined
+    end;
 fprof_beamfile(_)                  -> undefined.
 
 fmt(X, A) -> l2b(io_lib:format(X, A)).
