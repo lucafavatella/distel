@@ -4,6 +4,8 @@ Version 3.2 (unreleased):
 	completes to lists:keysort, etc. Bound to M-TAB and (since
 	some window managers take that) M-?. Also has popups for
 	ambiguous completions and all that good stuff. REALLY NICE!
+	(Thanks Mikael Karlsson for suggesting this often enough that
+	it finally sunk in :-))
 
         Group for Customization (M-x customize), so customizable
         variables can be configured interactively. It's in
