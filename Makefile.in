@@ -104,9 +104,6 @@ dist: distclean configure
 
 config_install: dot_erlang dot_emacs
 
-dot_erlang:
-	true
-
 dot_emacs: all
 	(grep distel-erlang-mode-hook ${HOME}/.emacs || \
 		cat config/emacs-init-snippet.el >> ${HOME}/.emacs) \
