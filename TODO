@@ -1,7 +1,7 @@
 For coming release:
 
 - Highlight breakpoints
-- Fix fprof gui
++ Fix fprof gui
 - Find a way to overide which Emacs to use with ./configure
 
 New features:
