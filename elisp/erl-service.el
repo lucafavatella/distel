@@ -51,7 +51,7 @@ elements of KARGS."
 (defun erl-rpc-receive (k kargs)
   "Receive the reply to an `erl-rpc'."
   (erl-receive (k kargs)
-      (([rex Reply] (apply k (cons reply kargs))))))
+      ((['rex reply] (apply k (cons reply kargs))))))
 
 (defun erpc (node m f a)
   "Make an RPC to an erlang node."
@@ -169,9 +169,9 @@ Available commands:
 	(erl-send-rpc (erl-pid-node pid)
 		      'distel 'process_info_item (list pid item))
 	(erl-receive (item pid)
-	    (([rex [ok String]]
+	    ((['rex ['ok string]]
 	      (display-message-or-view string "*pinfo item*"))
-	     (Other
+	     (other
 	      (message "Error from erlang side of process_info:\n  %S"
 		       other))))))))
 
@@ -245,7 +245,7 @@ truncate to fit on the screen."
 
 (defun erl-process-trace-loop ()
   (erl-receive ()
-      (([trace_msg Text]
+      ((['trace_msg text]
 	(goto-char (point-max))
 	(insert text)))
     (erl-process-trace-loop)))
@@ -286,10 +286,10 @@ This is received from the Erlang module.")
 (defun fprof-receive-analysis ()
   (message "Waiting for fprof reply...")
   (erl-receive ()
-      (([rex [ok Preamble Header Entries]]
+      ((['rex ['ok preamble header entries]]
 	(message "Got fprof reply, drawing...")
 	(fprof-display preamble header entries))
-       (Other (message "Unexpected reply: %S" other)))))
+       (other (message "Unexpected reply: %S" other)))))
 
 
 (defun fprof-display (preamble header entries)
@@ -313,13 +313,13 @@ This is received from the Erlang module.")
 (defun fprof-add-entry (entry)
   "Add a profiled function entry."
   (mcase entry
-    ([process Title Info-List]
+    (['process title info-list]
      (insert "\n")
      (insert title "\n")
      (dolist (info info-list)
        (insert "  " info "\n"))
      (insert "\n"))
-    ([tracepoint Tag MFA Text Callers Callees Beamfile]
+    (['tracepoint tag mfa text callers callees beamfile]
      (push `(,tag . ((text 	. ,text)
 		     (mfa 	. ,mfa)
 		     (callers 	. ,callers)
@@ -414,11 +414,11 @@ time it spent in subfunctions."
 		  'eval_expression
 		  (list string))
     (erl-receive ()
-	(([rex [ok String]]
+	((['rex ['ok string]]
 	  (display-message-or-view string "*Expression Result*"))
-	 ([rex [error Reason]]
+	 (['rex ['error reason]]
 	  (message "Error: %S" reason))
-	 (Other
+	 (other
 	  (message "Unexpected: %S" other))))))
 
 (defun erl-add-terminator (s)
@@ -554,11 +554,11 @@ When FUNCTION is specified, the point is moved to its start."
       (erl-spawn
 	  (erl-send-rpc node 'distel 'find_source (list module))
 	  (erl-receive (function arity)
-	      (([rex [ok Path]]
+	      ((['rex ['ok path]]
 		(find-file path)
 		(when function
 		  (erl-search-function function arity)))
-	       ([rex [error Reason]]
+	       (['rex ['error reason]]
 		;; Remove the history marker, since we didn't go anywhere
 		(ring-remove erl-find-history-ring)
 		(message "Error: %s" reason)))))))

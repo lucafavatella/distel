@@ -13,8 +13,8 @@ The server registers the name `echo'."
 (defun erlex-echo-loop (recipient)
   "The 'receive loop' of the echo server."
   (erl-receive (recipient)
-      ((exit t)
-       (Msg (erl-send recipient msg)
+      (('exit t)
+       (msg (erl-send recipient msg)
 	    (erlex-echo-loop recipient)))))
 
 (defun erlex-echo-test ()
@@ -37,7 +37,7 @@ check for them there!"
 
 (defun counter-loop (count)
   (erl-receive (count)
-      ((Msg (message "Got message #%S: %S" count msg)))
+      ((msg (message "Got message #%S: %S" count msg)))
     (counter-loop (1+ count))))
 
 (defun counter-test ()

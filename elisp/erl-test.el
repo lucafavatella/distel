@@ -66,9 +66,9 @@
 
 (defun erl-tag-srv-loop (tag)
   (erl-receive (tag)
-      (([,tag Msg]
+      (([,tag msg]
 	(message "Tagged: %S" msg))
-       ([Other Msg]
+       ([other msg]
 	(message "Other: %S %S" other msg)))
     (erl-tag-srv-loop tag)))
 

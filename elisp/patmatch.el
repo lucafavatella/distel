@@ -4,6 +4,7 @@
 
 (put 'mcase 'lisp-indent-function 1)
 (put 'pmatch 'lisp-indent-function 2)
+(put 'mlet 'lisp-indent-function 2)
 
 (defmacro mcase (object &rest clauses)
   "Pattern-matching case expression.
@@ -26,19 +27,21 @@ See `pmatch' for a description of pattern syntax."
 			      (lambda () ,@(cdr clause))))
 		   clauses)))
 
-(defmacro pmatch (pattern object &rest body)
+(defmacro pmatch (&rest args)
+  "Deprecated; see `mlet'."
+  `(mlet ,@args))
+
+(defmacro mlet (pattern object &rest body)
   "Match PATTERN with OBJECT, and execute BODY with all bindings.
 The pattern syntax is:
 
-Trivial: nil, [], 42, my-symbol, ...
-  Always `equal' to the matching value.
-Pattern variable: Var (first letter uppercase)
+Trivial: t, nil, 42
+  Testing with `equal'
+Pattern variable: x, my-variable
   Variable that the pattern should bind. If the same variable
   appears several times in a pattern, then all of its bindings must
   match.
-  NOTE: Pattern variable names are converted to lowercase and bound to
-  lisp variables before calling BODY.
-Constant: 'X, (quote quote)
+Constant: 'symbol, '(1 2 3), ...
   Quoted constant, matched with `equal'.
 Bound variable: ,var
   Pre-bound Lisp variable, matched by value.
@@ -89,7 +92,7 @@ Sequence: (pat1 ...), [pat1 ...]
 	   (pmatch-constant pattern object bindings))
 	  ((pmatch-bound-var-p pattern)	; ,foo
 	   (pmatch-match-var pattern object bindings))
-	  ((pmatch-unbound-var-p pattern) ; Foo
+	  ((pmatch-unbound-var-p pattern) ; foo
 	   (pmatch-bind-var pattern object bindings))
 	  ((pmatch-trivial-p pattern) ; nil, t, any-symbol
 	   (if (equal pattern object) bindings 'fail))
@@ -106,10 +109,10 @@ Sequence: (pat1 ...), [pat1 ...]
 
 (defun pmatch-trivial-p (pat)
   "Test for patterns which can always be matched literally with `equal'."
-  (and (atom pat)
-       (or (not (vectorp pat))
-	   (equal pat []))
-       (not (pmatch-unbound-var-p pat))))
+  (or (numberp pat)
+      (equal pat [])
+      (equal pat nil)
+      (equal pat t)))
 
 (defun pmatch-constant-p (pat)
   "Test for (quoted) constant patterns.
@@ -130,13 +133,13 @@ Example: (QUOTE QUOTE)"
     'fail))
 
 (defun pmatch-unbound-var-p (obj)
-  "Unbound variable symbols start with an uppercase letter."
-  (when (symbolp obj)
-    (let ((char1 (elt (symbol-name obj) 0)))
-      (eq char1 (upcase char1)))))
+  "Unbound variable is any symbol except nil or t."
+  (and (symbolp obj)
+       (not (eq obj nil))
+       (not (eq obj t))))
 
 (defun pmatch-unbound-var-symbol (sym)
-  (intern (downcase (symbol-name sym))))
+  sym)
 
 (defun pmatch-bind-var (pat object bindings)
   "Add a binding of pattern variable VAR to OBJECT in BINDINGS."
@@ -194,7 +197,7 @@ EXPECTED is either 'fail or a list of bindings (in any order)."
   (pmatch-expect '(t nil 1) '(t nil 1) ())
   (let ((foo 'foo))
     (pmatch-expect '(FOO ,foo 'foo [FOO]) '(foo foo foo [foo])
-		   '((foo . foo))))
+		   '((FOO . foo))))
   (pmatch-expect 1 2 'fail)
   (pmatch-expect '(x x) '(1 2) 'fail)
   (pmatch-expect '_ '(1 2) 'nil)

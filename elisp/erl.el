@@ -592,7 +592,7 @@ during the next `erl-schedule'."
 
 (defun &erl-group-leader-loop ()
   (erl-receive ()
-      (([put_chars S]
+      ((['put_chars s]
 	(goto-char (point-max))
 	(insert s)
 	(when erl-popup-on-output

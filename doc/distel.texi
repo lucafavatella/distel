@@ -93,12 +93,12 @@ Here's a more meaty example to whet your appetite:
 
 (defun &math-server-loop ()
   (erl-receive ()
-      (([calculate Who What]
+      ((['calculate who what]
         (erl-send who (mcase what
-                        ([add X Y] (+ x y))
-                        ([sub X Y] (- x y))
-                        (Other `[bad_operation ,other]))))
-       (Other (message "Unexpected message: %S" other)))
+                        (['add x y] (+ x y))
+                        (['sub x y] (- x y))
+                        (other `[bad_operation ,other]))))
+       (other (message "Unexpected message: %S" other)))
     (&math-server-loop)))
 @end example
 
@@ -319,7 +319,7 @@ Here's a complete example, excerpted from @file{erl-example.el}:
 
 (defun &counter-loop (count)
   (erl-receive (count)
-      ((Msg (message "Got message #%S: %S" count msg)))
+      ((msg (message "Got message #%S: %S" count msg)))
     (&counter-loop (1+ count))))
 @end group
 @end example
@@ -344,17 +344,16 @@ There are macros for pattern matching, roughly equivalent to Erlang's
 (minus guards). The following summarises the pattern syntax:
 
 @table @asis
-@item Trivial: @code{nil}, @code{42}, @code{my-symbol}, @code{[]}
-Numbers, symbols (beginning in lowercase), @code{nil}, @code{[]}, and
-other atomic types. These patterns match literally with @code{equal}.
-@item Pattern Variable: @code{My-Variable}
-Symbol beginning in uppercase. Pattern variables take on the value of
-the corresponding object, and are bound to lisp variables if the match
-succeeds. Pattern variable names are converted to lowercase before
-becoming lisp variables. If the same pattern variable occurs more than
-once, then all of its bindings must agree, as in Erlang.
-@item Quoted Constant: @code{'object}, @code{(quote object)}
-Matches @var{object} literally with @code{equal}.
+@item Trivial: @code{t}, @code{nil}, @code{42}, @code{[]}
+Numbers, and atomic types other than symbols of variables are matched
+literally with @code{equal}.
+@item Constant: @code{'symbol}, @code{'(a b c)}
+Quoted constants are matched literally with @code{equal}.
+@item Pattern Variable: @code{my-variable}
+Symbols denote variables. Pattern variables take on the value of the
+corresponding object, and are bound to lisp variables if the match
+succeeds. If the same pattern variable occurs more than once, then all
+of its bindings must agree, as in Erlang.
 @item Bound Variable: @code{,bound-var}
 Symbol preceeded by an comma. Matches the value of the (already bound)
 lisp variable @var{bound-var} with @code{equal}.
@@ -368,14 +367,14 @@ the sequence, as well as each subpattern.
 This pattern syntax is used for the macros that follow, as well as
 @code{erl-receive}.
 
-@defmac pmatch pattern object &rest body
+@defmac mlet pattern object &rest body
 Match @var{pattern} with @var{object}, and execute @var{body} with all
 pattern variable bindings in effect. If @var{pattern} doesn't match,
 an error is signaled. For example,
 
 @example
 @group
-(pmatch [value Key] my-tuple
+(mlet [value Key] my-tuple
   (message "The key is %S" key))
 @end group
 @end example
@@ -401,8 +400,8 @@ case X of
 end.
   @result{}
 (mcase x
-  ([add X Y] (+ x y))
-  ([sub X Y] (- x y))
+  (['add x y] (+ x y))
+  (['sub x y] (- x y))
   (_         'error))
 @end group
 @end example
@@ -588,7 +587,7 @@ to @code{erl-receive} that is not in tail position. For example:
 (defun &server-loop-bad ()
   "DO NOT WRITE CODE LIKE THIS!"
   (erl-receive ()
-      ((Msg (message "Got %S" msg))))
+      ((msg (message "Got %S" msg))))
   (&server-loop-bad))
 @end example
 
@@ -605,7 +604,7 @@ The correct way to write the function is this:
 (defun &server-loop-good ()
   "This function is fine."
   (erl-receive ()
-      ((Msg (message "Got %S" msg)))
+      ((msg (message "Got %S" msg)))
     (&server-loop-good)))
 @end example
 
@@ -615,7 +614,7 @@ Or alternatively,
 (defun &server-loop-good2 ()
   "This function is also fine."
   (erl-receive ()
-      ((Msg (message "Got %S" msg)
+      ((msg (message "Got %S" msg)
             (&server-loop-good2)))))
 @end example
 

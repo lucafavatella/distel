@@ -109,7 +109,7 @@ behaviour to this default is used.")
       
       (erl-receive (buffer)
 	  
-	  (([ok Value]
+	  ((['ok value]
 	    (if (erl-ie-xor erl-ie-inline-results current-prefix-arg)
 		;; insert directly into buffer
 		(with-current-buffer buffer 
@@ -123,11 +123,11 @@ behaviour to this default is used.")
 	      (display-message-or-view (format "Result: %s" value)
 				       "*Evaluation Result*")))
 	   
-	   ([msg Msg]
+	   (['msg msg]
 	    (with-current-buffer buffer
 	      (message msg)))
 	   
-	   ([error Reason]
+	   (['error reason]
 	    (with-current-buffer buffer
 	      
 	      ;; TODO: should check the buffer for first non-whitespace 
@@ -135,7 +135,7 @@ behaviour to this default is used.")
 	      (newline 1)
 	      (insert "Error: ") (insert reason) (newline 1)))
 	   
-	   (Other
+	   (other
 	    (message "Unexpected: %S" other)))))))
 
 
@@ -149,7 +149,7 @@ behaviour to this default is used.")
 
 (defun &erl-ie-group-leader-loop (buf)
   (erl-receive (buf)
-      (([put_chars S]
+      ((['put_chars s]
 	(with-current-buffer buf
 	  (insert s))))
     (&erl-ie-group-leader-loop buf)))

@@ -1,5 +1,17 @@
 2002-11-08  Luke Gorrie  <luke@bluetail.com>
 
+	* Everywhere: Incompatible changes to the pattern syntax. All
+	symbols are now variables by default, to match a symbol by value
+	it has to be quoted. The basic difference is:
+	  [ok Value]
+	becomes:
+	  ['ok value]
+	The algorithm for updating your patterns is:
+	  Put a quote in front of all lower-case match-by-value symbols.
+	  Change all the symbols for variables to lower-case.
+	And that's all. Hopefully I've correctly fixed this in all the
+	code included in Distel.
+	
 	* elisp/erl-service.el (fprof-analyse): Added new command to view
 	an existing fprof analysis file.
 

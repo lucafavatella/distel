@@ -49,11 +49,11 @@ edb."))
 		    module node)
       (erl-send-rpc node 'distel 'debug_toggle (list module file))
       (erl-receive (module)
-	  (([rex interpreted]
+	  ((['rex 'interpreted]
 	    (message "Interpreting: %S" module))
-	   ([rex uninterpreted]
+	   (['rex 'uninterpreted]
 	    (message "Stopped interpreting: %S" module))
-	   ([rex [badrpc Reason]]
+	   (['rex ['badrpc reason]]
 	    (message "Failed to interpret-toggle: %S" reason)))))))
 
 (defun edb-module ()
@@ -72,9 +72,9 @@ edb."))
 		    module line node)
       (erl-send-rpc node 'distel 'break_toggle (list module line))
       (erl-receive (module line)
-	  (([rex enabled]
+	  ((['rex 'enabled]
 	    (message "Enabled breakpoint at %S:%S" module line))
-	   ([rex disabled]
+	   (['rex 'disabled]
 	    (message "Disabled breakpoint at %S:%S" module line)))))))
 
 (defun edb-line-number ()
@@ -206,7 +206,7 @@ Returns NIL if this cannot be ensured."
     (add-hook 'kill-buffer-hook 'edb-monitor-cleanup)
     (erl-send-rpc node 'distel 'debug_subscribe (list erl-self))
     (erl-receive (node)
-	(([rex [Interpreted Breaks Snapshot]]
+	((['rex [interpreted breaks snapshot]]
 	  (setq edb-interpreted-modules interpreted)
 	  (setq edb-breakpoints breaks)
 	  (edb-update-source-buffers)
@@ -214,7 +214,7 @@ Returns NIL if this cannot be ensured."
 		(ewoc-create 'edb-monitor-insert-process
 			     (edb-monitor-header)))
 	  (mapc (lambda (item)
-		  (pmatch [Pid MFA Status Info] item
+		  (mlet [pid mfa status info] item
 		    (ewoc-enter-last edb-processes
 				     (make-edb-process pid
 						       mfa
@@ -227,7 +227,7 @@ Returns NIL if this cannot be ensured."
   "Monitor process main loop.
 Tracks events and state changes from the Erlang node."
   (erl-receive ()
-      (([int [new_status Pid Status Info]]
+      ((['int ['new_status pid status info]]
 	 (let ((proc (edb-monitor-lookup pid)))
 	   (if (null proc)
 	       (message "Unknown process: %s" (erl-pid-to-string pid))
@@ -237,22 +237,22 @@ Tracks events and state changes from the Erlang node."
 			(edb-interesting-event-p pid status info))
 	       (display-buffer (current-buffer))))))
        ;;
-       ([int [new_process (Pid MFA Status Info)]]
+       (['int ['new_process (pid mfa status info)]]
 	 (ewoc-enter-last edb-processes
 			  (make-edb-process pid
 					    mfa
 					    (symbol-name status)
 					    info)))
        ;;
-       ([int [interpret Mod]]
+       (['int ['interpret mod]]
 	(push mod edb-interpreted-modules)
 	(edb-update-source-buffers mod))
        ;;
-       ([int [no_interpret Mod]]
+       (['int ['no_interpret mod]]
 	(setq edb-interpreted-modules (remq mod edb-interpreted-modules))
 	(edb-update-source-buffers mod))
        ;;
-       ([int [no_break Mod]]
+       (['int ['no_break mod]]
 	(setq edb-breakpoints
 	      (remove-if (lambda (bp)
 			   (mcase bp
@@ -260,10 +260,10 @@ Tracks events and state changes from the Erlang node."
 			     (_        nil)))
 			 edb-breakpoints)))
        ;;
-       ([int [new_break [Pos _Info]]]
+       (['int ['new_break [pos _info]]]
 	(push pos edb-breakpoints))
        ;;
-       ([int [delete_break Pos]]
+       (['int ['delete_break pos]]
 	(setq edb-breakpoints
 	      (remove pos edb-breakpoints))))
     (ewoc-refresh edb-processes)    
@@ -360,7 +360,7 @@ When MOD is given, only update those visiting that module."
      (erl-send-rpc (erl-pid-node pid)
 		   'distel 'debug_attach (list erl-self pid))
      (erl-receive ()
-	 (([rex Pid]
+	 ((['rex pid]
 	   (assert (erl-pid-p pid))
 	   (setq edb-pid pid)
 	   (setq edb-node (erl-pid-node pid))
@@ -421,18 +421,18 @@ The *Variables* buffer is killed with the current buffer."
 (defun &edb-attach-loop ()
   "Attached process loop."
   (erl-receive ()
-      (([location Mod Line Pos Max]
+      ((['location mod line pos max]
  	(let ((msg (format "Location: %S:%S (Stack pos: %S/%S)"
 			   mod line pos max)))
  	  (setq header-line-format msg))
 	(&edb-attach-goto-source mod line))
-       ([status Status]
+       (['status status]
 	(unless (memq status '(running idle))
 	  (message "Unrecognised status: %S" status))
 	(setq header-line-format (format "Status: %S" status))
 	(setq overlay-arrow-position nil)
 	(&edb-attach-loop))
-       ([variables Vars]
+       (['variables vars]
 	;; {variables, [{Name, String}]}
 	(when (buffer-live-p edb-variables-buffer)
 	  (with-current-buffer edb-variables-buffer
@@ -447,13 +447,13 @@ The *Variables* buffer is killed with the current buffer."
 			(insert string)))
 		    vars))))
 	(&edb-attach-loop))
-       ([message Msg]
+       (['message msg]
 	(message msg)
 	(&edb-attach-loop))
-       ([show_variable Value]
+       (['show_variable value]
 	(save-excursion (display-message-or-view value "*Variable Value*"))
 	(&edb-attach-loop))
-       (Other
+       (other
 	(message "Other: %S" other)
 	(&edb-attach-loop)))))
 
@@ -469,7 +469,7 @@ The *Variables* buffer is killed with the current buffer."
 Once loaded, reenters the attach loop."
   (erl-send-rpc edb-node 'distel 'find_source (list module))
   (erl-receive (module line)
-      (([rex [ok Path]]
+      ((['rex ['ok path]]
 	(if (file-regular-p path)
 	    (progn (setq edb-module module)
 		   (let ((buffer-read-only nil))
