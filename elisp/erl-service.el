@@ -843,7 +843,7 @@ the node, version 1.2 (or perhaps later.)"
 		     (region-beginning)
 		     (region-end)))
   (let ((buffer (current-buffer))
-	(text   (buffer-substring start end)))
+	(text   (erl-refactor-strip-macros (buffer-substring start end))))
     (erl-spawn
       (erl-send-rpc node 'distel 'free_vars (list text))
       (erl-receive (name start end buffer text)
@@ -868,6 +868,17 @@ the node, version 1.2 (or perhaps later.)"
 			    (indent-region (point-min) (point-max) nil)
 			    (buffer-string)))
 		(message "Saved `%s' definition on kill ring." name)))))))))
+
+(defun erl-refactor-strip-macros (text)
+  "Removed all use of macros in TEXT.
+We do this by making a bogus expansion of each macro, such that the
+expanded code should probably still have the right set of free
+variables."
+  (with-temp-buffer
+    (save-excursion (insert text))
+    (while (re-search-forward "\\?[A-Za-z_]+" nil t)
+      (replace-match "deadmacro"))
+    (buffer-string)))
 
 ;; ------------------------------------------------------------
 ;; fdoc interface
