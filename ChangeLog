@@ -1,3 +1,9 @@
+2003-01-15  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-refactor-subfunction): Small
+	portability fix; this feature probably only worked in the CVS
+	version of Emacs 21 previously. Now also works in 21.2.1.
+
 2003-01-14  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-refactor-subfunction): New refactoring
