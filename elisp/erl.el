@@ -116,6 +116,10 @@ remove. Messages are ordered from oldest to newest.")
   "Number of \"reductions\".
 Actually the number of times the process has been run invoked,
 typically by the scheduler.")
+(defprocvar erl-process-name nil
+  "Name of the process, a string.
+This can be set and then later used to help with debugging.
+An example name would be \"Process list for z@cockatoo\"")
 
 (defmacro with-erl-process (pid &rest body)
   "Execute BODY in PID's buffer. This is a full context-switch."
@@ -418,7 +422,10 @@ during the next `erl-schedule'."
 (defun erl-terminate (why)
   "Exit the current process."
   (unless (eq why 'normal)
-    (message "EXIT: %S %S" erl-self why))
+    (message "EXIT: %S %S %s" erl-self why
+	     (if erl-process-name
+		 (concat "\n  Process name: " erl-process-name)
+	       "")))
   (setq erl-exit-reason why)
   (erl-make-unschedulable erl-self)
   (kill-buffer (erl-pid->buffer erl-self)))
@@ -434,6 +441,10 @@ during the next `erl-schedule'."
   (unless (erl-null-pid-p from)
     (with-erl-process from
       (setq erl-links (remove to erl-links)))))
+
+(defun erl-set-name (fmt &rest args)
+  "Set `erl-process-name' to (apply 'format (FMT . ARGS))."
+  (setq erl-process-name (apply 'format (cons fmt args))))
 
 ;; PID utilities
 

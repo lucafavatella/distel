@@ -1,3 +1,15 @@
+2002-08-23  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl.el (erl-set-name): Added this function that processes
+	can call to give themself a name. This name is printed if the
+	process crashes - it's handy for debugging. Updated some existing
+	processes to use it.
+
+	* elisp/derl.el (erl-connect): When epmd lookup fails, the *derl
+	<node>* buffer is now killed. This fixes a long-standing bug that
+	forced you to manually kill this buffer before you can try to
+	connect again.
+
 2002-08-22  david wallin  <david.wallin@ul.ie>
 
 	* elisp/distel-ie.el (erl-ie-copy-[buffer|region]-to-session): Move 

@@ -41,6 +41,8 @@ edb."))
 		     (edb-module)))
   (when (edb-ensure-monitoring node)
     (erl-spawn
+      (erl-set-name "EDB RPC to toggle interpretation of %S on %S"
+		    module node)
       (erl-send-rpc node 'distel 'debug_toggle (list module))
       (erl-receive (module)
 	  (([rex interpreted]
@@ -62,6 +64,8 @@ edb."))
 		     (edb-line-number)))
   (when (edb-ensure-monitoring node)
     (erl-spawn
+      (erl-set-name "EDB RPC to toggle of breakpoint %S:%S on %S"
+		    module line node)
       (erl-send-rpc node 'distel 'break_toggle (list module line))
       (erl-receive (module line)
 	  (([rex enabled]
@@ -190,6 +194,7 @@ Returns NIL if this cannot be ensured."
 (defun edb-start-monitor (node)
   "Start debug-monitoring NODE."
   (erl-spawn
+    (erl-set-name "EDB Monitor on %S" node)
     (setq edb-monitor-node node)
     (setq edb-monitor-buffer (current-buffer))
     (rename-buffer (edb-monitor-buffer-name node))
@@ -334,6 +339,9 @@ When MOD is given, only update those visiting that module."
   "Start a new attach process and returns its buffer."
   (erl-pid->buffer
    (erl-spawn
+     (erl-set-name "EDB Attach to process %S on %S"
+		   (erl-pid-id pid)
+		   (erl-pid-node pid))
      (rename-buffer (edb-attach-buffer-name pid))
      (erlang-mode)
      (edb-attach-mode t)
