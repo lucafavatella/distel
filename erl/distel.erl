@@ -16,7 +16,8 @@
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
          process_summary_and_trace/2, fprof/3, fprof_analyse/1,
-         debug_toggle/2, break_toggle/2, debug_subscribe/1,
+         debug_toggle/2, debug_subscribe/1,
+	 break_toggle/2, break_delete/2, break_add/2,
 	 modules/1, functions/2]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
@@ -421,6 +422,25 @@ break_toggle(Mod, Line) ->
             ok = int:break(Mod, Line),
             enabled
     end.
+
+break_delete(Mod, Line) ->
+    case lists:any(fun({Point,_}) -> Point == {Mod,Line} end,
+                   int:all_breaks()) of
+        true ->
+            ok = int:delete_break(Mod, Line);
+        false ->
+	    ok
+    end.
+
+break_add(Mod, Line) ->
+    case lists:any(fun({Point,_}) -> Point == {Mod,Line} end,
+                   int:all_breaks()) of
+        true ->
+            ok;
+        false ->
+            ok = int:break(Mod, Line)
+    end.
+
 
 %% Returns: {InterpretedMods, Breakpoints, [{Pid, Text}]}
 %%          InterpretedMods = [Mod]

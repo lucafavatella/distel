@@ -1,3 +1,16 @@
+2002-12-06  Martin Bjorklund  <mbj@lvm>
+
+	* elisp/edb.el (edb-synch-breakpoints): Added "synch all
+	breakpoints to erlang" command, bound to C-c C-d S.  Might be used
+	after a buffer with breakpoints has been modified, recompiled and
+	loaded to erlang, to re-apply all breakpoints in the buffer.
+
+	* elisp/edb.el (edb-breakpoint-stale-face): Added a face which is
+	used to mark breakpoints to be out of synch when a buffer is
+	modified.
+
+	* elisp/edb.erl: Cleanups.
+
 2002-12-06  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-pman-kill-process): Added "kill this

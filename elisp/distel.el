@@ -57,6 +57,7 @@ cache, give a prefix argument with C-u before using the command.
 \\[fprof-analyse]	- View profiler results from an \"fprof:analyse\" file.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
 \\[edb-toggle-breakpoint]	- Toggle a debugger breakpoint at the current line.
+\\[edb-synch-breakpoints]	- Synchronizes current breakpoints to erlang.
 \\[edb-monitor]	- Popup the debugger's process monitor buffer.
 \\[erl-ie-show-session]	- Create an interactive \"session\" buffer.
 \\[erl-ie-copy-buffer-to-session]	- Create an interactive \"session\" buffer from current buffer.
@@ -74,6 +75,7 @@ sequence. For general information about Emacs' online help, use
   nil
   '(("\C-c\C-di" . edb-toggle-interpret)
     ("\C-c\C-db" . edb-toggle-breakpoint)
+    ("\C-c\C-dS" . edb-synch-breakpoints)
     ("\C-c\C-dm" . edb-monitor)
     ("\C-c\C-d:" . erl-eval-expression)
     ("\C-c\C-dL" . erl-reload-module)
@@ -128,6 +130,7 @@ sequence. For general information about Emacs' online help, use
       nil
       ("Toggle debug interpreting of the module" edb-toggle-interpret)
       ("Toggle a breakpoint at current line" edb-toggle-breakpoint)
+      ("Synchronizes current breakpoints to erlang" edb-synch-breakpoints)
       ("Popup the debugger process monitor" edb-monitor)
       nil
       ("Create an interactive erlang session buffer" erl-ie-show-session)
