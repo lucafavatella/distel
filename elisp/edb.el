@@ -7,6 +7,13 @@
 (require 'ewoc)
 
 ;; ----------------------------------------------------------------------
+;; Configurables
+
+(defvar edb-popup-monitor-on-event t
+  "Automatically popup the monitor on interesting events.
+An interesting event is an unattached process reaching a breakpoint.")
+
+;; ----------------------------------------------------------------------
 ;; Integration with erlang-extended-mode buffers.
 
 (make-variable-buffer-local
@@ -29,17 +36,19 @@ edb."))
 ;; EDB minor mode for erlang-mode source files
 
 (defun edb-toggle-interpret (node module)
+  "Toggle debug-interpreting of the current buffer's module."
   (interactive (list (erl-read-nodename)
 		     (edb-module)))
-  (erl-spawn
-    (erl-send-rpc node 'distel 'debug_toggle (list module))
-    (erl-receive (module)
-	(([rex interpreted]
-	  (message "Interpreting: %S" module))
-	 ([rex uninterpreted]
-	  (message "Stopped interpreting: %S" module))
-	 ([rex error]
-	  (message "Failed!"))))))
+  (when (edb-ensure-monitoring node)
+    (erl-spawn
+      (erl-send-rpc node 'distel 'debug_toggle (list module))
+      (erl-receive (module)
+	  (([rex interpreted]
+	    (message "Interpreting: %S" module))
+	   ([rex uninterpreted]
+	    (message "Stopped interpreting: %S" module))
+	   ([rex error]
+	    (message "Failed!")))))))
 
 (defun edb-module ()
   (if (erlang-get-module)
@@ -47,16 +56,18 @@ edb."))
     (error "Can't determine module for current buffer")))
 
 (defun edb-toggle-breakpoint (node module line)
+  "Toggle a breakpoint on the current line."
   (interactive (list (erl-read-nodename)
 		     (edb-module)
 		     (edb-line-number)))
-  (erl-spawn
-    (erl-send-rpc node 'distel 'break_toggle (list module line))
-    (erl-receive (module line)
-	(([rex enabled]
-	  (message "Enabled breakpoint at %S:%S" module line))
-	 ([rex disabled]
-	  (message "Disabled breakpoint at %S:%S" module line))))))
+  (when (edb-ensure-monitoring node)
+    (erl-spawn
+      (erl-send-rpc node 'distel 'break_toggle (list module line))
+      (erl-receive (module line)
+	  (([rex enabled]
+	    (message "Enabled breakpoint at %S:%S" module line))
+	   ([rex disabled]
+	    (message "Disabled breakpoint at %S:%S" module line)))))))
 
 (defun edb-line-number ()
   "Current line number."
@@ -87,7 +98,8 @@ edb."))
 (unless edb-monitor-mode-map
   (setq edb-monitor-mode-map (make-sparse-keymap))
   (define-key edb-monitor-mode-map [?a] 'edb-attach-command)
-  (define-key edb-monitor-mode-map [?q] 'erl-quit-viewer))
+  (define-key edb-monitor-mode-map [?q] 'erl-bury-viewer)
+  (define-key edb-monitor-mode-map [?k] 'erl-quit-viewer))
 
 (defvar edb-processes nil
   "EWOC of processes running interpreted code.")
@@ -101,8 +113,9 @@ edb."))
   "Major mode for viewing debug'able processes.
 
 Available commands:
-\\[erl-quit-viewer]	- Quit monitor.
-\\[edb-attach-command]	- Attach to the process at point."
+\\[edb-attach-command]	- Attach to the process at point.
+\\[edb-bury-viewer]	- Hide the monitor window.
+\\[erl-quit-viewer]	- Quit monitor."
   (interactive)
   (kill-all-local-variables)
   (setq buffer-read-only t)
@@ -138,16 +151,26 @@ Available commands:
 
 (defun edb-monitor (node)
   (interactive (list (erl-read-nodename)))
-  (cond ((edb-monitor-node-change-p node)
-	 (when (y-or-n-p (format "Attach debugger to %S instead of %S? "
-				 node edb-monitor-node))
-	   ;; Kill existing edb then start again
-	   (kill-buffer edb-monitor-buffer)
-	   (edb-monitor node)))
-	(t
-	 (unless (edb-monitor-live-p)
-	   (edb-start-monitor node))
-	 (select-window (display-buffer edb-monitor-buffer)))))
+  (when (edb-ensure-monitoring node)
+    (unless (get-buffer-window edb-monitor-buffer)
+      ;; Update the restorable window configuration
+      (with-current-buffer edb-monitor-buffer
+	(setq erl-old-window-configuration
+	      (current-window-configuration))))
+    (pop-to-buffer edb-monitor-buffer)))
+
+(defun edb-ensure-monitoring (node)
+  "Make sure the debug monitor is watching the node.
+Returns NIL if this cannot be ensured."
+  (if (edb-monitor-node-change-p node)
+      (when (y-or-n-p (format "Attach debugger to %S instead of %S? "
+			      node edb-monitor-node))
+	;; Kill existing edb then start again
+	(kill-buffer edb-monitor-buffer)
+	(edb-start-monitor node))
+    (if (edb-monitor-live-p)
+	t
+      (edb-start-monitor node))))
 
 (defun edb-monitor-node-change-p (node)
   "Do we have to detach/reattach to debug on NODE?"
@@ -190,25 +213,34 @@ Available commands:
 	  (&edb-monitor-loop))))))
 
 (defun &edb-monitor-loop ()
+  "Monitor process main loop.
+Tracks events and state changes from the Erlang node."
   (erl-receive ()
       (([int [new_status Pid Status Info]]
 	 (let ((proc (edb-monitor-lookup pid)))
 	   (if (null proc)
 	       (message "Unknown process: %s" (erl-pid-to-string pid))
 	     (setf (edb-process-status proc) status)
-	     (setf (edb-process-info proc) info))))
+	     (setf (edb-process-info proc) info)
+	     (when (and edb-popup-monitor-on-event
+			(not (edb-attached-p pid)))
+	       (display-buffer (current-buffer))))))
+       ;;
        ([int [new_process (Pid MFA Status Info)]]
 	 (ewoc-enter-last edb-processes
 			  (make-edb-process pid
 					    mfa
 					    status
 					    info)))
+       ;;
        ([int [interpret Mod]]
 	(push mod edb-interpreted-modules)
 	(edb-update-source-buffers mod))
+       ;;
        ([int [no_interpret Mod]]
 	(setq edb-interpreted-modules (remq mod edb-interpreted-modules))
 	(edb-update-source-buffers mod))
+       ;;
        ([int [no_break Mod]]
 	(setq edb-breakpoints
 	      (remove-if (lambda (bp)
@@ -216,8 +248,10 @@ Available commands:
 			     ([,mod _] t)
 			     (_        nil)))
 			 edb-breakpoints)))
+       ;;
        ([int [new_break [Pos _Info]]]
 	(push pos edb-breakpoints))
+       ;;
        ([int [delete_break Pos]]
 	(setq edb-breakpoints
 	      (remove pos edb-breakpoints))))
@@ -225,6 +259,8 @@ Available commands:
     (&edb-monitor-loop)))
 
 (defun edb-update-source-buffers (&optional mod)
+  "Update the debugging state of all Erlang buffers.
+When MOD is given, only update those visiting that module."
   (mapc (lambda (buf)
 	  (with-current-buffer buf
 	    (when (and erlang-extended-mode
@@ -234,6 +270,7 @@ Available commands:
 	(buffer-list)))
 
 (defun edb-source-file-module-name ()
+  "Return the Erlang module of the current buffer as a symbol, or NIL."
   (let ((name (erlang-get-module)))
     (if name (intern name) nil)))
 
@@ -352,6 +389,7 @@ The *Variables* buffer is killed with the current buffer."
   (define-key edb-variables-mode-map [(control m)] 'edb-show-variable))
 
 (defun edb-show-variable ()
+  "Pop a window showing the full value of the variable at point."
   (interactive)
   (let ((var (get-text-property (point) 'edb-variable-name)))
     (if (null var)
@@ -430,6 +468,10 @@ Once loaded, reenters the attach loop."
   (format "*edbproc %s on %S*"
 	  (erl-pid-to-string pid)
 	  (erl-pid-node pid)))
+
+(defun edb-attached-p (pid)
+  "Non-nil when we have an attach buffer viewing PID."
+  (buffer-live-p (get-buffer (edb-attach-buffer-name pid))))
 
 ;; ----------------------------------------------------------------------
 ;; Attach minor mode and commands

@@ -1,3 +1,11 @@
+2002-08-22  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el: Various debugger improvements: Monitor buffer pops
+	up when an unattached process hits a breakpoint (unless
+	`edb-popup-monitor-on-event' is nil); Monitor better intercepts
+	debug commands to either start monitoring or switch nodes; 'q' now
+	hides rather than kills the monitor buffer/process ('k' kills).
+
 2002-08-21  Luke Gorrie  <luke@bluetail.com>
 
 	* config/emacs-init-snippet.el.in: Now being careful to add
