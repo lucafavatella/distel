@@ -392,10 +392,17 @@ decimal printed representation."
   ;; to do the work. It would be great to replace this with some
   ;; pure-elisp, but it would have to be clever to work around the
   ;; lack of real 32-bit integers.
+  (ensure-have-dec32)
   (let ((command (apply #'format
 			(cons "dec32 %d %d %d %d"
 			      (string-to-list s)))))
     (shell-command-to-string command)))
+
+(defun ensure-have-dec32 ()
+  (unless (string= (shell-command-to-string "which dec32 &>/dev/null;
+                                             echo $?")
+		   "0\n")
+    (error "dec32 helper program not found in PATH")))
 
 (defun hexstring-to-binstring (s)
   "Convert the hexidecimal string S into a binary number represented
