@@ -25,9 +25,9 @@
 * Data Types::                  Mapping between Emacs Lisp and Erlang
                                 data structures.
 * Processes::                   How to write processes.
-* Programming Interface::       
-* Scheduler Internals::         
-* Ready-To-Go Commands::        
+* Programming Interface::
+* Scheduler Internals::
+* Ready-To-Go Commands::
 * Example Programs::            Small examples, excerpted from the distbution.
 * Tips and Tricks::             Using and debugging Emacs Lisp processes
 * Hacking Distel::              Brief tour of the internals
@@ -219,7 +219,7 @@ scheduling out causes all of the process's dynamic variable bindings
 to be undone, its @code{unwind-protect}'s executed, and the functions
 on its stack returned to (actually -- bypassed by @code{throw}). The
 overall effect is that variable bindings and control state have to be
-explicitly preserved between schedules.
+explicitly passed between schedules.
 
 In practice this is not a great imposition, since the only time a
 process needs to reschedule is when it blocks in ``receive''. The
@@ -233,8 +233,8 @@ internal workings.
 
 @menu
 * Spawning and Running::        Creating new processes
-* Pattern Matching::            
-* BIFs::                        
+* Pattern Matching::
+* BIFs::
 * Tuples::                      Functions for dealing with tuples.
 * PIDs::                        Functions for dealing with PIDs.
 @end menu
@@ -383,7 +383,7 @@ case X of
     @{add, X, Y@} -> X + Y;
     @{sub, X, Y@} -> X - Y;
     _           -> error
-end.  
+end.
   @result{}
 (mcase x
   ([tuple add X Y] (+ x y))
@@ -638,7 +638,7 @@ elements of KARGS."
             ;; @{Who, @{call, M, F, A, GroupLeader@}@}
             (tuple erl-self (tuple 'call m f a erl-group-leader))))
 @end group
-  
+
 @group
 (defun erl-rpc-receive (k kargs)
   "Receive the reply to an `erl-rpc'."
@@ -680,7 +680,11 @@ actual messages being exchanged between nodes. The buffers associated
 with sockets to other nodes are named @file{*derl @var{nodename}}, and
 killing these buffers will safely sever connections.
 
-@node Common Pitfalls
+@menu
+* Common Pitfalls::
+@end menu
+
+@node Common Pitfalls,  , Tips and Tricks, Tips and Tricks
 @section Common Pitfalls
 
 An easy mistake to make when ``thinking in Erlang'' is to make a call
@@ -737,7 +741,8 @@ it should run will get skipped.
                                 source files.
 * Documents::                   Other documents containing important
                                 information.
-* Related Work::                
+* Related Work::
+* Document Revision History::
 @end menu
 
 @node Hitch Hikers Guide, Documents, Hacking Distel, Hacking Distel
@@ -774,7 +779,7 @@ authentication ``handshake'' protocol for connecting to a node is
 documented in
 @file{lib/kernel/internal_doc/distribution_handshake.txt}.
 
-@node Related Work,  , Documents, Hacking Distel
+@node Related Work, Document Revision History, Documents, Hacking Distel
 @section Related Work
 
 Related libraries in OTP versions past or present are
@@ -801,7 +806,7 @@ The Distel homepage is at
 @url{http://www.bluetail.com/~luke/distel/}. Send feedback and patches
 to @email{luke@@bluetail.com}.
 
-@node Document Revision History
+@node Document Revision History,  , Related Work, Hacking Distel
 @section Document Revision History
 
 @table @strong
