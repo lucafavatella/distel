@@ -1,3 +1,12 @@
+2003-06-11  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-refactor-strip-macros): Now removing
+	macros before attempting to find free variables in
+	expressions. This allows us to refactor code that uses macros,
+	though it could lead to invalid refactorings in pathological cases
+	(i.e. if a macro expansion would really have introduced a new free
+	variable.)
+
 2003-03-26  Luke Gorrie  <luke@bluetail.com>
 
 	* Release: 3.3!
