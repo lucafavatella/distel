@@ -345,7 +345,7 @@ Invokes the scheduler if necessary."
 	 (message "STRANGE: %S is a zombie! killing" %pid)
 	 (with-erl-process %pid (erl-terminate 'zombie)))
 	(t
-	 (erl-run-process %pid))))
+	 (while (eq 'reschedule (erl-run-process %pid))))))
 
 (defun erl-run-process (%pid)
   "Run a process.
@@ -358,18 +358,17 @@ Calls the current continuation from within the process' buffer."
 	  (%buffer (current-buffer)))
       (setq erl-continuation nil)
       (setq erl-continuation-args nil)
-      ;; FIXME: must do something about errors, currently they can
-      ;; create zombie processes.
       (condition-case data
 	  (progn
-	    ;; if they (throw 'schedule-out 'reschedule), we put them
-	    ;; back on the front of the scheduling queue
-	    (when (eq 'reschedule
-		      (catch 'schedule-out (prog1 nil (apply %k %args))))
-	      (push %pid erl-schedulable-processes))
-	    (unless erl-continuation ; don't have a next continuation?
-	      (erl-terminate 'normal)))
-	(erl-exit-signal (erl-terminate (cadr data)))))))
+	    ;; if they (throw 'schedule-out value), we return the
+	    ;; value, otherwise nil
+	    (prog1 (catch 'schedule-out (prog1 nil (apply %k %args)))
+	      (unless erl-continuation ; don't have a next continuation?
+		(erl-terminate 'normal))))
+	(erl-exit-signal (erl-terminate (cadr data)))
+	;; FIXME: For now, any error causes the process to terminate
+	;; and scheduling to continue. Is this best?
+	(error           (erl-terminate `[emacs-error ,data]))))))
 
 (defun erl-make-schedulable (pid)
   "Add PID to the list of runnable processes, so that it will execute
