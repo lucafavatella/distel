@@ -1,4 +1,4 @@
-distel 3.0a -- Distributed Emacs Lisp for Erlang.
+distel 3.0b -- Distributed Emacs Lisp for Erlang.
 ------------------------------------------------------------
 
 This package provides a library for Emacs<->Erlang communication plus

@@ -1,5 +1,5 @@
 PACKAGE := distel
-VERSION := 3.0a
+VERSION := 3.0b
 
 prefix      = @prefix@
 exec_prefix = @exec_prefix@

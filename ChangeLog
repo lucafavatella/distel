@@ -1,5 +1,9 @@
 2002-08-21  Luke Gorrie  <luke@bluetail.com>
 
+	* README, Makefile.in (VERSION): Increased 3.0a -> 3.0b to
+	distinguish from the version installed on Bluetail'ers' machines
+	earlier today.
+
 	* elisp/edb.el, elisp/distel.erl: Erlang-extended-mode buffers now
 	indicate via the mode line whether they are currently being
 	interpreted. Also extended/improved the recent debug monitoring
