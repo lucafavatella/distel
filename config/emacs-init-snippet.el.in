@@ -4,7 +4,7 @@
 (let ((distel-dir "@prefix@/share/@emacs@/site-lisp/distel"))
   (unless (member distel-dir load-path)
     ;; Add distel-dir to the end of load-path
-    (setq load-path (append load-path distel-dir))))
+    (setq load-path (append load-path (list distel-dir)))))
 
 (require 'distel)
 (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)
