@@ -159,8 +159,9 @@ error is signaled."
   "Execute BODY, and return the message that it creates via calls to
 fsm-{insert,encode}*."
   `(let ((fsm-work-buffer ,(generate-new-buffer "*fsm-msg*")))
-     (with-current-buffer fsm-work-buffer
-       (set-buffer-multibyte nil))
+     (unless (featurep 'xemacs)
+       (with-current-buffer fsm-work-buffer
+	 (set-buffer-multibyte nil)))
      (unwind-protect
 	 (progn ,@body
 		(with-current-buffer fsm-work-buffer (buffer-string)))
