@@ -18,7 +18,8 @@
          process_summary_and_trace/2, fprof/3, fprof_analyse/1,
          debug_toggle/2, debug_subscribe/1, debug_add/1,
 	 break_toggle/2, break_delete/2, break_add/2, break_restore/1,
-	 modules/1, functions/2]).
+	 modules/1, functions/2,
+	 free_vars/1, free_vars/2]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
@@ -630,4 +631,38 @@ functions(Mod, Prefix) ->
 	    Fns = [atom_to_list(Fun) || {Fun, _Arity} <- List],
 	    {ok, ordsets:to_list(ordsets:from_list(Fns))}
     end.
+
+%% ----------------------------------------------------------------------
+%% Refactoring
+%% ----------------------------------------------------------------------
+
+%% @spec free_vars(Text::string()) -> string()
+%% @equiv free_vars(Text, Name, 1)
+
+free_vars(Text) ->
+    free_vars(Text, 1).
+
+%% @spec free_vars(Text::string(), Line::integer()) -> string()
+
+free_vars(Text, StartLine) ->
+    %% StartLine/EndLine may be useful in error messages.
+    {ok, Ts, EndLine} = erl_scan:string(Text, StartLine),
+    Ts1 = lists:reverse([{dot, EndLine} | strip(lists:reverse(Ts))]),
+    {ok, Es} = erl_parse:parse_exprs(Ts1),
+    E = erl_syntax:block_expr(Es),
+    E1 = erl_syntax_lib:annotate_bindings(E, ordsets:new()),
+    {value, {free, Vs}} = lists:keysearch(free, 1,
+					  erl_syntax:get_ann(E1)),
+    Vs.
+
+strip([{',', _}   | Ts]) -> strip(Ts);
+strip([{';', _}   | Ts]) -> strip(Ts);
+strip([{'.', _}   | Ts]) -> strip(Ts);
+strip([{'|', _}   | Ts]) -> strip(Ts);
+strip([{'=', _}   | Ts]) -> strip(Ts);
+strip([{'dot', _} | Ts]) -> strip(Ts);
+strip([{'->', _}  | Ts]) -> strip(Ts);
+strip([{'||', _}  | Ts]) -> strip(Ts);
+strip([{'of', _}  | Ts]) -> strip(Ts);
+strip(Ts)                -> Ts.
 
