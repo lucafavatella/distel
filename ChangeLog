@@ -1,3 +1,13 @@
+2002-08-01  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erlang-mode-ext.el: Decided to hijack the TAGS key
+	bindings, so now M-. takes you from a function call to the
+	definition, and M-, jumps you back afterwards.
+
+	* elisp/erl-service.el (erl-find-source-unwind): Added "unwind"
+	feature for going back after following function calls to their
+	definitions (suggested by Tobbe, and very nice).
+
 2002-07-29  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl.el (erl-determine-hostname): Doing a better job of
