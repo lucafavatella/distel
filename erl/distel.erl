@@ -456,6 +456,6 @@ attach_meta_cmd(Att = #attach{emacs=Emacs, meta=Meta, stack={Pos,Max}}, Cmd) ->
 
 attach_goto(Emacs, Meta, Mod, Line, Pos, Max) ->
     Bs = sort(int:meta(Meta, bindings, Pos)),
-    Vars = [fmt("~s = ~w", [pad(10, Name), Val]) || {Name,Val} <- Bs],
+    Vars = [fmt("~s = ~P", [pad(10, Name), Val, 9]) || {Name,Val} <- Bs],
     Emacs ! {variables, Vars},
     Emacs ! {location, Mod, Line, Pos, Max}.
