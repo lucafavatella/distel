@@ -4,6 +4,9 @@ Installation
 1. Build and install the software in the usual way:
      ./configure && make && [sudo] make install
 
+   (If you checked out from CVS, you'll have to run 'autoconf' first,
+   to create 'configure')
+
 [The following two steps can be done manually, or you can just do
 "make config_install" instead. It will append these lines to your
 ~/.emacs and ~/.erlang (but only if they aren't already there). I
@@ -13,6 +16,9 @@ ain't touchin' yer dotfiles without permission.]
    nodes, add this line to your ~/.erlang:
 
      code:add_pathz("/usr/local/share/distel/ebin").
+
+  (If you used an install prefix other than /usr/local, change that
+  line appropriately.)
 
 3. To automatically enable the erlang-extended-mode for editing Erlang
    files, add this to your ~/.emacs:
