@@ -8,14 +8,6 @@
 ;; ----------------------------------------------------------------------
 ;; EDB minor mode for erlang-mode source files
 
-(define-minor-mode erlang-edb-mode
-  "Minor mode extending erlang-mode with debugging commands."
-  nil
-  " EDB"
-  '(("\C-c\C-di" . edb-toggle-interpret)
-    ("\C-c\C-db" . edb-toggle-breakpoint)
-    ("\C-c\C-dm" . edb-monitor)))
-
 (defun edb-toggle-interpret (node module)
   (interactive (list (erl-read-nodename)
 		     (edb-module)))
@@ -75,13 +67,18 @@
   pid mfa status info)
 
 (defun edb-monitor-mode ()
+  "Major mode for viewing debug'able processes.
+
+Available commands:
+\\[erl-quit-viewer]	- Quit monitor.
+\\[edb-attach-command]	- Attach to the process at point."
   (interactive)
   (kill-all-local-variables)
   (setq buffer-read-only t)
   (setq erl-old-window-configuration (current-window-configuration))
   (use-local-map edb-monitor-mode-map)
   (setq mode-name "EDB Monitor")
-  (setq major-mode 'edb-monitor))
+  (setq major-mode 'edb-monitor-mode))
 
 (defun edb-monitor-insert-process (p)
   (let ((buffer-read-only nil)
