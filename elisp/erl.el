@@ -37,8 +37,7 @@
 
 ;; Global book keeping state
 
-(defvar erl-node-name
-  (intern (concat "erlmacs@" (getenv "HOSTNAME")))
+(defvar erl-node-name nil		; initialised below
   "Node name for Emacs.")
 
 (defvar erl-pid-counter 0
@@ -522,6 +521,13 @@ during the next `erl-schedule'."
 (defun erl-nodedown (node)
   (message "nodedown: %S" node))
 
+(defun erl-determine-hostname ()
+  "Figure out the short-names hostname."
+  (let ((fqdn (system-name)))
+    (if (string-match "[^\\.]+" fqdn)
+	(match-string 0 fqdn)
+      (error "erl: Can't determine hostname."))))
+
 ;; These hooks are defined in derl.el
 (add-hook 'erl-nodeup-hook 'erl-nodeup)
 (add-hook 'erl-nodedown-hook 'erl-nodedown)
@@ -534,6 +540,9 @@ during the next `erl-schedule'."
 (put 'with-bindings 'lisp-indent-function 1)
 
 ;; Group leader
+
+(when (null erl-node-name)
+  (setq erl-node-name (intern (concat "distel@" (erl-determine-hostname)))))
 
 (defun &erl-group-leader-loop ()
   (erl-receive ()
