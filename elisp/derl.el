@@ -11,6 +11,12 @@
 (require 'erlext)
 (require 'md5)
 
+(defvar erl-dec32
+  (if (eq system-type 'windows-nt)
+      "dec32.exe"
+      "dec32")
+  "The name of the helper program that formats decimal numbers.")
+
 (defvar erl-nodeup-hook nil
   "Called with two args, NODE and FSM. NODE is a string of the form
 \"mynode@cockatoo\", FSM is the net-fsm process of the connection.")
@@ -431,12 +437,12 @@ decimal printed representation."
   ;; lack of real 32-bit integers.
   (ensure-have-dec32)
   (let ((command (apply #'format
-			(cons "dec32 %d %d %d %d"
+			(cons (concat erl-dec32 " %d %d %d %d")
 			      (string-to-list s)))))
     (shell-command-to-string command)))
 
 (defun ensure-have-dec32 ()
-  (unless (have-program-p "dec32")
+  (unless (have-program-p erl-dec32)
     (error "dec32 helper program not found in PATH")))
 
 (defun have-program-p (program)
