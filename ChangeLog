@@ -1,5 +1,19 @@
 2003-01-15  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/erl-service.el (erl-read-nodename): The universal prefix
+	argument (C-u) means "prompt me for which node to use", but
+	numeric prefixes no longer do. This is to free them up for other
+	purposes.
+	(erl-find-source-under-point): Numeric prefix argument forces the
+	same behaviour as `distel-tags-compliant', i.e. prompt for
+	function name. Useful for jumping to functions that aren't being
+	called anywhere handy.
+	(erl-find-source-under-point): Slightly improved error reportage.
+
+	* elisp/edb.el (edb-new-attach-buffer): Inhibiting
+	`erlang-new-file-hook' in attach buffers. It was misfiring and
+	causing problems.
+
 	* elisp/erl-service.el (erl-refactor-subfunction): Small
 	portability fix; this feature probably only worked in the CVS
 	version of Emacs 21 previously. Now also works in 21.2.1.
