@@ -475,8 +475,15 @@ time it spent in subfunctions."
 					(format "Module (default %s): " module)
 					"Module: ")))
 		       (intern (read-string prompt nil nil module)))))
-  (erl-eval-expression node (format "c:l('%s')." module)))
-					  
+  (if (and (eq node edb-monitor-node)
+	   (assq module edb-interpreted-modules))
+      (erl-reinterpret-module node module)
+    (erl-eval-expression node (format "c:l('%s')." module))))
+
+(defun erl-reinterpret-module (node module)
+  ;; int:i(SourcePath).
+  (erl-send-rpc node
+		'int 'i (list (cadr (assq module edb-interpreted-modules)))))
 
 ;; ------------------------------------------------------------
 ;; Find the source for a module
