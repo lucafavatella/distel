@@ -41,6 +41,7 @@ behaviour to this default is used.")
 (defun erl-ie-create-session (node)
   (with-current-buffer (get-buffer-create (erl-ie-buffer-name node))
     (insert "%%% Welcome to the Distel Interactive Erlang Shell.\n\n")
+    (push-mark (point) t)
 
     (erlang-mode)
     (setq erl-ie-node node)
@@ -119,7 +120,8 @@ behaviour to this default is used.")
 		  ;; TODO: should check the buffer for first non-whitespace 
 		  ;; before we do:
 		  (newline 1)
-		  (insert "--> ") (insert value) (newline 1))
+		  (insert "--> ") (insert value) (newline 2)
+		  (push-mark (point) t))
 	      (display-message-or-view (format "Result: %s" value)
 				       "*Evaluation Result*")))
 	   
