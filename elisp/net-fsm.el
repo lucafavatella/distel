@@ -46,7 +46,9 @@ addition to being passed as an argument.")
 (defun fsm-open-socket (host port)
   (let ((buf (generate-new-buffer "*net-fsm*")))
     (with-error-cleanup (kill-buffer buf)
-      (open-network-stream "netfsm" buf host port))))
+      (let ((p (open-network-stream "netfsm" buf host port)))
+	(set-process-coding-system p 'no-conversion 'no-conversion)
+	p))))
 
 (defun fsm-connect (host port state0 &optional init-arg cont fail-cont buffer)
   "Connect to HOST on PORT and initialize a state machine in
@@ -138,6 +140,8 @@ available, is called with RESULT."
 (defun fsm-debug (fmt &rest args)
   "Print a debugging message to the *fsm-debug* buffer."
   (with-current-buffer (get-buffer-create "*fsm-debug*")
+    (unless (featurep 'xemacs)
+      (set-buffer-multibyte nil))
     (goto-char (point-max))
     (insert (apply #'format (cons fmt (mapcar #'summarise args))))))
 
@@ -155,6 +159,8 @@ error is signaled."
   "Execute BODY, and return the message that it creates via calls to
 fsm-{insert,encode}*."
   `(let ((fsm-work-buffer ,(generate-new-buffer "*fsm-msg*")))
+     (with-current-buffer fsm-work-buffer
+       (set-buffer-multibyte nil))
      (unwind-protect
 	 (progn ,@body
 		(with-current-buffer fsm-work-buffer (buffer-string)))
