@@ -13,6 +13,16 @@
 @author Luke Gorrie
 @end titlepage
 
+@dircategory Emacs
+@direntry
+* Distel: (distel).             Distributed Emacs Lisp (for Erlang).
+@end direntry
+
+@ifinfo
+Distributed Emacs Lisp is a suite of tools for communicating with
+Erlang nodes from Emacs.
+@end ifinfo
+
 @contents
 
 @node Top, Introduction, (dir), (dir)
@@ -24,12 +34,11 @@
 * Introduction::                Overview of features.
 * Data Types::                  Mapping between Emacs Lisp and Erlang
                                 data structures.
-* Processes::                   How to write processes.
-* Programming Interface::       
-* Scheduler Internals::         
-* Ready-To-Go Commands::        
-* Tips and Tricks::             Using and debugging Emacs Lisp processes
-* Hacking Distel::              Brief tour of the internals
+* Processes::                   What processes are.
+* Programming Interface::       How to write processes.
+* Scheduler Internals::         How processes are executed.
+* Tips and Tricks::             Tips for Distel programming.
+* Hacking Distel::              Brief tour of the internals.
 @end menu
 
 @node Introduction, Data Types, Top, Top
@@ -463,6 +472,11 @@ Construct a tuple from @var{elements}. For example,
 @end example
 @end defun
 
+@defun tuple-elt tuple n
+Access the @var{n}th element of @var{tuple}. As in Erlang, indexing
+starts from 1.
+@end defun
+
 @defun tuplep object
 Type predicate for tuples.
 @end defun
@@ -497,7 +511,7 @@ Predicate for PIDs on remote nodes.
 Return the node name (a symbol) of the @var{pid}.
 @end defun
 
-@node Scheduler Internals, Ready-To-Go Commands, Programming Interface, Top
+@node Scheduler Internals, Tips and Tricks, Programming Interface, Top
 @chapter Scheduler Internals
 
 Because Emacs Lisp has no built-in concurrency, a custom scheduler is
@@ -541,7 +555,7 @@ passed in @var{args} (much like an Erlang function call), or stored in
 a buffer local variable (much like the Erlang process dictionary).
 @end defun
 
-@node Tips and Tricks, Hacking Distel, Ready-To-Go Commands, Top
+@node Tips and Tricks, Hacking Distel, Scheduler Internals, Top
 @chapter Tips and Tricks
 
 Processes' buffers are usually named either @file{*pid
@@ -699,6 +713,7 @@ be reclassified as an ``internal'' function.
 Added a reference to Trampolined Style.
 @item 1.0
 First version.
+@end table
 
 @bye
 
