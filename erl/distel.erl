@@ -16,8 +16,8 @@
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
          process_summary_and_trace/2, fprof/3, fprof_analyse/1,
-         debug_toggle/2, debug_subscribe/1,
-	 break_toggle/2, break_delete/2, break_add/2,
+         debug_toggle/2, debug_subscribe/1, debug_add/1,
+	 break_toggle/2, break_delete/2, break_add/2, break_restore/1,
 	 modules/1, functions/2]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
@@ -412,6 +412,16 @@ debug_toggle(Mod, Filename) ->
             end
     end.
 
+debug_add(Modules) ->
+    Interpreted = int:interpreted(),
+    lists:foreach(fun([Mod, FileName]) ->
+			  case member(Mod, Interpreted) of
+			      true -> ok;
+			      false -> int:i(FileName)
+			  end
+		  end, Modules),
+    ok.
+
 break_toggle(Mod, Line) ->
     case lists:any(fun({Point,_}) -> Point == {Mod,Line} end,
                    int:all_breaks()) of
@@ -441,15 +451,27 @@ break_add(Mod, Line) ->
             ok = int:break(Mod, Line)
     end.
 
+%% L = [[Module, [Line]]]
+break_restore(L) ->
+    lists:foreach(
+      fun([Mod, Lines]) ->
+	      lists:foreach(fun(Line) -> int:break(Mod, Line) end, Lines)
+      end, L),
+    ok.
+
+
+fname(Mod) ->
+    filename:rootname(code:which(Mod), "beam") ++ "erl".
 
 %% Returns: {InterpretedMods, Breakpoints, [{Pid, Text}]}
-%%          InterpretedMods = [Mod]
+%%          InterpretedMods = [[Mod, File]]
 %%          Breakpoints     = [{Mod, Line}]
 debug_subscribe(Pid) ->
     %% NB: doing this before subscription to ensure that the debugger
     %% server is started (int:subscribe doesn't do this, probably a
     %% bug).
-    Interpreted = int:interpreted(),
+    Interpreted = lists:map(fun(Mod) -> [Mod, fname(Mod)] end,
+			    int:interpreted()),
     spawn_link(?MODULE, debug_subscriber_init, [self(), Pid]),
     receive ready -> ok end,
     {Interpreted,
@@ -476,6 +498,8 @@ debug_subscriber(Pid) ->
                           fmt("~p:~p/~p", [M,F,length(A)]),
                           Status,
                           fmt("~w", [Info])]}};
+	{int, {interpret, Mod}} ->
+	    Pid ! {int, {interpret, Mod, fname(Mod)}};
 	Msg ->
 	    Pid ! Msg
     end,

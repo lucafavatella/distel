@@ -1,9 +1,16 @@
-2002-12-08  Martin Bjorklund  <mbj@lvm>
+2002-12-13  Martin Bjorklund  <mbj@bluetail.com>
+
+	* elisp/edb.el (edb-save-dbg-state): Save debugger state
+	(i.e. which modules are interpreted, and their breakpoints).  The
+	saved state can be restored after e.g. a node restart with
+	edb-restore-dbg-state.
+
+2002-12-08  Martin Bjorklund  <mbj@bluetail.com>
 
 	* elisp/erl-service.el (erl-find-source-under-point): Don't ask
 	for nodename if a local function definition is asked for.
 
-2002-12-06  Martin Bjorklund  <mbj@lvm>
+2002-12-06  Martin Bjorklund  <mbj@bluetail.com>
 
 	* elisp/edb.el (edb-synch-breakpoints): Added "synch all
 	breakpoints to erlang" command, bound to C-c C-d S.  Might be used
