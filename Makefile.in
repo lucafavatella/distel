@@ -50,7 +50,7 @@ doc/distel.ps: doc/distel.dvi
 	dvips -o $@ $<
 
 doc/distel.dvi: ${DOC_SRC}
-	texi2dvi -o $@ $<
+	(cd doc; texi2dvi distel.texi)
 
 doc/distel.info: ${DOC_SRC}
 	makeinfo -o $@ $<
