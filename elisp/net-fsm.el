@@ -1,7 +1,5 @@
 ; Network state machine engine
 
-(require 'dired)			; for one little function..
-
 (defvar fsm-buffer-p nil
   "Set to t in buffers belonging to FSMs, for sanity-checking.")
 (defvar fsm-state nil
@@ -72,7 +70,8 @@ the FSM fails."
   (when buffer
     (replace-process-buffer socket buffer))
   (with-current-buffer (process-buffer socket)
-    (set-buffer-multibyte nil)
+    (unless (featurep 'xemacs)
+      (set-buffer-multibyte nil))
     (setq fsm-buffer-p t)
     (setq fsm-state state0)
     (setq fsm-process socket)
@@ -236,8 +235,11 @@ buffer."
 
 (defun summarise (x)
   (if (stringp x)
-      (or (dired-string-replace-match "\\\n" (elide-string x 30) "\\n" t t)
-	  x)
+      (with-temp-buffer
+	(insert x)
+	(goto-char (point-min))
+	(replace-string "\n" "\\n")
+	(elide-string (buffer-string) 30))
     x))
 
 (defun elide-string (s len)

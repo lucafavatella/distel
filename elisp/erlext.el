@@ -72,7 +72,8 @@
   "Decode and return the elisp representation of `string'."
   (assert (stringp string))
   (with-temp-buffer
-    (set-buffer-multibyte nil)
+    (unless (featurep 'xemacs)
+      (set-buffer-multibyte nil))
     (insert string)
     (goto-char (point-min))
     (erlext-read-whole-obj)))
@@ -80,7 +81,8 @@
 (defun erlext-term-to-binary (term)
   "Encode `term' as erlext and return the result as a string."
   (with-temp-buffer
-    (set-buffer-multibyte nil)
+    (unless (featurep 'xemacs)
+      (set-buffer-multibyte nil))
     (insert erlext-protocol-version)
     (erlext-write-obj term)
     (buffer-string)))
@@ -215,9 +217,15 @@
 ;; Decoding
 ;; ------------------------------------------------------------
 
-(defsubst erlext-read1 ()
-  (prog1 (following-char)
-    (forward-char 1)))
+(if (featurep 'xemacs)
+    ;; XEmacs - convert character to string
+    (defsubst erlext-read1 ()
+      (prog1 (char-int (following-char))
+	(forward-char 1)))
+  ;; GNU
+  (defsubst erlext-read1 ()
+    (prog1 (following-char)
+      (forward-char 1))))
 
 (defun erlext-read-whole-obj ()
   (let ((version (erlext-read1)))
@@ -266,7 +274,10 @@
   (assert (integerp n))
   (let ((start (point))
         (end   (+ (point) n)))
-    (prog1 (string-as-unibyte (buffer-substring start end))
+    (prog1 (let ((string (buffer-substring start end)))
+	     (if (featurep 'xemacs)
+		 string
+	       (string-as-unibyte string)))
       (goto-char end))))
 (defun erlext-read-atom ()
   (let ((length (erlext-read2)))

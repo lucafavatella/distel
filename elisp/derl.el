@@ -123,8 +123,8 @@ Use the distribution protocol's EXIT2 message."
   (when (derl-have-msg)
     (goto-char (point-min))
     (erlext-read2)			; skip length
-    (unless (equal ?n (erlext-read1))	; tag-check
-      (fsm-fail))
+    (unless (equal 110 (erlext-read1))	; tag-check (n)
+      (fsm-fail 'wrong-tag))
     (let ((version (erlext-read2))
 	  (flags   (erlext-read4))
 	  (challenge (erlext-readn 4))
@@ -140,8 +140,8 @@ complete and we become live."
   (when (derl-have-msg)
     (goto-char (point-min))
     (erlext-read2)			; skip length
-    (unless (equal ?a (erlext-read1))	; tag-check
-      (fsm-fail))
+    (unless (equal 97 (erlext-read1))	; tag-check (a)
+      (fsm-fail 'wrong-tag))
     (let ((digest (buffer-substring (point) (+ (point) 16))))
       (derl-eat-msg)
       (if (equal (derl-gen-digest (string 0 0 0 42)) digest)
@@ -154,14 +154,14 @@ complete and we become live."
   (erase-buffer)
   (derl-send-msg
    (fsm-build-message
-     (fsm-encode1 ?n)			; tag
+     (fsm-encode1 110)			; tag (n)
      (fsm-encode2 5)			; version
      (fsm-encode4 0)			; flags (none!)
      (fsm-insert (symbol-name erl-node-name)))))
 
 (defun derl-send-challenge-reply (challenge)
   (derl-send-msg (fsm-build-message
-		   (fsm-encode1 ?r)
+		   (fsm-encode1 114)	; 114 = ?r
 		   (fsm-encode4 42)
 		   (fsm-insert (derl-gen-digest challenge)))))
 
@@ -201,7 +201,8 @@ gen_digest() function:
 	    ctl
 	    req)
 	;; Decode the control message, and the request if it's present
-	(with-temp-buffer (set-buffer-multibyte nil)
+	(with-temp-buffer (unless (featurep 'xemacs)
+			    (set-buffer-multibyte nil))
 			  (insert msg)
 			  (goto-char (point-min))
 			  (assert (= (erlext-read1) 112))	; type = pass through..
@@ -392,7 +393,7 @@ decimal printed representation."
   ;; pure-elisp, but it would have to be clever to work around the
   ;; lack of real 32-bit integers.
   (let ((command (apply #'format
-			(cons "dec32 %S %S %S %S" ; FIXME
+			(cons "dec32 %d %d %d %d"
 			      (string-to-list s)))))
     (shell-command-to-string command)))
 
