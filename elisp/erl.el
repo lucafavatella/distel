@@ -208,6 +208,10 @@ Also makes the current process immediately reschedulable."
   ;; the scheduler loop will catch this and know what to do
   (throw 'schedule-out 'reschedule))
 
+(defun erl-idle ()
+  (erl-receive ()
+      ()))
+
 ;; receive
 
 (defmacro erl-receive (vars clauses &rest after)
@@ -530,19 +534,19 @@ during the next `erl-schedule'."
 
 ;; Group leader
 
-(defun erl-group-leader-loop ()
+(defun &erl-group-leader-loop ()
   (erl-receive ()
       (([tuple put_chars S]
 	(goto-char (point-max))
 	(insert s)
 	(when erl-popup-on-output
 	  (display-buffer (current-buffer)))))
-    (erl-group-leader-loop)))
+    (&erl-group-leader-loop)))
 
 (setq erl-default-group-leader
       (erl-spawn
 	(rename-buffer "*erl-output*")
-	(erl-group-leader-loop)))
+	(&erl-group-leader-loop)))
 
 (provide 'erl)
 
