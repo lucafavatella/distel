@@ -20,23 +20,31 @@
 
 ;; Local variables
 
-(defvar derl-connection-node nil
-  "Local variable recording the node name of the connection.")
+(make-variable-buffer-local
+ (defvar derl-connection-node nil
+   "Local variable recording the node name of the connection."))
 
-(defvar derl-hdrlen 2
-  "Size in bytes of length headers of packets. Set to 2 during
-handshake, 4 when connected.")
+(make-variable-buffer-local
+ (defvar derl-hdrlen 2
+   "Size in bytes of length headers of packets. Set to 2 during
+handshake, 4 when connected."))
 
-(defvar derl-alive nil
-  "Local variable set to t after handshaking.")
+(make-variable-buffer-local
+ (defvar derl-alive nil
+  "Local variable set to t after handshaking."))
 
-(defvar derl-request-queue nil
-  "Messages waiting to be sent to node.")
+(make-variable-buffer-local
+ (defvar derl-shutting-down nil
+   "Set to T during shutdown, when no longer servicing requests."))
 
-(make-variable-buffer-local 'derl-connection-node)
-(make-variable-buffer-local 'derl-hdrlen)
-(make-variable-buffer-local 'derl-alive)
-(make-variable-buffer-local 'derl-request-queue)
+(make-variable-buffer-local
+ (defvar derl-request-queue nil
+  "Messages waiting to be sent to node."))
+
+(make-variable-buffer-local
+ (defvar derl-remote-links '()
+  "List of (LOCAL-PID . REMOTE-PID) for all distributed links (per-node.)
+Used for sending exit signals when the node goes down."))
 
 ;; ------------------------------------------------------------
 ;; External API
@@ -222,6 +230,7 @@ gen_digest() function:
 	   (let ((from (tuple-elt ctl 2))
 		 (to   (tuple-elt ctl 3)))
 	     (derl-trace-input "LINK: %S %S" from to)
+	     (add-to-list 'derl-remote-links (cons to from))
 	     (erl-add-link to from)))
 	  ((2) ;; send: [2 COOKIE TO-PID]
 	   (let ((to-pid (tuple-elt ctl 3)))
@@ -310,9 +319,12 @@ initiated if necessary and the request is queued."
     (unless (get-buffer derl-bufname)
       (erl-connect node))
     (with-current-buffer derl-bufname
-      (if derl-alive
-	  (derl-do-request request)
-	(push request derl-request-queue)))))
+      (cond (derl-shutting-down
+	     nil)
+	    (derl-alive
+	     (derl-do-request request))
+	    (t
+	     (push request derl-request-queue))))))
 
 (defun derl-do-request (req)
   (apply (car req) (cdr req)))
@@ -327,6 +339,7 @@ initiated if necessary and the request is queued."
 
 (defun derl-link (from to)
   (derl-trace-output "LINK: %S %S" from to)
+  (add-to-list 'derl-remote-links (cons from to))
   (derl-send-request (tuple 1 from to) nil t))
 
 (defun derl-unlink (from to)
@@ -385,6 +398,12 @@ buffer.")
 ;; ------------------------------------------------------------
 
 (defun derl-nodedown (node)
+  (setq derl-shutting-down t)
+  (dolist (link derl-remote-links)
+    (let ((local  (car link))
+	  (remote (cdr link)))
+      (message "LOCAL: %S REMOTE %S" local remote)
+      (erl-send-exit remote local 'noconnection)))
   (run-hook-with-args 'erl-nodedown-hook node))
 
 (defun derl-nodeup (node)
