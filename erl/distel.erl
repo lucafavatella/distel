@@ -361,8 +361,8 @@ debug_subscriber(Pid) ->
                           fmt("~p:~p/~p", [M,F,length(A)]),
                           fmt("~w", [Status]),
                           fmt("~w", [Info])]]];
-        X ->
-            io:format("Unrecognised: ~p~n", [X])
+        _ ->
+	    ok
     end,
     ?MODULE:debug_subscriber(Pid).
 
@@ -380,38 +380,80 @@ debug_format_row(Pid, MFA, Status, Info) ->
 %% spawn_link's a new process to proxy messages between Emacs and
 %% Pid's meta-process.
 debug_attach(Emacs, Pid) ->
-    spawn_link(?MODULE, debug_attach_init, [Emacs, Pid]).
+    spawn_link(?MODULE, attach_init, [Emacs, Pid]).
 
-debug_attach_init(Emacs, Pid) ->
+%% State for attached process, based on `dbg_ui_trace' in the debugger.
+-record(attach, {emacs,			% pid()
+		 meta,			% pid()
+		 status,		% break | running | idle | ...
+		 where,			% {Mod, Line}
+		 stack			% {CurPos, MaxPos}
+		}).
+
+attach_init(Emacs, Pid) ->
     link(Emacs),
     case int:attached(Pid) of
         {ok, Meta} ->
-            debug_attach_loop(Emacs, Meta, false);
+            attach_loop(#attach{emacs=Emacs,
+					meta=Meta,
+					status=idle,
+					stack={undefined,undefined}});
         error ->
             exit({error, {unable_to_attach, Pid}})
     end.
 
-debug_attach_loop(Emacs, Meta, Broken) ->
+attach_loop(Att = #attach{emacs=Emacs, meta=Meta}) ->
     receive
 	{Meta, {break_at, Mod, Line, Pos}} ->
-	    Bs = sort(int:meta(Meta, bindings, Pos)),
-	    Vars = [fmt("~s = ~w", [pad(10, Name), Val]) || {Name,Val} <- Bs],
-	    Emacs ! {meta, {break_at, Mod, Line, Pos}},
-	    Emacs ! {variables, Vars},
-	    ?MODULE:debug_attach_loop(Emacs, Meta, true);
-	{Meta, running} ->
-	    Emacs ! {meta, running},
-	    ?MODULE:debug_attach_loop(Emacs, Meta, false);
-        {Meta, Msg} ->
-            Emacs ! {meta, Msg},
-	    ?MODULE:debug_attach_loop(Emacs, Meta, Broken);
+	    Att1 = Att#attach{status=break,
+			      where={Mod, Line},
+			      stack={Pos, Pos}},
+	    attach_goto(Emacs, Meta, Mod, Line, Pos, Pos),
+	    ?MODULE:attach_loop(Att1);
+	{Meta, Status} when atom(Status) ->
+	    Emacs ! {status, Status},
+	    ?MODULE:attach_loop(Att#attach{status=Status,
+					   where=undefined});
+	{meta, Other} ->
+	    %% FIXME: there are more messages to handle, like
+	    %% re_entry, exit_at
+	    ?MODULE:attach_loop(Att);
+	{emacs, meta, Cmd} when Att#attach.status == break ->
+	    attach_loop(attach_meta_cmd(Att, Cmd));
 	{emacs, meta, Cmd} ->
-	    case Broken of
-		true ->
-		    int:meta(Meta, Cmd);
-		false ->
-		    Emacs ! {message, <<"Not in break">>}
-	    end,
-	    ?MODULE:debug_attach_loop(Emacs, Meta, Broken)
+	    Emacs ! {message, <<"Not in break">>},
+	    ?MODULE:attach_loop(Att)
     end.
 
+attach_meta_cmd(Att, Cmd) when Att#attach.status /= break ->
+    Att#attach.emacs ! {message, <<"Not in break">>},    
+    Att;
+attach_meta_cmd(Att = #attach{emacs=Emacs, meta=Meta, stack={Pos,Max}}, Cmd) ->
+    if
+	Cmd == up; Cmd == down ->
+	    case int:meta(Meta, stack_frame, {Cmd, Pos}) of
+		{NewPos, Mod, Line} ->
+		    attach_goto(Emacs, Meta, Mod, Line, NewPos, Max),
+		    Att#attach{stack={NewPos, Max}};
+		X when X == top; X == bottom, Pos == Max ->
+		    Emacs ! {message, <<"Can't go further">>},
+		    Att;
+		bottom ->
+		    %% Special case: `int' tells us we're at the
+		    %% bottom, but really we're trying to go down from
+		    %% the second-last frame. Here we take ourselves
+		    %% directly to the bottom when this happens.
+		    {Mod, Line} = Att#attach.where,
+		    attach_goto(Emacs, Meta, Mod, Line, Max, Max),
+		    Att#attach{stack={Max, Max}}
+	    end;
+	true ->
+	    int:meta(Meta, Cmd),
+	    Att
+    end.
+
+attach_goto(Emacs, Meta, Mod, Line, Pos, Max) ->
+    Bs = sort(int:meta(Meta, bindings, Pos)),
+    Vars = [fmt("~s = ~w", [pad(10, Name), Val]) || {Name,Val} <- Bs],
+    Emacs ! {variables, Vars},
+    Emacs ! {location, Mod, Line, Pos, Max}.

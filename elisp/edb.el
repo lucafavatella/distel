@@ -213,7 +213,7 @@ Available commands:
 	   (assert (erl-pid-p pid))
 	   (setq edb-pid pid)
 	   (setq edb-node (erl-pid-node pid))))
-       (&edb-attach-init)))))
+       (&edb-attach-loop)))))
 
 ;; Variables listing window
 
@@ -235,22 +235,15 @@ The *Variables* buffer is killed with the current buffer."
 
 ;; Attach process states
 
-(defun &edb-attach-init ()
-  "Handle initial {attached, Module, Line, Trace}, then enter attach loop."
-  (erl-receive ()
-      (([meta [attached Mod Line Trace]]
-	(if (eq mod 'null)
-	    (&edb-attach-loop)
-	  (&edb-attach-find-source mod line))))))
-
 (defun &edb-attach-loop ()
   "Attached process loop."
   (erl-receive ()
-      (([meta [break_at Mod Line Trace]]
-	(let ((msg (format "Status: break at %S:%S" mod line)))
-	  (setq header-line-format msg))
+      (([location Mod Line Pos Max]
+ 	(let ((msg (format "Location: %S:%S (Stack pos: %S/%S)"
+			   mod line pos max)))
+ 	  (setq header-line-format msg))
 	(&edb-attach-goto-source mod line))
-       ([meta Status]
+       ([status Status]
 	(unless (memq status '(running idle))
 	  (message "Unrecognised status: %S" status))
 	(setq header-line-format (format "Status: %S" status))
@@ -316,12 +309,16 @@ Available commands:
 \\[erl-quit-viewer]	- Quit the viewer (doesn't kill the process)
 \\[edb-attach-step]	- Step (into expression)
 \\[edb-attach-next]	- Next (over expression)
+\\[edb-attach-up]	- Up to the next stack frame
+\\[edb-attach-down]	- Down to the next stack frame
 \\[edb-attach-continue]	- Continue (until breakpoint)"
   nil
   " (attached)"
   '(([? ] . edb-attach-step)
     ([?n] . edb-attach-next)
     ([?c] . edb-attach-continue)
+    ([?u] . edb-attach-up)
+    ([?d] . edb-attach-down)
     ([?q] . erl-quit-viewer)
     ([?h] . edb-attach-help)))
 
@@ -338,6 +335,12 @@ Available commands:
 (defun edb-attach-continue ()
   (interactive)
   (edb-attach-meta-cmd 'continue))
+(defun edb-attach-up ()
+  (interactive)
+  (edb-attach-meta-cmd 'up))
+(defun edb-attach-down ()
+  (interactive)
+  (edb-attach-meta-cmd 'down))
 
 (defun edb-attach-meta-cmd (cmd)
   (erl-send edb-pid `[emacs meta ,cmd]))
