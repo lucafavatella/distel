@@ -127,10 +127,10 @@
 		    ;; Insert value, indent all lines of it 4 places,
 		    ;; then draw a " => " at the start.
 		    (insert value)
-		    (save-excursion (indent-rigidly beg (point) 4)
+		    (save-excursion (indent-rigidly beg (point) 5)
 				    (goto-char beg)
-				    (delete-region (point) (+ (point) 4))
-				    (insert " => ")))
+				    (delete-region (point) (+ (point) 5))
+				    (insert " --> ")))
 		  (insert "\n\n")
 		  (push-mark (point) t))
 	      (display-message-or-view (format "Result: %s" value)
