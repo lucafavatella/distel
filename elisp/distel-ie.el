@@ -164,8 +164,8 @@ behaviour to this default is used.")
 
     (with-current-buffer (erl-ie-session node)
       (goto-char (point-max))
-      (insert cloned-buffer)
-      (pop-to-buffer (current-buffer)))))
+      (insert cloned-buffer))
+    (erl-ie-popup-buffer node)))
 
 ;;
 ;; erl-ie-copy-region-to-session
@@ -181,8 +181,12 @@ behaviour to this default is used.")
     (with-current-buffer (erl-ie-session node)
       (goto-char (point-max))
       (set-mark (point))		; so the region will be right
-      (insert cloned-region)
-      (pop-to-buffer (current-buffer)))))
+      (insert cloned-region))
+    (erl-ie-popup-buffer node)))
+
+
+(defun erl-ie-popup-buffer (node)
+  (pop-to-buffer (erl-ie-session node)))
 
 
 (provide 'distel-ie)
