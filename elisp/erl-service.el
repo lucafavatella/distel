@@ -438,7 +438,7 @@ If there is no function call under point, returns nil."
   ;; in the right place
   (unless (member (char-syntax (char-after (point)))
 		  '(?w ?_))
-    (backward-sexp)
+    (backward-sexp))
   (forward-sexp)
   ;; Special case handling: On some emacs installations (Tobbe's
   ;; machine), the (forward-sexp) won't skip over the : in a remote
@@ -447,7 +447,7 @@ If there is no function call under point, returns nil."
   ;; '.'), whereas my emacs calls it a symbol separator (syntax class
   ;; '_'). FIXME.
   (when (eq (char-after) ?:)
-    (forward-sexp))))
+    (forward-sexp)))
 
 (defun erl-get-arity ()
   "Get the number of arguments in a function call.
