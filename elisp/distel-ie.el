@@ -75,8 +75,10 @@
   (interactive (list (erl-ie-read-nodename)))
   (erl-ie-read-nodename)
   (let ((end (point))
-	(beg (save-excursion (re-search-backward "\\(\\`\\|^\\<\\)")
-			     (point))))
+	(beg (save-excursion
+	       (loop do (re-search-backward "\\(\\`\\|^\\<\\)")
+		     while (looking-at "end"))
+	       (point))))
     (erl-ie-evaluate beg end node t)))
 
 (defun erl-ie-eval-defun (node)
