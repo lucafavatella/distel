@@ -57,7 +57,8 @@
       (error "erl: Can't determine hostname."))))
 
 (when (null erl-node-name)
-  (setq erl-node-name (intern (concat "distel@" (erl-determine-hostname)))))
+  (setq erl-node-name
+	(intern (format "distel_%S@%s" (emacs-pid) (erl-determine-hostname)))))
 
 (defconst erl-null-pid (make-erl-local-pid 0)
   "\"Null process\", the /dev/null of erl processes.
