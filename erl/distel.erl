@@ -11,9 +11,59 @@
 
 -import(lists, [flatten/1]).
 
--export([process_list/0, process_summary/1, process_summary_and_trace/2, fprof/3]).
+-export([rpc_entry/3, eval_expression/1, process_list/0, process_summary/1,
+	 process_summary_and_trace/2, fprof/3]).
 
--export([tracer_init/2, null_gl/0]).
+-export([gl_proxy/1, tracer_init/2, null_gl/0]).
+
+%% ----------------------------------------------------------------------
+%% RPC entry point, adapting the group_leader protocol.
+
+rpc_entry(M, F, A) ->
+    GL = group_leader(),
+    Name = gl_name(GL),
+    case whereis(Name) of
+	undefined ->
+	    Pid = spawn(?MODULE, gl_proxy, [GL]),
+	    register(Name, Pid),
+	    group_leader(Pid, self());
+	Pid ->
+	    group_leader(Pid, self())
+    end,
+    apply(M,F,A).
+
+gl_name(Pid) ->
+    list_to_atom(flatten(io_lib:format("distel_gl_for_~p", [Pid]))).
+
+gl_proxy(GL) ->
+    receive
+	{io_request, From, ReplyAs, {put_chars, C}} ->
+	    GL ! {put_chars, C},
+	    From ! {io_reply, ReplyAs, ok};
+	{io_request, From, ReplyAs, {put_chars, M, F, A}} ->
+	    GL ! {put_chars, flatten(apply(M, F, A))},
+	    From ! {io_reply, ReplyAs, ok};
+	{io_request, From, ReplyAs, {get_until, _, _, _}} ->
+	    %% Input not supported, yet
+	    From ! {io_reply, ReplyAs, eof}
+    end,
+    gl_proxy(GL).
+
+%% ----------------------------------------------------------------------
+
+eval_expression(S) ->
+    {ok, Scan, _} = erl_scan:string(S),
+    case erl_parse:parse_exprs(Scan) of
+	{ok, Parse} ->
+	    case catch erl_eval:exprs(Parse, []) of
+		{value, V, _} ->
+		    {ok, flatten(io_lib:format("~p", [V]))};
+		{'EXIT', Reason} ->
+		    {error, Reason}
+	    end;
+	{error, {_, erl_parse, Err}} ->
+	    {error, Err}
+    end.
 
 %% ----------------------------------------------------------------------
 %% Summarise all processes in the system.
