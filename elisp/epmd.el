@@ -1,3 +1,4 @@
+(eval-when-compile (require 'cl))
 (require 'net-fsm)
 
 (defvar epmd-hosts '("localhost")
@@ -20,7 +21,7 @@
 
 (defun epmd-recv-names-resp (event data)
   (check-event event 'data)
-  (assert (>= (length arg) 4))
+  (assert (>= (length data) 4))
   (fsm-terminate (substring arg 4)))
 
 (defun epmd-recv-port-resp (event data)
@@ -75,9 +76,9 @@
 (defun epmd-port-please (node host cont &optional fail-cont)
   (fsm-connect host epmd-port #'epmd-process (concat "p" node) cont fail-cont))
 
-(defun epmd-login (nodename &optional cont fail-cont)
-  (fsm-connect host epmd-port #'epmd-process (epmd-make-alive-req nodename)
-	       cont fail-cont))
+;; (defun epmd-login (nodename &optional cont fail-cont)
+;;   (fsm-connect host epmd-port #'epmd-process (epmd-make-alive-req nodename)
+;; 	       cont fail-cont))
 
 ;; (defun epmd-make-alive-req (nodename)
 ;;   (with-temp-buffer
