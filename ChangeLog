@@ -1,5 +1,8 @@
 2002-07-29  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/erl.el (erl-determine-hostname): Doing a better job of
+	figuring out the local hostname, to choose emacs's node name.
+
 	* everywhere: On-line documentation improvements, so that
 	'describe-mode' (C-h m) will tell you about all the funky features
 	of the various modes.
