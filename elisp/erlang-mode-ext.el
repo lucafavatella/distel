@@ -1,19 +1,17 @@
-;;; erlang-mode-ext.el --- Extensions to erlang-mode
+;;; erlang-mode-ext.el --- Extensions to erlang-mode based on Distel
 
+;; Prerequisites
 (require 'erl)
 (require 'erlang)
+(require 'erl-service)
 
-(defun debug-interpret (node module)
-  (interactive (list (erl-read-nodename)
-		     (erlang-get-module)))
-  (erl-spawn
-    (erl-send-rpc node 'int 'i (list module))
-    (erl-receive ()
-	(([tuple rex [tuple module Mod]]
-	  (message "Now interpreting %S" mod))
-	 ([tuple rex error]
-	  (message "Failed!"))))))
+;; Debugger
+(require 'edb)
 
-(define-key erlang-mode-map "\C-c\M-:" 'erl-eval-expression)
+;; Extended feature key bindings (C-x C-e prefix)
+(define-key erlang-mode-map "\C-c\C-e:" 'erl-eval-expression)
+(define-key erlang-mode-map "\C-c\C-ep" 'fprof)
+(define-key erlang-mode-map "\C-c\C-ef" 'erl-find-source)
+(define-key erlang-mode-map "\C-c\C-el" 'erl-process-list)
 
 (provide 'erlang-mode-ext)
