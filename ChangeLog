@@ -1,3 +1,13 @@
+2002-08-20  david wallin  <david.wallin@ul.ie>
+
+	* elisp/distel.el (erlang-extended-mode): Added a keybinding
+	  for erl-ie-evaluate: C-M-x.
+
+	* elisp/distel-ie.el (erl-ie-evaluate): If the current buffer 
+	  isn't a session; start a session and copy the marked region 
+	  over to it. All interaction will then take place in the 
+	  session buffer.
+
 2002-08-20  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-find-source-under-point): Can now

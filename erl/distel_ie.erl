@@ -92,6 +92,15 @@ loop({Defs, Line, Bindings}) ->
 	    Emacs ! Result,
 	    loop({Defs, NL, NB}) ;
 
+%	 {defined_functions, Emacs} ->
+%Funcs = ets:tab2list(Defs),
+%Emacs !
+%loop(Defs, Line, Bindings) ;
+
+%	{bindings, Emacs} ->
+%Emacs ! {bindings, Bindings},
+%loop(Defs, Line, Bindings) ; 
+
 	forget_bindings ->
 	    put(distel_ie_bindings, []),
 	    loop({Defs, Line, []}) ;
@@ -249,7 +258,6 @@ add_remote_call_info([{tuple, L, Values} | Rs], Defs) ->
 
     F = fun(X) -> add_remote_call_info(X, Defs) end,
     [{tuple, L, lists:map(F, Values)} | add_remote_call_info(Rs, Defs)] ;
-    
 
 add_remote_call_info([{Type, L, Hdr, Body} | Rs], Defs) when list(Body) ->
 
