@@ -640,7 +640,7 @@ functions(Mod, Prefix) ->
 %% ----------------------------------------------------------------------
 
 %% @spec free_vars(Text::string()) -> string()
-%% @equiv free_vars(Text, Name, 1)
+%% @equiv free_vars(Text, 1)
 
 free_vars(Text) ->
     free_vars(Text, 1).
