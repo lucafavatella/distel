@@ -1,5 +1,11 @@
 2002-12-16  Luke Gorrie  <luke@bluetail.com>
 
+	* erl/distel.erl (debug_add): Now always reinterpreting modules,
+	even when int:interpreted() says they're already interpreted,
+	since it can give false information if modules are reloaded behind
+	its back. Maybe we need to talk with OTP about the semantics of
+	reloading interpreted modules in various ways..
+
 	* elisp/derl.el (derl-cookie): Variable for explicitly setting
 	cookie (from Mats Cronqvist)
 
