@@ -1,3 +1,26 @@
+2004-08-26  Luke Gorrie  <luke@bluetail.com>
+
+	* erl/distel.erl: Added who_calls/3 front-end to cross
+	referencing.
+
+	* elisp/patmatch.el (patmatch): Fixed bugs in matching lists and
+	tuples.
+
+2004-08-25  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-read-call-mfa): This is now the One
+	True Way to determine the module/function/arity for a command to
+	operate on.
+	(erl-who-calls): New command to list all callers of a given
+	function.
+	(erl-node-name): Renamed to `erl-target-node'. Does not look at
+	prefix argument anymore. If you want to switch nodes you now have
+	to use `M-x erl-choose-node' instead of just `C-u'. This frees up
+	the prefix argument for more interesting uses.
+
+	* elisp/erl.el (&erl-group-leader-loop): Make the *erl-output*
+	window scroll properly.
+
 2004-05-27  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-refactor-subfunction): More
