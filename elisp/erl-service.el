@@ -412,6 +412,9 @@ time it spent in subfunctions."
   "History ring tracing for following functions to their definitions.")
 
 (defun erl-find-source-under-point (node)
+  "Goto the source code that defines the function being called at point.
+For remote calls, contacs an Erlang node to determine which file to
+look in."
   (interactive (list (erl-read-nodename)))
   (let ((mfa (erl-get-call-mfa)))
     (when (null mfa)
@@ -514,6 +517,7 @@ When FUNCTION is specified, the point is moved to its start."
 	  (error "%S" reason))))))
 
 (defun erl-search-function (function arity)
+  "Goto the definition of FUNCTION/ARITY in the current buffer."
   (let ((origin (point))
 	(str (concat "\n" (symbol-name function) "("))
 	(searching t))
@@ -533,6 +537,7 @@ When FUNCTION is specified, the point is moved to its start."
 	       (message "Couldn't find function %S" function)))))))
 
 (defun erl-read-symbol-or-nil (prompt)
+  "Read a symbol, or NIL on empty input."
   (let ((s (read-string prompt)))
     (if (string= s "")
 	nil
