@@ -5,6 +5,11 @@
 (require 'erl-service)
 (require 'erlang)
 (require 'ewoc)
+(require 'overlay)		; load compatibility library in XEmacs
+
+;; Hack for XEmacs compatibility..
+(unless (fboundp 'line-beginning-position)
+  (defalias 'line-beginning-position 'point-at-bol))
 
 ;; ----------------------------------------------------------------------
 ;; Configurables
