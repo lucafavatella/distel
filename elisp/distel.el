@@ -35,8 +35,8 @@ use. This name will be cached for future commands. To override the
 cache, give a prefix argument with C-u before using the command.
 \\<erlang-extended-mode-map>
 \\[erl-process-list]	- List all Erlang processes (\"pman\").
-\\[erl-find-source-under-point]		- Jump to the definition of a function call (dynamic TAGS).
-\\[erl-find-source-unwind]		- Jump back from a definition.
+\\[erl-find-source-under-point]		- Jump from a function call to its definition.
+\\[erl-find-source-unwind]		- Jump back from a function definition (multi-level).
 \\[erl-eval-expression]	- Evaluate an erlang expression from the minibuffer.
 \\[fprof]	- Profile (with fprof) an expression from the minibuffer.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
@@ -45,9 +45,17 @@ cache, give a prefix argument with C-u before using the command.
 \\[erl-ie-session]	- Create an interactive \"session\" buffer.
 \\[erl-ie-copy-buffer-to-session]	- Create an interactive \"session\" buffer from current buffer.
 \\[erl-ie-copy-region-to-session]	- Create an interactive \"session\" buffer from region.
+
+Most commands that pop up new buffers will save your original window
+configuration, so that you can restore it by pressing 'q'. Use
+`describe-mode' (\\[describe-mode]) on any Distel buffer when you want
+to know what commands are available. To get more information about a
+particular command, use \"\\[describe-key]\" followed by the command's key
+sequence. For general information about Emacs' online help, use
+\"\\[help-for-help]\".
 "
   nil
-  '(" EXT" (edb-module-interpreted ":interpreted" ""))
+  nil
   '(("\C-c\C-di" . edb-toggle-interpret)
     ("\C-c\C-db" . edb-toggle-breakpoint)
     ("\C-c\C-dm" . edb-monitor)
@@ -67,3 +75,13 @@ cache, give a prefix argument with C-u before using the command.
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
     ))
+
+;; Setup mode-line info for erlang-extended-mode
+;;
+;; NB: Would use the LIGHTER argument for define-minor-mode, but it's
+;; not working portably: my copy of Emacs21 disagrees with emacs20 and
+;; xemacs on whether it should be quoted.
+(add-to-list 'minor-mode-alist
+	     '(erlang-extended-mode
+	       (" EXT" (edb-module-interpreted ":interpreted" ""))))
+
