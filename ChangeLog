@@ -1,5 +1,7 @@
 2002-11-24  Luke Gorrie  <luke@bluetail.com>
 
+	* configure: Added configure script to CVS.
+
 	* elisp/distel.el (erlang-extended-mode): Added completion binding
 	on M-?, since M-TAB is often used by window managers.
 
