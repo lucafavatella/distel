@@ -200,14 +200,12 @@ Properties is an alist of:
   "Header listing for fprof text entries.
 This is received from the Erlang module.")
 
-(defun fprof (node m f a)
+(defun fprof (node expr)
   "Profile a function and summarise the results."
   (interactive (list (erl-read-nodename)
-		     (intern (read-string "Module: "))
-		     (intern (read-string "Function: "))
-		     (eval-minibuffer "Args: ")))
+		     (erl-add-terminator (read-string "Expression: "))))
   (erl-spawn
-    (erl-send-rpc node 'distel 'fprof (list m f a))
+    (erl-send-rpc node 'distel 'fprof (list expr))
     (message "Waiting for fprof reply...")
     (erl-receive ()
 	(([tuple rex [tuple ok Preamble Header Entries]]
@@ -322,12 +320,12 @@ time it spent in subfunctions."
 
 (defun erl-eval-expression (node string)
   (interactive (list (erl-read-nodename)
-		     (read-string "Expression: ")))
+		     (erl-add-terminator (read-string "Expression: "))))
   (erl-spawn
     (erl-send-rpc node
 		  'distel
 		  'eval_expression
-		  (list (erl-add-terminator string)))
+		  (list string))
     (erl-receive ()
 	(([tuple rex [tuple ok String]]
 	  (display-message-or-buffer string))
@@ -341,6 +339,41 @@ time it spent in subfunctions."
   (if (string-match "\\.\\s *$" s)
       s
     (concat s ".")))
+
+;; ------------------------------------------------------------
+;; Find the source for a module
+
+(defun erl-find-source (node module &optional function k kargs)
+  "Find the source code for MODULE in a buffer, loading it if necessary.
+When FUNCTION is specified, the point is moved to its start.
+When a continuation K is given, it is invoked from inside the source
+buffer."
+  (interactive (list (erl-read-nodename)
+		     (intern (read-string "Module: "))
+		     (erl-read-symbol-or-nil "Function (optional): ")))
+  (erl-spawn
+    (erl-send-rpc node 'distel 'find_source (list module))
+    (erl-receive (function k kargs)
+	(([tuple rex [tuple ok Path]]
+	  (find-file path)
+	  (when function
+	    (erl-search-function function))
+	  (when k (apply k kargs)))
+	 ([tuple rex [error Reason]]
+	  (error "%S" reason))))))
+
+(defun erl-search-function (function)
+  (let ((str (concat "\n" (symbol-name function) "(")))
+    (goto-char (point-min))
+    (if (search-forward str nil nil)
+	(beginning-of-line)
+      (message "Couldn't find function %S" function))))
+
+(defun erl-read-symbol-or-nil (prompt)
+  (let ((s (read-string prompt)))
+    (if (string= s "")
+	nil
+      (intern s))))
 
 (provide 'erl-service)
 
