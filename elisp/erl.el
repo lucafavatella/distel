@@ -221,10 +221,10 @@ WHO can be a pid, a registered name (symbol), or a tuple of
 	(t
 	 (error "Bad pid: %S" who))))
 
-(defun erl-exit (why &optional process)
+(defun erl-exit (why &optional who)
   "Exit the current process.
 Like the erlang BIF exit/1."
-  (if process
+  (if who
       (erl-send-exit erl-self who why)
     (signal 'erl-exit-signal (list why))))
 
