@@ -1,3 +1,18 @@
+2002-07-29  Luke Gorrie  <luke@bluetail.com>
+
+	* erlang-mode-ext.el: Switch keybindings prefix to "C-cC-d". Now
+	have an "erlang-extended-mode" minor mode, which includes all
+	extensions including edb.
+
+	* elisp/erl.el (erl-run-process): When a process crashes due to an
+	elisp error, the exit reason is stringified to avoid e.g.  trying
+	to send buffer objects to erlang nodes inside an exit reason.
+
+	* edb.el, distel.erl: Debugger enhancements.
+	
+	* derl.el: Stopped including "TICK" messages in the
+	"*trace <nodename>*" buffers. They're too distracting.
+
 2002-07-27  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl.el (erl-idle): (erl-idle) puts the process into a
