@@ -387,7 +387,8 @@ Calls the current continuation from within the process' buffer."
 	(erl-exit-signal (erl-terminate (cadr data)))
 	;; FIXME: For now, any error causes the process to terminate
 	;; and scheduling to continue. Is this best?
-	(error           (erl-terminate `[tuple emacs-error ,data]))))))
+	(error           (erl-terminate (tuple 'emacs-error
+					       (format "%S" data))))))))
 
 (defun erl-make-schedulable (pid)
   "Add PID to the list of runnable processes, so that it will execute
@@ -473,8 +474,8 @@ during the next `erl-schedule'."
 	erl-process-buffer-alist)
   (make-local-variable 'kill-buffer-hook)
   (put 'kill-buffer-hook 'permanent-local t)  
-  (add-hook 'kill-buffer-hook #'erl-unenroll-process)
-  (add-hook 'kill-buffer-hook #'erl-propagate-exit))
+  (add-hook 'kill-buffer-hook 'erl-unenroll-process)
+  (add-hook 'kill-buffer-hook 'erl-propagate-exit))
 
 (defun erl-unenroll-process ()
   (setq erl-process-buffer-alist
