@@ -247,8 +247,6 @@ gen_digest() function:
   
 (defun derl-handle-tick ()
   (when (derl-have-tick)
-    (derl-trace-input "TICK")
-    (derl-trace-output "TICK")
     (derl-eat-msg)
     (derl-send-msg "")
     t))
