@@ -62,6 +62,15 @@ the null process.")
 schedulable processes are guaranteed to be executed before control is
 passed back to emacs.")
 
+(defvar erl-default-group-leader erl-null-pid
+  ;; Initialized to a real process further down
+  "Default group_leader for new processes.
+Processes spawned by other processes will inherit their GL, but
+\"brand new\" ones will use this.")
+
+(defvar erl-popup-on-output t
+  "Popup *erl-output* when new output arrives.")
+
 ;; Process-local variables
 
 (defmacro defprocvar (symbol &optional initvalue docstring)
@@ -83,7 +92,7 @@ other buffers defaults to `erl-null-pid'.")
   "Process mailbox.
 Contains messages for the process, which it's supposed to process and
 remove. Messages are ordered from oldest to newest.")
-(defprocvar erl-group-leader erl-null-pid
+(defprocvar erl-group-leader nil
   "Group leader process.")
 (defprocvar erl-continuation nil
   "Function for the scheduler to call to run the process.")
@@ -233,6 +242,8 @@ The pattern syntax is the same as `pmatch'."
 (defun erl-start-receive (bs clauses after)
   ;; Setup a continuation and immediately return to the scheduler
   ;; loop, which will call us back.
+  (when (equal erl-self erl-null-pid)
+    (error "No process context for erl-receive"))
   (erl-continue #'erl-receive* bs clauses after)
   (erl-reschedule))
 
@@ -296,9 +307,11 @@ schedulable. The scheduler loop is entered if we aren't being called
 by it already.
 If LINK is true, the process is linked before being run."
   (let* ((%pid (make-erl-local-pid))
-	 (%buffer (get-buffer-create (erl-pid-buffer-name %pid))))
+	 (%buffer (get-buffer-create (erl-pid-buffer-name %pid)))
+	 (%gl (or erl-group-leader erl-default-group-leader)))
     (with-current-buffer %buffer
       (setq erl-self %pid)
+      (setq erl-group-leader %gl)
       (setq erl-continuation %init-function)
       (setq erl-continuation-args nil)
       (erl-enroll-process))
@@ -509,6 +522,22 @@ during the next `erl-schedule'."
 (put 'erl-spawn-async 'lisp-indent-function 'defun)
 (put 'erl-receive 'lisp-indent-function 2)
 (put 'with-bindings 'lisp-indent-function 1)
+
+;; Group leader
+
+(defun erl-group-leader-loop ()
+  (erl-receive ()
+      (([tuple put_chars S]
+	(goto-char (point-max))
+	(insert s)
+	(when erl-popup-on-output
+	  (display-buffer (current-buffer)))))
+    (erl-group-leader-loop)))
+
+(setq erl-default-group-leader
+      (erl-spawn
+	(rename-buffer "*erl-output*")
+	(erl-group-leader-loop)))
 
 (provide 'erl)
 
