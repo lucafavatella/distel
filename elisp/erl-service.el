@@ -722,36 +722,42 @@ When FUNCTION is specified, the point is moved to its start."
 (defun erl-complete (node)
   "Complete the module or remote function name at point."
   (interactive (list (erl-read-nodename)))
-  (let* ((end (point))
-	 (beg (save-excursion (backward-sexp 1)
-			      ;; FIXME: see erl-goto-end-of-call-name
-			      (when (eql (char-before) ?:)
-				(backward-sexp 1))
-			      (point)))
-	 (str (buffer-substring-no-properties beg end))
-	 (buf (current-buffer))
-	 (continuing (equal last-command (cons 'erl-complete str))))
-    (setq this-command (cons 'erl-complete str))
-    (if (string-match "^\\(.*\\):\\(.*\\)$" str)
-	;; completing function in module:function
-	(let ((mod (intern (match-string 1 str)))
-	      (pref (match-string 2 str))
-	      (beg (+ beg (match-beginning 2))))
+  (let ((end (point))
+	(beg (ignore-errors 
+	       (save-excursion (backward-sexp 1)
+			       ;; FIXME: see erl-goto-end-of-call-name
+			       (when (eql (char-before) ?:)
+				 (backward-sexp 1))
+			       (point)))))
+    (when beg
+      (let* ((str (buffer-substring-no-properties beg end))
+	     (buf (current-buffer))
+	     (continuing (equal last-command (cons 'erl-complete str))))
+	(setq this-command (cons 'erl-complete str))
+	(if (string-match "^\\(.*\\):\\(.*\\)$" str)
+	    ;; completing function in module:function
+	    (let ((mod (intern (match-string 1 str)))
+		  (pref (match-string 2 str))
+		  (beg (+ beg (match-beginning 2))))
+	      (erl-spawn
+		(erl-send-rpc node 'distel 'functions (list mod pref))
+		(&erl-receive-completions "function" beg end pref buf
+					  continuing
+					  #'erl-complete-sole-function)))
+	  ;; completing just a module
 	  (erl-spawn
-	    (erl-send-rpc node 'distel 'functions (list mod pref))
-	    (&erl-receive-completions "function" beg end pref buf continuing)))
-      ;; completing just a module
-      (erl-spawn
-	(erl-send-rpc node 'distel 'modules (list str))
-	(&erl-receive-completions "module" beg end str buf continuing)))))
+	    (erl-send-rpc node 'distel 'modules (list str))
+	    (&erl-receive-completions "module" beg end str buf continuing
+				      #'erl-complete-sole-module)))))))
 
-(defun &erl-receive-completions (what beg end prefix buf continuing)
+(defun &erl-receive-completions (what beg end prefix buf continuing sole)
   (let ((state (erl-async-state buf)))
-    (erl-receive (what state beg end prefix buf continuing)
+    (erl-receive (what state beg end prefix buf continuing sole)
 	((['rex ['ok completions]]
 	  (when (equal state (erl-async-state buf))
 	    (with-current-buffer buf
-	      (erl-complete-thing what continuing beg end prefix completions))))
+	      (erl-complete-thing what continuing beg end prefix
+				  completions sole))))
 	 (['rex ['error reason]]
 	  (message "Error: %s" reason))
 	 (other
@@ -767,14 +773,15 @@ want to cancel the operation."
     (cons (buffer-modified-tick)
 	  (point))))
 
-(defun erl-complete-thing (what scrollable beg end pattern completions)
+(defun erl-complete-thing (what scrollable beg end pattern completions sole)
   "Complete a string in the buffer.
 WHAT is a string that says what we're completing.
 SCROLLABLE is a flag saying whether this is a repeated command that
 may scroll the completion list.
 BEG and END are the buffer positions around what we're completing.
 PATTERN is the string to complete from.
-COMPLETIONS is a list of potential completions (strings.)"
+COMPLETIONS is a list of potential completions (strings.)
+SOLE is a function which is called when a single completion is selected."
   ;; This function, and `erl-maybe-scroll-completions', are basically
   ;; cut and paste programming from `lisp-complete-symbol'. The fancy
   ;; Emacs completion packages (hippie and pcomplete) looked too
@@ -783,13 +790,16 @@ COMPLETIONS is a list of potential completions (strings.)"
       (let* ((completions (erl-make-completion-alist completions))
 	     (completion (try-completion pattern completions)))
 	(cond ((eq completion t)
-	       (message "Sole completion"))
+	       (message "Sole completion")
+	       (apply sole '()))
 	      ((null completion)
 	       (message "Can't find completion for %s \"%s\"" what pattern)
 	       (ding))
 	      ((not (string= pattern completion))
 	       (delete-region beg end)
-	       (insert completion))
+	       (insert completion)
+	       (if (eq t (try-completion completion completions))
+		   (apply sole '())))
 	      (t
 	       (message "Making completion list...")
 	       (let ((list (all-completions pattern completions)))
@@ -797,6 +807,15 @@ COMPLETIONS is a list of potential completions (strings.)"
 		 (with-output-to-temp-buffer "*Completions*"
 		   (display-completion-list list)))
 	       (message "Making completion list...%s" "done"))))))
+
+(defun erl-complete-sole-module ()
+  (insert ":"))
+
+(defun erl-complete-sole-function ()
+  (let ((call (erlang-get-function-under-point)))
+    (insert "(")
+    (erl-print-arglist call (erl-read-nodename))))
+
 
 (defun erl-make-completion-alist (list)
   "Make an alist out of list.
@@ -987,27 +1006,30 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
                      erl-nodename-cache))
   (let ((call (erlang-get-function-under-point)))
     (self-insert-command n)
-    (when (and node (member node erl-nodes))
-      ;; Don't print arglists when we're defining a function (when the
-      ;; "call" is at the start of the line)
-      (unless (save-excursion
-              (skip-chars-backward "a-zA-Z0-9_:'(")
-              (bolp))
-        (let* ((call-mod (car call))
-               (mod (or call-mod (erlang-get-module)))
-               (fun (cadr call)))
-          (when fun
-            (erl-spawn
-              (erl-send-rpc node 'distel 'get_arglists
-                            (list mod fun))
-              (erl-receive (call-mod fun)
-                  ((['rex 'error])
-                   (['rex arglists]
-                    (message (erl-format-arglists call-mod fun arglists))))))))))))
+    (erl-print-arglist call node)))
+
+(defun erl-print-arglist (call node)
+  (when (and node (member node erl-nodes))
+    ;; Don't print arglists when we're defining a function (when the
+    ;; "call" is at the start of the line)
+    (unless (save-excursion
+	      (skip-chars-backward "a-zA-Z0-9_:'(")
+	      (bolp))
+      (let* ((call-mod (car call))
+	     (mod (or call-mod (erlang-get-module)))
+	     (fun (cadr call)))
+	(when fun
+	  (erl-spawn
+	    (erl-send-rpc node 'distel 'get_arglists
+			  (list mod fun))
+	    (erl-receive (call-mod fun)
+		((['rex 'error])
+		 (['rex arglists]
+		  (message (erl-format-arglists call-mod fun arglists)))))))))))
 
 (defun erl-format-arglists (module function arglists)
   (setq arglists (sort* arglists '< :key 'length))
-  (format "%s%s: %s"
+  (format "%s%s%s"
           (if module (concat module ":") "")
           function
           (mapconcat 'identity
