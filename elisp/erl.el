@@ -157,7 +157,7 @@ alternative."
 (defun erl-send (who message)
   "Send the term MESSAGE to the process WHO.
 WHO can be a pid, a registered name (symbol), or a tuple of
-[tuple REGNAME NODENAME]."
+ [tuple REGNAME NODENAME]."
   (cond ((erl-null-pid-p who)
 	 (erl-lose-msg message))
 	((erl-local-pid-p who)
@@ -193,9 +193,15 @@ normally."
   (setq erl-continuation k)
   (setq erl-continuation-args args))
 
+(defun erl-reschedule ()
+  "Return immedaitely (via `throw') to the scheduler.
+Also makes the current process immediately reschedulable."
+  ;; the scheduler loop will catch this and know what to do
+  (throw 'schedule-out 'reschedule))
+
 ;; receive
 
-(defmacro erl-receive (vars &rest clauses)
+(defmacro erl-receive (vars clauses &rest after)
   "Receive a message, matched by pattern.
 If the mailbox contains a matching message, the pattern's body is
 executed immediately. Otherwise, `erl-continue' is used to make the
@@ -209,27 +215,43 @@ matching message is received, the clause's body might not be executed
 in the original dynamic environment. Consequently, any local variable
 bindings that need to be preserved should be named in VARS.
 
+After a pattern has been matched and executed, the AFTER forms are
+then executed.
+
 The overall syntax for receive is:
 
   (erl-receive (VAR-NAME ...)
-    (PATTERN . BODY)
-    ...)
+      ((PATTERN . BODY)
+       ...)
+    . AFTER)
 
 The pattern syntax is the same as `pmatch'."
-  `(erl-receive* (capture-bindings ,@vars)
-		 ,(mcase-parse-clauses clauses)))
+  `(erl-start-receive (capture-bindings ,@vars)
+		      ,(mcase-parse-clauses clauses)
+		      (lambda () ,@after)))
 
-(defun erl-receive* (bs clauses)
-  (erl-receive-loop bs clauses erl-mailbox))
+(defun erl-start-receive (bs clauses after)
+  ;; Setup a continuation and immediately return to the scheduler
+  ;; loop, which will call us back.
+  (erl-continue #'erl-receive* bs clauses after)
+  (erl-reschedule))
 
-(defun erl-receive-loop (bs clauses msgs &optional acc)
+(defun erl-receive* (bs clauses after)
+  (erl-receive-loop bs clauses after erl-mailbox))
+
+(defun erl-receive-loop (bs clauses after msgs &optional acc)
   (if (null msgs) 
-      (erl-continue #'erl-receive* bs clauses)
-    (let ((action (mcase-choose (car msgs) clauses)))
+      (erl-continue #'erl-receive* bs clauses after)
+    (let ((action
+	   ;; We restore the bindings incase they are referred to in patterns
+	   (with-bindings bs
+	     (mcase-choose (car msgs) clauses))))
       (if (null action)
-	  (erl-receive-loop bs clauses (cdr msgs) (cons (car msgs) acc))
+	  (erl-receive-loop bs clauses after (cdr msgs) (cons (car msgs) acc))
 	(setq erl-mailbox (append (reverse acc) (cdr msgs)))
-	(call-with-bindings bs action)))))
+	(with-bindings bs
+	  (funcall action)
+	  (funcall after))))))
 
 (defun erl-register (name &optional process)
   "Register PROCESS with NAME."
@@ -247,6 +269,9 @@ is unregistered."
 
 (defun regname-to-bufname (name)
   (format "*reg %S*" name))
+
+(defalias 'erl-term-to-binary #'erlext-term-to-binary)
+(defalias 'erl-binary-to-term #'erlext-binary-to-term)
 
 ;; Guts
 ;;
@@ -336,9 +361,14 @@ Calls the current continuation from within the process' buffer."
       ;; FIXME: must do something about errors, currently they can
       ;; create zombie processes.
       (condition-case data
-	  (progn (apply %k %args)
-		 (unless erl-continuation ; don't have a next continuation?
-		   (erl-terminate 'normal)))
+	  (progn
+	    ;; if they (throw 'schedule-out 'reschedule), we put them
+	    ;; back on the front of the scheduling queue
+	    (when (eq 'reschedule
+		      (catch 'schedule-out (prog1 nil (apply %k %args))))
+	      (push %pid erl-schedulable-processes))
+	    (unless erl-continuation ; don't have a next continuation?
+	      (erl-terminate 'normal)))
 	(erl-exit-signal (erl-terminate (cadr data)))))))
 
 (defun erl-make-schedulable (pid)
@@ -478,7 +508,7 @@ during the next `erl-schedule'."
 (put 'with-erl-process 'lisp-indent-function 1)
 (put 'erl-spawn 'lisp-indent-function 'defun)
 (put 'erl-spawn-async 'lisp-indent-function 'defun)
-(put 'erl-receive 'lisp-indent-function 1)
+(put 'erl-receive 'lisp-indent-function 2)
 (put 'with-bindings 'lisp-indent-function 1)
 
 (provide 'erl)

@@ -4,8 +4,8 @@
 @settitle Distel
 @c %**end of header
 
-@set EDITION 1.0
-@set UPDATED 2 April 2002
+@set EDITION 2.0
+@set UPDATED 21 April 2002
 
 @titlepage
 @title Distel: Distributed Emacs Lisp
@@ -20,13 +20,13 @@
 
 @noindent
 
-
 @menu
 * Introduction::                Overview of features.
 * Data Types::                  Mapping between Emacs Lisp and Erlang
                                 data structures.
 * Processes::                   How to write processes.
-* BIFs::                        Built-in functions.
+* Programming Interface::       
+* Scheduler Internals::         
 * Ready-To-Go Commands::        
 * Example Programs::            Small examples, excerpted from the distbution.
 * Tips and Tricks::             Using and debugging Emacs Lisp processes
@@ -40,10 +40,10 @@
 Distel extends Emacs Lisp with Erlang's processes and message
 passing. Processes are spawned and scheduled, they send and receive
 messages, link with one another, crash, and so on, all within
-Emacs. They also use Erlang's distribution protocol to transparently
-communicate with other processes in real Erlang nodes. This
-integration makes Emacs Lisp suitable for writing clients and
-front-ends to Erlang programs.
+Emacs. They also use Erlang's distribution protocol to communicate
+with other processes in real Erlang nodes, just as other nodes
+would. This integration makes Emacs Lisp suitable for writing clients
+and front-ends to Erlang programs.
 
 For example, this is an Emacs process that brutally terminates a
 remote Erlang node, via the RPC server that all nodes run by default:
@@ -62,13 +62,12 @@ spawn(fun() -> @{rex, mynode@@myhost@} !
       end).
 @end lisp
 
-You can see that the Emacs Lisp process has exactly the same structure
-as the Erlang one. Of course, not just any Erlang program can be
+You can see that the Emacs Lisp process has much the same structure as
+the Erlang one. Of course, not just any Erlang program can be
 translated into Emacs Lisp, because only an ``essential'' subset of
-Erlang is implemented. This subset includes mailboxes, process links,
-registered names, and distribution. It excludes pattern matching (for
-the moment), the Bit Syntax (for the imaginable future), a fully
-equivalent @code{receive} construct (forever), and so on.
+Erlang is implemented. This subset includes pattern matching,
+messages, process links, registered names, and distribution. It
+excludes the ``bit syntax'', ports, and so on.
 
 The overall intention is to make Emacs a suitable user-interface
 toolkit for Erlang programs, especially development and debugging
@@ -76,6 +75,26 @@ tools. Distel currently includes simple programs for viewing and
 tracing processes in a running Erlang node, similar to the @cite{pman}
 application. It makes this type of program easy to write and
 convenient to use.
+
+Here's a more meaty example to whet your appetite:
+
+@example
+(defun spawn-math-server ()
+  "Start a server process for doing simple calculations."
+  (erl-spawn
+    (erl-register 'math)
+    (math-server-loop)))
+
+(defun math-server-loop ()
+  (erl-receive ()
+      (([tuple calculate Who What]
+        (erl-send who (mcase what
+                        ([tuple add X Y] (+ x y))
+                        ([tuple sub X Y] (- x y))
+                        (Other `[tuple bad_operation ,other]))))
+       (Other (message "Unexpected message: %S" other)))
+    (math-server-loop)))
+@end example
 
 @node Data Types, Processes, Introduction, Top
 @chapter Data Types
@@ -123,7 +142,7 @@ onto an Erlang binary -- this may make the mapping asymmetric.
 Some types aren't mapped yet, such as Float, Function, and Ref. It is
 an error to send these types to an Emacs Lisp node!
 
-@node Processes, BIFs, Data Types, Top
+@node Processes, Programming Interface, Data Types, Top
 @chapter Processes
 
 Processes are buffers that have PIDs and can send and receive
@@ -132,63 +151,26 @@ contain text, have key bindings, use modes, etc.
 
 Some processes may do nothing interesting with their buffers, like the
 example RPC client. User-interface processes can be more interesting
-by displaying information in their buffer, binding key to commands
+by displaying information in their buffer, binding keys to commands
 that do work and send messages, and updating the buffer contents when
 messages are received.
 
 @menu
-* Representation and Scheduling::  What processes really are.
-* Process Variables::           Special variables available to processes.
+* Process State::               Variables that define a process.
 * Current Process::             How the ``current process'' is defined.
 @end menu
 
-@node Representation and Scheduling, Process Variables, Processes, Processes
-@section Representation and Scheduling
+@node Process State, Current Process, Processes, Processes
+@section Process State
 
-The state of a process is recorded in some buffer-local variables,
-such as @var{erl-self} and @var{erl-mailbox}. Such variables make up
-all of the process' identity and state, so ``context switching'' is
-simply a matter of changing to another process' buffer.
-
-Because Emacs Lisp has no built-in concurrency, a custom scheduler is
-used to run processes. This requires processes to be written in
-@dfn{continuation-passing style}: each process has a ``continuation''
-variable containing its ``next function'' -- the function to call when
-the process is next scheduled. Initially, the process' continuation
-function will execute the code given in the @code{erl-spawn} call.
-
-To run a process, the scheduler simply switches into the process'
-buffer and calls its continuation function. The function does a finite
-amount of processing, optionally sets a @dfn{next continuation} by
-calling @code{erl-continue}, and returns to the scheduler. If no next
-continuation was set, the process is terminated with reason
-@code{normal}. If a new continuation was set then the process is
-marked as ``waiting'' and left alive. Waiting processes become
-runnable when they receive a message, and are then invoked again with
-their new continuation, and so on.
-
-The scheduler itself is event-driven: the only events that can cause a
-process to become runnable are process creation and message
-delivery. On each of these events, the scheduler loop runs until no
-processes are left runnable, and then returns control to Emacs.
-
-@node Process Variables, Current Process, Representation and Scheduling, Processes
-@section Process Variables
-
-Buffer-local variables define the state and identity of the
-process. These variables can be manipulated directly by processes to
-get their PID, read messages, etc.
+The state of a process is recorded in buffer-local variables. Such
+variables make up all of the process's identity and state, so ``context
+switching'' is simply a matter of changing to another process's
+buffer. Although some variables are ``internal'', these ones can be
+accessed directly:
 
 @defvar erl-self
 This variable is bound to the PID of the current process.
-@end defvar
-
-@defvar erl-mailbox
-This variable is a list representing the mailbox, or ``message
-queue'', of the process. Each time a message is received it is
-appended to this list. Because there is no special ``receive''
-construct, the process should check this variable for messages and
-remove them from the list as necessary.
 @end defvar
 
 @defvar erl-group-leader
@@ -204,20 +186,7 @@ process_flag(trap_exit, true)
 @end example
 @end defvar
 
-There are some other variables that are ``internal'', in that a
-process probably doesn't have to manipulate them directly. These
-include the continuation state, which is described here because it's
-so fundamental to the implementation:
-
-@defvar erl-continuation
-The ``next function'' continuation. @xref{Representation and Scheduling}.
-@end defvar
-
-@defvar erl-continuation-args
-The argument list for @code{erl-continuation}.
-@end defvar
-
-@node Current Process,  , Process Variables, Processes
+@node Current Process,  , Process State, Processes
 @section Current Process
 
 There is always some ``current process'' bound to @var{erl-self},
@@ -235,17 +204,42 @@ Emacs is not in the buffer of any particular process, @var{erl-self}
 is bound to @code{erl-null-pid}.
 @end defvar
 
-@node BIFs, Ready-To-Go Commands, Processes, Top
-@chapter BIFs
+@node Programming Interface, Scheduler Internals, Processes, Top
+@chapter Programming Interface
+
+The programming interface is very much like Erlang's, and most
+functions do just what you would expect. There are however some
+important differences.
+
+The most important difference is that when a process ``schedules out''
+it has to return from its current function to the ``scheduler loop'',
+with a note saying what it wants to do the next time it gets scheduled
+(unless it's finished). This returning up the Elisp stack means that
+scheduling out causes all of the process's dynamic variable bindings
+to be undone, its @code{unwind-protect}'s executed, and the functions
+on its stack returned to (actually -- bypassed by @code{throw}). The
+overall effect is that variable bindings and control state have to be
+explicitly preserved between schedules.
+
+In practice this is not a great imposition, since the only time a
+process needs to reschedule is when it blocks in ``receive''. The
+@code{erl-receive} construct is conveniently extended to save and
+restore specific variable bindings for when the process is
+rescheduled, and to accept series of forms to execute after the
+matching clause runs.
+
+@xref{Scheduler Internals} for more details on the scheduler's
+internal workings.
 
 @menu
 * Spawning and Running::        Creating new processes
-* General::                     Built In Functions, similar to those in Erlang.
+* Pattern Matching::            
+* BIFs::                        
 * Tuples::                      Functions for dealing with tuples.
 * PIDs::                        Functions for dealing with PIDs.
 @end menu
 
-@node Spawning and Running, General, BIFs, BIFs
+@node Spawning and Running, Pattern Matching, Programming Interface, Programming Interface
 @section Spawning and Running
 
 Emacs Lisp processes, like Erlang ones, are created by being
@@ -282,37 +276,125 @@ Create a new process like @code{erl-spawn-async}, but link it with
 the current process before executing.
 @end defmac
 
-@defun erl-continue function &rest args
-Set the ``next continuation'' of the process, such that the next time
-it is scheduled it will apply @var{function} to @var{args}. This will
-@emph{not} occur in the same dynamic environment -- the @var{let}
-bindings in effect when @code{erl-continue} is called won't be
-available to the continuation. Important state and bindings should be
-passed in @var{args} (much like an Erlang function call), or stored in
-a buffer local variable (much like the Erlang process dictionary).
+@defmac erl-receive saved-vars clauses &rest after
+Receive a message from the process mailbox, like Erlang's
+@code{receive}. The complete syntax is similar to @code{mcase}
+(@xref{Pattern Matching}):
 
-For example, this server (excerpted from @file{erl-example.el}) counts
-the number of messages that it receives:
+@example
+(erl-receive (@var{saved-var ...})
+    ((@var{pattern} @var{body...})
+     @var{...})
+  @var{after...})
+@end example
 
+The first message matching a @var{pattern} is removed from the process
+mailbox, the corresponding @var{body} forms are executed, and then the
+@var{after} forms are executed regardless of which pattern matched. If
+necessary the process waits until a matching message
+arrives. Receiving a message involves a return to the scheduler (via
+@code{throw}), so dynamic variable bindings will @emph{not} be
+preserved, except for the @var{saved-vars} which are saved and then
+restored before the @var{body} is executed. Variables that are matched
+by value in a @var{pattern} must also be included is @var{saved-vars}.
+
+Here's a complete example, excerpted from @file{erl-example.el}:
 @example
 @group
 (defun spawn-counter ()
   (erl-spawn
     (erl-register 'counter)
-    (erl-continue 'counter-loop 0)))
-@end group
+    (counter-loop 1)))
 
-@group
 (defun counter-loop (count)
-  (while erl-mailbox
-    (message "Got message #%S: %S" (incf count) (pop erl-mailbox)))
-  (erl-continue 'counter-loop count))
+  (erl-receive (count)
+      ((Msg (message "Got message #%S: %S" count msg)))
+    (counter-loop (1+ count))))
 @end group
 @end example
-@end defun
 
-@node General, Tuples, Spawning and Running, BIFs
-@section General
+@strong{Note:} Because the caller's stack is @code{throw}'n away,
+calls to @code{erl-receive} should always be tail-calls. All
+@code{unwind-protect}, @code{condition-case}, or other forms with
+dynamic extent are also unwound before the match is made.
+
+@xref{Common Pitfalls} for important tips, either now or when you
+start wondering ``why the fuck isn't X getting called?!'' @code{;-)}
+@end defmac
+
+@node Pattern Matching, BIFs, Spawning and Running, Programming Interface
+@section Pattern Matching
+
+There are macros for pattern matching, roughly equivalent to Erlang's
+(minus guards). The following summarises the pattern syntax:
+
+@table @asis
+@item Trivial: @code{nil}, @code{42}, @code{my-symbol}, @code{[]}
+Numbers, symbols (beginning in lowercase), @code{nil}, @code{[]}, and
+other atomic types. These patterns match literally with @code{equal}.
+@item Pattern Variable: @code{My-Variable}
+Symbol beginning in uppercase. Pattern variables take on the value of
+the corresponding object, and are bound to lisp variables if the match
+succeeds. Pattern variable names are converted to lowercase before
+becoming lisp variables. If the same pattern variable occurs more than
+once, then all of its bindings must agree, as in Erlang.
+@item Quoted Constant: @code{'object}, @code{(quote object)}
+Matches @var{object} literally with @code{equal}.
+@item Bound Variable: @code{,bound-var}
+Symbol preceeded by an comma. Matches the value of the (already bound)
+lisp variable @var{bound-var} with @code{equal}.
+@item Wildcard: @code{_} (underscore)
+As in Erlang, a wildcard matches anything without creating a binding.
+@item Sequence: @code{(pat1 ...)}, @code{[pat1 ...]}
+List or vector of patterns. Matches the ``shape'' (type and length) of
+the sequence, as well as each subpattern.
+@end table
+
+This pattern syntax is used for the macros that follow, as well as
+@code{erl-receive}.
+
+@defmac pmatch pattern object &rest body
+Match @var{pattern} with @var{object}, and execute @var{body} with all
+pattern variable bindings in effect. If @var{pattern} doesn't match,
+an error is signaled. For example,
+
+@example
+@group
+(pmatch [tuple value Key] my-tuple
+  (message "The key is %S" key))
+@end group
+@end example
+@end defmac
+
+@defmac mcase object &rest clauses
+Pattern matching ``case'' expression. The full syntax is:
+@example
+@group
+(mcase @var{expr}
+  (@var{pattern} @var{body...})
+   @var{...})
+@end group
+@end example
+For example, we can translate Erlang @code{case} expressions
+into Emacs @code{mcase}:
+@example
+@group
+case X of
+    @{add, X, Y@} -> X + Y;
+    @{sub, X, Y@} -> X - Y;
+    _           -> error
+end.  
+  @result{}
+(mcase x
+  ([tuple add X Y] (+ x y))
+  ([tuple sub X Y] (- x y))
+  (_               'error))
+@end group
+@end example
+@end defmac
+
+@node BIFs, Tuples, Pattern Matching, Programming Interface
+@section BIFs
 
 @defun erl-send who message
 Send the term @var{message} to the process @var{who}. As in Erlang,
@@ -355,17 +437,17 @@ Return the PID of the process registered with @var{name}, or nil if
 the name is unregistered.
 @end defun
 
-@defun erlext-term-to-binary object
+@defun erl-term-to-binary object
 Encode @var{object} into the external term format, and return the
 result as a string.
 @end defun
 
-@defun erlext-binary-to-term string
+@defun erl-binary-to-term string
 Decode @var{string} from the external term format into a data
 structure.
 @end defun
 
-@node Tuples, PIDs, General, BIFs
+@node Tuples, PIDs, BIFs, Programming Interface
 @section Tuples
 
 @defun tuple &rest elements
@@ -390,7 +472,7 @@ Convert @var{tuple} to a list. For example,
 Return the number of elements in @var{tuple}.
 @end defun
 
-@node PIDs,  , Tuples, BIFs
+@node PIDs,  , Tuples, Programming Interface
 @section PIDs
 
 @defun erl-pid-p object
@@ -409,7 +491,51 @@ Predicate for PIDs on remote nodes.
 Return the node name (a symbol) of the @var{pid}.
 @end defun
 
-@node Ready-To-Go Commands, Example Programs, BIFs, Top
+@node Scheduler Internals, Ready-To-Go Commands, Programming Interface, Top
+@chapter Scheduler Internals
+
+Because Emacs Lisp has no built-in concurrency, a custom scheduler is
+used to run processes. This scheduler is based on a technique called
+@dfn{Trampolined Style} (@xref{Related Work}), which is related to
+continuation-passing style. The gist is that each process has a
+``continuation'' variable containing its ``next function'' -- the
+function to call when the process is next scheduled. Initially, the
+process's continuation function will execute the code given in the
+@code{erl-spawn} call.
+
+To run a process, the scheduler simply switches into the process's
+buffer and calls its continuation function. The function does a finite
+amount of processing and then either simply returns, or makes a
+``blocking'' call to @code{erl-receive} which sets up a next
+continuation to wait for the right message. If the process just
+returned without setting a next continuation, it is exited with reason
+@code{normal}. Otherwise the process is marked as ``waiting'' and left
+alive. Waiting processes become runnable when they receive a message,
+and are then invoked again with their new continuation, and so
+on. @code{erl-receive} works by continually installing itself as the
+next continuation until a matching message arrives, and then executing
+the appropriate body clause.
+
+The scheduler itself is event-driven: the only events that can cause a
+process to become runnable are process creation and message
+delivery. On each of these events, the scheduler loop runs until no
+processes are left runnable, and then returns control to Emacs.
+
+The pattern-matching @code{erl-receive} is not actually built into the
+scheduler, but is implemented in terms of the primitive function
+@code{erl-continue}.
+
+@defun erl-continue function &rest args
+Set the ``next continuation'' of the process, such that the next time
+it is scheduled it will apply @var{function} to @var{args}. This will
+@emph{not} occur in the same dynamic environment -- the @var{let}
+bindings in effect when @code{erl-continue} is called won't be
+available to the continuation. Important state and bindings should be
+passed in @var{args} (much like an Erlang function call), or stored in
+a buffer local variable (much like the Erlang process dictionary).
+@end defun
+
+@node Ready-To-Go Commands, Example Programs, Scheduler Internals, Top
 @chapter Ready-To-Go Commands
 
 There are only a couple of useful commands included so far:
@@ -418,7 +544,7 @@ There are only a couple of useful commands included so far:
 List all processes running on @var{node}. The list isn't updated
 automatically, but you can update it by running the command
 again. Pressing return on a process pops up a buffer showing its
-@code{process_info}, and starts a trace on the process' activities.
+@code{process_info}, and starts a trace on the process's activities.
 
 The @var{node} parameter is cached between calls, to override the
 cache use a prefix argument (@kbd{C-u}).
@@ -458,17 +584,16 @@ RECIPIENT, except for the symbol `exit' which is a shutdown message.
 The server registers the name `echo'."
   (erl-spawn
     (erl-register 'echo)
-    (erl-continue 'erlex-echo-loop recipient)))
+    (erlex-echo-loop recipient)))
 @end group
 
 @group
 (defun erlex-echo-loop (recipient)
   "The 'receive loop' of the echo server."
-  (while erl-mailbox
-    (let ((msg (pop erl-mailbox)))
-      (unless (eq msg 'exit)
-	(erl-send recipient msg)
-	(erl-continue 'erlex-echo-loop recipient)))))
+  (erl-receive (recipient)
+      ((exit t)
+       (Msg (erl-send recipient msg)
+            (erlex-echo-loop recipient)))))
 @end group
 @end example
 
@@ -482,7 +607,7 @@ process. These messages will end up in the *erl-lost-msgs* buffer -
 check for them there!"
   (interactive)
   (erl-spawn
-    (erlex-echo erl-null-pid)
+    (erlex-spawn-echo erl-null-pid)
     (erl-send 'echo "Hey,")
     (erl-send 'echo "it works!")
     (erl-send 'echo 'exit)))
@@ -504,7 +629,7 @@ The first argument to K is the result from the RPC, followed by the
 elements of KARGS."
   (erl-spawn
     (erl-send-rpc node m f a)
-    (erl-continue #'erl-rpc-receive k kargs)))
+    (erl-rpc-receive k kargs)))
 @end group
 
 @group
@@ -516,11 +641,9 @@ elements of KARGS."
   
 @group
 (defun erl-rpc-receive (k kargs)
-  "This is essentially the receive clause of `erl-rpc'."
-  (let ((msg (pop erl-mailbox)))
-    ;; Message should be [tuple rex REPLY], i.e. @{rex, Reply@}
-    (assert (and (tuplep msg) (eq 'rex (elt msg 1))))
-    (apply k (cons (elt msg 2) kargs))))
+  "Receive the reply to an `erl-rpc'."
+  (erl-receive (k kargs)
+      (([tuple rex Reply] (apply k (cons reply kargs))))))
 @end group
 @end example
 
@@ -530,7 +653,7 @@ And an emacs command front-end:
 @group
 (defun erpc (node m f a)
   "Make an RPC to an erlang node."
-  (interactive "SNode: \nSModule: \nSFunction: \nXArguments (expression): ")
+  (interactive "SNode: \nSModule: \nSFunction: \nXArgs (expression): ")
   (erl-rpc (lambda (result) (message "RPC result: %S" result))
            nil
            node
@@ -548,7 +671,7 @@ anything. Special significance is given to the pattern @file{*reg
 some zombie processes, you can find their buffers (e.g. with @kbd{M-x
 list-buffers}) kill them with @key{C-x k} just like any other
 buffer. This is equivalent to the @cite{interrupt} feature of the
-Erlang shell, and the process' @var{kill-buffer-hook} will still
+Erlang shell, and the process's @var{kill-buffer-hook} will still
 propagate the exit signal.
 
 All messages between distributed nodes are recorded in trace buffers
@@ -556,6 +679,55 @@ named @file{*trace @var{nodename}*}, which you can look in to see the
 actual messages being exchanged between nodes. The buffers associated
 with sockets to other nodes are named @file{*derl @var{nodename}}, and
 killing these buffers will safely sever connections.
+
+@node Common Pitfalls
+@section Common Pitfalls
+
+An easy mistake to make when ``thinking in Erlang'' is to make a call
+to @code{erl-receive} that is not in tail position. For example:
+
+@example
+(defun server-loop-bad ()
+  "DO NOT WRITE CODE LIKE THIS!"
+  (erl-receive ()
+      ((Msg (message "Got %S" msg))))
+  (server-loop-bad))
+@end example
+
+The @code{erl-receive} is not in tail position because more code (the
+recursion) is supposed to run after it returns. What actually happens
+is that @code{erl-receive} @code{throw}'s back up the stack to the
+scheduler loop, so the recursive call to @code{server-loop-bad} is
+never reached. The process just terminates after processing the first
+message.
+
+The correct way to write the function is this:
+
+@example
+(defun server-loop-good ()
+  "This function is fine."
+  (erl-receive ()
+      ((Msg (message "Got %S" msg)))
+    (server-loop-good)))
+@end example
+
+Or alternatively,
+
+@example
+(defun server-loop-good2 ()
+  "This function is also fine."
+  (erl-receive ()
+      ((Msg (message "Got %S" msg)
+            (server-loop-good2)))))
+@end example
+
+Here the recursion is explicit in the body of a receive clause or in
+the ``after'' code, rather than implicit in the caller's stack.
+
+You must @emph{always} be careful to place calls to @code{erl-receive}
+in tail position. The same applies to calling any function that can in
+turn call @code{erl-receive}. If you forget, then code that looks like
+it should run will get skipped.
 
 @node Hacking Distel,  , Tips and Tricks, Top
 @chapter Hacking Distel
@@ -565,7 +737,7 @@ killing these buffers will safely sever connections.
                                 source files.
 * Documents::                   Other documents containing important
                                 information.
-* Inspirations::                Related work.
+* Related Work::                
 @end menu
 
 @node Hitch Hikers Guide, Documents, Hacking Distel, Hacking Distel
@@ -592,7 +764,7 @@ A few test cases.
 Example code for doing nothing-in-particular.
 @end table
 
-@node Documents, Inspirations, Hitch Hikers Guide, Hacking Distel
+@node Documents, Related Work, Hitch Hikers Guide, Hacking Distel
 @section Documents
 
 Various goodies are described in text files in the OTP distribution:
@@ -602,7 +774,7 @@ authentication ``handshake'' protocol for connecting to a node is
 documented in
 @file{lib/kernel/internal_doc/distribution_handshake.txt}.
 
-@node Inspirations,  , Documents, Hacking Distel
+@node Related Work,  , Documents, Hacking Distel
 @section Related Work
 
 Related libraries in OTP versions past or present are
@@ -612,18 +784,36 @@ the distribution code in the emulator itself.
 Distel is also similar to @cite{ETOS}, the Erlang to Scheme compiler,
 in a modest sort of a way -- both systems implement Erlang runtime
 systems in Lisp. It's pretty interesting to see just how neatly this
-can be done in Scheme, using first-class continuations.
+can be done in Scheme, using first-class continuations. @cite{ETOS} is
+available from @url{http://www.iro.umontreal.ca/~etos/}. For some
+reason the latest version is only available in binary form, but the
+source to an older version is there. I don't know why it's so.
 
-@cite{ETOS} is available from
-@url{http://www.iro.umontreal.ca/~etos/}. For some reason, the latest
-version is only available in binary form, but the source to an older
-version is there. I don't know why it's so.
+The method of scheduling processes in Distel comes from the paper
+@cite{Trampolined Style} by Steven Ganz, Daniel Friedman, and Mitchell
+Wand. You can find a copy at
+@url{http://citeseer.nj.nec.com/217102.html}. It's a very pleasant
+read if you're familiar with Scheme.
 
 @section Contact
 
 The Distel homepage is at
 @url{http://www.bluetail.com/~luke/distel/}. Send feedback and patches
 to @email{luke@@bluetail.com}.
+
+@node Document Revision History
+@section Document Revision History
+
+@table @strong
+@item 2.0
+Major additions are pattern matching and @code{erl-receive}. This has
+simplified the programming interface a lot, causing fundamentals like
+@code{erl-mailbox} to become undocumented and @code{erl-continue} to
+be reclassified as an ``internal'' function.
+
+Added a reference to Trampolined Style.
+@item 1.0
+First version.
 
 @bye
 

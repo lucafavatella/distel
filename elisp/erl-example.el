@@ -13,9 +13,9 @@ The server registers the name `echo'."
 (defun erlex-echo-loop (recipient)
   "The 'receive loop' of the echo server."
   (erl-receive (recipient)
-   (exit t)
-   (Msg (erl-send recipient msg)
-	(erlex-echo-loop recipient))))
+      ((exit t)
+       (Msg (erl-send recipient msg)
+	    (erlex-echo-loop recipient)))))
 
 (defun erlex-echo-test ()
   "Test an echo server by having it forward some messages to the null
@@ -37,8 +37,8 @@ check for them there!"
 
 (defun counter-loop (count)
   (erl-receive (count)
-    (Msg (message "Got message #%S: %S" count msg)
-	 (counter-loop (1+ count)))))
+      ((Msg (message "Got message #%S: %S" count msg)))
+    (counter-loop (1+ count))))
 
 (defun counter-test ()
   (interactive)
@@ -53,4 +53,4 @@ check for them there!"
     ;; its registered name - it's buffer is "*reg counter*", and you
     ;; can safely C-x k it.
     ))
-    
+

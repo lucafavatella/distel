@@ -57,3 +57,16 @@
 (defun erl-continue-forever ()
   (erl-continue #'erl-continue-forever))
 
+(defun erl-spawn-tag-srv (tag)
+  (erl-spawn
+    (erl-register 'tag-srv)
+    (erl-tag-srv-loop tag)))
+
+(defun erl-tag-srv-loop (tag)
+  (erl-receive (tag)
+      (([,tag Msg]
+	(message "Tagged: %S" msg))
+       ([Other Msg]
+	(message "Other: %S %S" other msg)))
+    (erl-tag-srv-loop tag)))
+

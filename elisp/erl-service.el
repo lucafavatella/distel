@@ -42,7 +42,7 @@ elements of KARGS."
 (defun erl-rpc-receive (k kargs)
   "Receive the reply to an `erl-rpc'."
   (erl-receive (k kargs)
-    ([tuple rex Reply] (apply k (cons reply kargs)))))
+      (([tuple rex Reply] (apply k (cons reply kargs))))))
 
 (defun erpc (node m f a)
   "Make an RPC to an erlang node."
@@ -173,10 +173,10 @@ INFO is [tuple PID SUMMARY-STRING]."
 
 (defun erl-process-trace-loop ()
   (erl-receive ()
-    ([tuple trace_msg Text]
-     (goto-char (point-max))
-     (insert text)
-     (erl-process-trace-loop))))
+      (([tuple trace_msg Text]
+	(goto-char (point-max))
+	(insert text)))
+    (erl-process-trace-loop)))
 
 (provide 'erl-service)
 

@@ -1,0 +1,12 @@
+Version 2.0:
+
+	Major additions are pattern matching and `erl-receive'. This
+	has simplified the programming interface a lot, and made
+	`erl-mailbox' to become undocumented and `erl-continue' be
+	reclassified as an ``internal'' function. All existing
+	programs can be updated to be much neater. The actual changes
+	are backwards compatible, even though some things have
+	disappeared from the documentation.
+
+	Many thanks to Vladimir Sekissov and Darius Bacon for code and
+	advice on this release.
