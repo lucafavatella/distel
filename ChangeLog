@@ -1,3 +1,11 @@
+2004-05-24  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl.el (erl-nodes): New variable. Contains the list of
+	nodes that we're connected to, like the nodes() BIF.
+
+	* elisp/erl-service.el (erl-openparen): Don't lookup the arglist
+	unless we're actually connected to the node.
+
 2004-05-21  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl-service.el (erl-openparen): New command to print the
