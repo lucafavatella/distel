@@ -10,6 +10,8 @@
 (require 'epmd)
 (require 'erlext)
 (require 'md5)
+(eval-when-compile
+  (require 'cl))
 
 (defvar erl-dec32
   (if (eq system-type 'windows-nt)
@@ -200,8 +202,8 @@ complete and we become live."
   "Generate a message digest as required for the specification's
 gen_digest() function:
   (md5 (concat challenge-as-ascii-decimal cookie))"
-  (hexstring-to-binstring
-   (md5 (concat (erl-cookie) (int32-to-decimal challenge)))))
+  (derl-hexstring-to-binstring
+   (md5 (concat (erl-cookie) (derl-int32-to-decimal challenge)))))
 
 (defun erl-cookie ()
   (or derl-cookie
@@ -233,15 +235,15 @@ gen_digest() function:
 	    ctl
 	    req)
 	;; Decode the control message, and the request if it's present
-	(with-temp-buffer (unless (featurep 'xemacs)
-			    (set-buffer-multibyte nil))
-			  (insert msg)
-			  (goto-char (point-min))
-			  (assert (= (erlext-read1) 112))	; type = pass through..
-			  (setq ctl (erlext-read-whole-obj))
-			  (when (< (point) (point-max))
-			    (setq req (erlext-read-whole-obj))))
-	(ecase (tuple-elt ctl 1)
+	(let (default-enable-multibyte-characters)
+	  (with-temp-buffer 
+	    (insert msg)
+	    (goto-char (point-min))
+	    (assert (= (erlext-read1) 112)) ; type = pass through..
+	    (setq ctl (erlext-read-whole-obj))
+	    (when (< (point) (point-max))
+	      (setq req (erlext-read-whole-obj)))))
+	(ecase (erl-tuple-elt ctl 1)
 	  ((1) ;; link: [1 FROM TO]
 	   (let ((from (tuple-elt ctl 2))
 		 (to   (tuple-elt ctl 3)))
@@ -428,42 +430,53 @@ buffer.")
   ;; NB: only callable from the state machine
   (run-hook-with-args 'erl-nodeup-hook node fsm-process))
 
-(defun int32-to-decimal (s)
-  "Converts a 32-bit number (represented as a 4-byte string) into its
+(eval-and-compile
+  ;; Try to establish whether we have IEEE floating point.  In that
+  ;; case we can rely on exact floating point operations with enough
+  ;; of precision from the doubles used in Emacs floats.  Actually, we
+  ;; probably don't have non-IEEE FP on any platform, but I'm not sure
+  ;; what can happen if the systems's FP is set up to signal on
+  ;; divide-by-zero.  Note that `float_arith_driver' in data.c tests
+  ;; IEEE_FLOATING_POINT before dividing by zero, and signals an error
+  ;; in the non-IEEE case.
+  (cond ((string= "1.0e+INF" (format "%S" (condition-case ()
+					      (/ 1.0 0)
+					    (error nil))))
+	 (defun derl-int32-to-decimal (s)
+	   "Converts a 32-bit number (represented as a 4-byte string) into its
 decimal printed representation."
-  ;; This is a very hacky implementation that calls a custom C program
-  ;; to do the work. It would be great to replace this with some
-  ;; pure-elisp, but it would have to be clever to work around the
-  ;; lack of real 32-bit integers.
-  (ensure-have-dec32)
-  (let ((command (apply #'format
-			(cons (concat erl-dec32 " %d %d %d %d")
-			      (string-to-list s)))))
-    (shell-command-to-string command)))
+	   (format "%.0f" (+ (+ (aref s 3) (* 256 (aref s 2)))
+			     (* (+ 0.0 (aref s 1) (* 256 (aref s 0)))
+				65536)))))
+	((executable-find "dec32")
+	 (defun derl-int32-to-decimal (s)
+	   "Converts a 32-bit number (represented as a 4-byte string) into its
+decimal printed representation."
+	   ;; This is a very hacky implementation that calls a custom C program
+	   ;; to do the work. It would be great to replace this with some
+	   ;; pure-elisp, but it would have to be clever to work around the
+	   ;; lack of real 32-bit integers.
+	   (let ((command (apply #'format
+				 (cons (concat erl-dec32 " %d %d %d %d")
+				       (string-to-list s)))))
+	     (shell-command-to-string command))))
+	(t (error "dec32 helper program not found in PATH"))))
 
-(defun ensure-have-dec32 ()
-  (unless (have-program-p erl-dec32)
-    (error "dec32 helper program not found in PATH")))
-
-(defun have-program-p (program)
-  "Returns true iff PROGRAM is in the PATH."
-  (locate-library program t (split-string (getenv "PATH") path-separator)))
-
-(defun hexstring-to-binstring (s)
+(defun derl-hexstring-to-binstring (s)
   "Convert the hexidecimal string S into a binary number represented
 as a string of octets."
-  (let ((halves (mapcar #'hexchar-to-int (string-to-list s))))
-    (merge-halves halves)))
+  (let ((halves (mapcar #'derl-hexchar-to-int (string-to-list s))))
+    (derl-merge-halves halves)))
 
-(defun merge-halves (halves &optional acc)
+(defun derl-merge-halves (halves &optional acc)
   (if (null halves)
       (apply #'string (reverse acc))
-    (merge-halves (cddr halves)
-		 (cons (+ (ash (car halves) 4)
-			  (cadr halves))
-		       acc))))
+    (derl-merge-halves (cddr halves)
+		       (cons (+ (ash (car halves) 4)
+				(cadr halves))
+			     acc))))
 
-(defun hexchar-to-int (c)
+(defun derl-hexchar-to-int (c)
   (cond ((and (<= ?0 c) (<= c ?9))
 	 (- c ?0))
 	((and (<= ?a c) (<= c ?f))
