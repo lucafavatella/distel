@@ -24,15 +24,15 @@ See `pmatch' for a description of pattern syntax."
   "Match PATTERN with OBJECT, and execute BODY with all bindings.
 The pattern syntax is:
 
-Trivial: t, nil, [], 1, ...
+Trivial: nil, [], 42, my-symbol, ...
   Always `equal' to the matching value.
-Pattern variable: Var
+Pattern variable: Var (first letter uppercase)
   Variable that the pattern should bind. If the same variable
   appears several times in a pattern, then all of its bindings must
   match.
   NOTE: Pattern variable names are converted to lowercase and bound to
   lisp variables before calling BODY.
-Constant: 'foo, (quote foo)
+Constant: 'X, (quote quote)
   Quoted constant, matched with `equal'.
 Bound variable: ,var
   Pre-bound Lisp variable, matched by value.
