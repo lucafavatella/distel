@@ -1,3 +1,11 @@
+2003-03-10  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/distel.el: Added "C-x SPC" keybinding for toggling
+	breakpoints, for consistency with the rest of Emacs.
+
+	* elisp/erl-service.el: fdoc commands now accept a numeric prefix
+	to mean, "rebuild the doc database."
+
 2003-03-06  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/edb.el: Improved breakpoint handling.
