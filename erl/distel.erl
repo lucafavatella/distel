@@ -20,7 +20,7 @@
 	 break_toggle/2, break_delete/2, break_add/2, break_restore/1,
 	 modules/1, functions/2,
 	 free_vars/1, free_vars/2,
-	 apropos/1, describe/3]).
+	 apropos/1, apropos/2, describe/3, describe/4]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
@@ -678,8 +678,20 @@ strip(Ts)                -> Ts.
 %% Online documentation
 %% ----------------------------------------------------------------------
 
+apropos(RE, false) ->
+    apropos(RE);
+apropos(RE, true) ->
+    fdoc:stop(),
+    apropos(RE).
+
 apropos(RE) ->
     fdoc:get_apropos(RE).
+
+describe(M, F, A, false) ->
+    describe(M, F, A);
+describe(M, F, A, true) ->
+    fdoc:stop(),
+    describe(M, F, A).
 
 describe(M, F, A) ->
     fdoc:description(M, F, A).
