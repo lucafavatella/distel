@@ -1,6 +1,6 @@
 ;;; erl-service.el --- High-level calls to Erlang services.
 
-;;; Commentary:
+;;;; Frontmatter
 ;;
 ;; This module implements Emacs commands - i.e. M-x'able key-bind'able
 ;; sort - for doing stuff with Erlang nodes.
@@ -11,6 +11,116 @@
 (require 'erlang)
 (eval-when-compile (require 'cl))
 (require 'erl)
+
+;;;; Base framework
+
+;;;;; Target node
+
+(defvar erl-nodename-cache nil
+  "The name of the node most recently contacted, for reuse in future
+commands. Using C-u to bypasses the cache.")
+
+(defun erl-target-node ()
+  "Return the name of the default target node for commands."
+  (or erl-nodename-cache
+      (erl-choose-nodename)))
+
+(defun erl-choose-nodename ()
+  "Prompt the user for the nodename to connect to in future."
+  (interactive)
+  (setq erl-nodename-cache
+        (let ((name-string (read-string "Node: ")))
+          (intern (if (string-match "@" name-string)
+                      name-string
+                    (concat name-string
+                            "@" (erl-determine-hostname)))))))
+
+;;;;; Call MFA lookup
+
+(defun erl-read-call-mfa ()
+  "Read module, function, arity at point or from user.
+Returns the result in a list: module and function as strings, arity as
+integer."
+  (interactive) ; for testing
+  (let* ((mfa-at-point (erl-mfa-at-point))
+         (mfa (if (or (null mfa-at-point)
+                      current-prefix-arg
+                      distel-tags-compliant)
+                  (erl-parse-mfa (read-string "Function reference: "
+                                              (erl-format-mfa mfa-at-point)))
+                mfa-at-point)))
+    mfa))
+
+(defun erl-format-mfa (mfa)
+  "Format (MOD FUN ARITY) as MOD:FUN/ARITY.
+If MFA is nil then return nil.
+If only MOD is nil then return FUN/ARITY."
+  (if mfa
+      (destructuring-bind (m f a) mfa
+        (if m (format "%s:%s/%S" m f a) (format "%s/%S" f a)))))
+
+(defun erl-parse-mfa (string &optional default-module)
+  "Parse MFA from a string using `erl-mfa-at-point'."
+  (when (null default-module) (setq default-module (erl-buffer-module-name)))
+  (with-temp-buffer
+    (with-syntax-table erlang-mode-syntax-table
+      (insert string)
+      (goto-char (point-min))
+      (erl-mfa-at-point default-module))))
+
+(defun erl-buffer-module-name ()
+  "Return the current buffer's module name, or nil."
+  (erlang-get-module))
+
+(defun erl-mfa-at-point (&optional default-module)
+  "Return the module, function, arity of the function reference at point.
+If not module-qualified then use DEFAULT-MODULE."
+  (when (null default-module) (setq default-module (erl-buffer-module-name)))
+  (save-excursion
+    (erl-goto-end-of-call-name)
+    (let ((arity (erl-arity-at-point))
+	  (mf (erlang-get-function-under-point)))
+      (if (null mf)
+	  nil
+        (destructuring-bind (module function) mf
+          (list (or module default-module) function arity))))))
+
+;;; FIXME: Merge with erlang.el!
+(defun erl-arity-at-point ()
+  "Get the number of arguments in a function reference.
+Should be called with point directly before the opening ( or /."
+  ;; Adapted from erlang-get-function-arity.
+  (save-excursion
+    (cond ((looking-at "/")
+	   ;; form is /<n>, like the /2 in foo:bar/2
+	   (forward-char)
+	   (let ((start (point)))
+	     (if (re-search-forward "[0-9]+" nil t)
+                 (ignore-errors (car (read-from-string (match-string 0)))))))
+	  ((looking-at "[\n\r ]*(")
+	   (goto-char (match-end 0))
+	   (condition-case nil
+	       (let ((res 0)
+		     (cont t))
+		 (while cont
+		   (cond ((eobp)
+			  (setq res nil)
+			  (setq cont nil))
+			 ((looking-at "\\s *)")
+			  (setq cont nil))
+			 ((looking-at "\\s *\\($\\|%\\)")
+			  (forward-line 1))
+			 ((looking-at "\\s *,")
+			  (incf res)
+			  (goto-char (match-end 0)))
+			 (t
+			  (when (zerop res)
+			    (incf res))
+			  (forward-sexp 1))))
+		 res)
+	     (error nil))))))
+
+;;;; Backend code checking
 
 (add-hook 'erl-nodeup-hook 'erl-check-backend)
 
@@ -49,34 +159,7 @@ To disable this warning in future, set `distel-inhibit-backend-check' to t.
 	      (display-buffer (current-buffer))))
 	   (other t))))))
 
-(defvar erl-nodename-cache nil
-  "The name of the node most recently contacted, for reuse in future
-commands. Using C-u to bypasses the cache.")
-
-(defun erl-read-nodename ()
-  "Read a node name, either from a cached variable or the minibuffer.
-If a universal (C-u) prefix argument is in effect, the cache in skipped."
-  (if (and (not (consp current-prefix-arg))
-	   erl-nodename-cache)
-      erl-nodename-cache
-    (erl-read-nodename-from-user)))
-
-(defun erl-read-nodename-from-user ()
-  (let ((name-string (read-string "Node: ")))
-    (let ((name (intern (if (string-match "@" name-string)
-			    name-string
-			  (concat name-string
-				  "@" (erl-determine-hostname))))))
-      (when (derl-node-p name)
-	(setq erl-nodename-cache name))
-      name)))
-
-(defun erl-get-nodename ()
-  (interactive)
-    (erl-read-nodename-from-user))
-
-;; ------------------------------------------------------------
-;; RPC
+;;;; RPC
 
 (defun erl-rpc (k kargs node m f a)
   "Call {M,F,A} on NODE and deliver the result to the function K.
@@ -105,7 +188,7 @@ On an error, Result will be [badrpc Reason]."
 
 (defun erpc (node m f a)
   "Make an RPC to an erlang node."
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (intern (read-string "Module: "))
 		     (intern (read-string "Function: "))
 		     (eval-minibuffer "Args: ")))
@@ -114,14 +197,13 @@ On an error, Result will be [badrpc Reason]."
 	   node
 	   m f a))
 
-;; ------------------------------------------------------------
-;; Process List: summary of all processes on a node.
+;;;; Process list
 
 (defun erl-process-list (node)
   "Show a list of all processes running on NODE.
 The listing is requested asynchronously, and popped up in a buffer
 when ready."
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-target-node)))
   (erl-rpc #'erl-show-process-list (list node)
 	   node 'distel 'process_list '()))
 
@@ -274,8 +356,7 @@ truncate to fit on the screen."
       (message "Sent EXIT (kill) signal ")
       (erl-exit 'kill pid))))
 
-;; ------------------------------------------------------------
-;; Single process viewer
+;;;; Single process viewer
 
 (defun erl-view-process (pid)
   (let ((buf (get-buffer (erl-process-view-buffer-name pid))))
@@ -331,9 +412,7 @@ truncate to fit on the screen."
 	  (insert text))))
     (&erl-process-trace-loop)))
 
-;; ---------------------------------------------------------------------
-;; fprof
-;; Profiler front-end.
+;;;; fprof
 
 (defvar fprof-entries nil
   "Alist of Tag -> Properties.
@@ -350,7 +429,7 @@ This is received from the Erlang module.")
 
 (defun fprof (node expr)
   "Profile a function and summarise the results."
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (erl-add-terminator (read-string "Expression: "))))
   (erl-spawn
     (erl-send-rpc node 'distel 'fprof (list expr))
@@ -358,7 +437,7 @@ This is received from the Erlang module.")
 
 (defun fprof-analyse (node filename)
   "View an existing profiler analysis from a file."
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (read-string "Filename: ")))
   (erl-spawn
     (erl-send-rpc node 'distel 'fprof_analyse (list filename))
@@ -487,7 +566,7 @@ time it spent in subfunctions."
 ;;
 
 (defun erl-eval-expression (node string)
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (erl-add-terminator (read-string "Expression: "))))
   (erl-spawn
     (erl-send-rpc node
@@ -510,7 +589,7 @@ time it spent in subfunctions."
 
 (defun erl-reload-module (node module)
   "Reload a module."
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (let* ((module (erlang-get-module))
 			    (prompt (if module
 					(format "Module (default %s): " module)
@@ -526,8 +605,7 @@ time it spent in subfunctions."
   (erl-send-rpc node
 		'int 'i (list (cadr (assq module edb-interpreted-modules)))))
 
-;; ------------------------------------------------------------
-;; Find the source for a module
+;;;; Definition finding
 
 (defvar erl-find-history-ring (make-ring 20)
   "History ring tracing for following functions to their definitions.")
@@ -550,40 +628,8 @@ When `distel-tags-compliant' is non-nil, or a numeric prefix argument
 is given, the user is prompted for the function to lookup (with a
 default.)"
   (interactive)
-  (let* ((default-mfa (erl-get-call-mfa (erlang-get-module)))
-	 (mfa (if (or distel-tags-compliant
-		      (integerp current-prefix-arg)
-		      (null default-mfa))
-		  (erl-prompt-for-tag default-mfa "Find erlang function:")
-		default-mfa)))
-    (apply #'erl-find-source mfa)))
-
-(defun erl-prompt-for-tag (mfa prompt)
-  (let* ((default
-	   (if (null mfa)
-	       nil
-	     ;; [module:]function[/arity]
-	     (concat (if (first mfa)  (format "%s:" (first mfa)) "")
-		     (if (second mfa) (format "%s"  (second mfa)) "")
-		     (if (third mfa)  (format "/%S" (third mfa))))))
-	 (prompt (format "%s %s"
-			 prompt
-			 (if default
-			     (format "(default %s) " default)
-			   ""))))
-    (erl-get-call-mfa-from-string (erlang-get-module)
-				  (read-string prompt nil nil default))))
-
-(defun erl-get-call-mfa-from-string (module str)
-  (with-temp-buffer
-    (with-syntax-table erlang-mode-syntax-table
-      (insert str)
-      (insert " ")
-      (goto-char (point-min))
-      (let ((mfa (erl-get-call-mfa module)))
-	(when (null mfa)
-	  (error "Couldn't determine MFA of call"))
-	mfa))))
+  (apply #'erl-find-source
+         (or (erl-read-call-mfa) (error "No call at point."))))
 
 (defun erl-find-source-unwind ()
   "Unwind back from uses of `erl-find-source-under-point'."
@@ -597,29 +643,13 @@ default.)"
 	;; If this buffer was deleted, recurse to try the next one
 	(erl-find-source-unwind)))))
 
-(defun erl-get-call-mfa (&optional module)
-  "Return (MODULE FUNCTION ARITY) of the function call under point.
-If there is no function call under point, returns nil.
-ARITY is returned NIL if it cannot be determined."
-  (save-excursion
-    (erl-goto-end-of-call-name)
-    (let ((arity (erl-get-arity))
-	  (mf (erlang-get-function-under-point)))
-      (if (null mf)
-	  nil
-	;; (MODULE FUNCTION ARITY)
-	(list (if (or (car mf) module)
-		  (intern (or (car mf) module))
-		nil)
-	      (intern (cadr mf))
-	      arity)))))
-
 (defun erl-goto-end-of-call-name ()
-  "Go to the end of the function or module:function part of a function call."
+  "Go to the end of the function or module:function at point."
   ;; We basically just want to do forward-sexp iff we're not already
   ;; in the right place
-  (unless (member (char-syntax (char-after (point)))
-		  '(?w ?_))
+  (unless (or (member (char-before) '(?  ?\t ?\n))
+              (and (not (eobp))
+                   (member (char-syntax (char-after (point))) '(?w ?_))))
     (backward-sexp))
   (forward-sexp)
   ;; Special case handling: On some emacs installations (Tobbe's
@@ -631,54 +661,18 @@ ARITY is returned NIL if it cannot be determined."
   (when (eq (char-after) ?:)
     (forward-sexp)))
 
-(defun erl-get-arity ()
-  "Get the number of arguments in a function call.
-Should be called with point directly before the opening `('."
-  ;; Adapted from erlang-get-function-arity.
-  (save-excursion
-    (cond ((looking-at "/")
-	   ;; form is /<n>, like the /2 in foo:bar/2
-	   (forward-char)
-	   (let ((start (point)))
-	     (re-search-forward "\\([^0-9]\\|$\\)" nil t)
-	     (backward-char)
-	     (ignore-errors
-	       (car (read-from-string (buffer-substring start (point)))))))
-	  ((looking-at "[\n\r ]*(")
-	   (goto-char (match-end 0))
-	   (condition-case nil
-	       (let ((res 0)
-		     (cont t))
-		 (while cont
-		   (cond ((eobp)
-			  (setq res nil)
-			  (setq cont nil))
-			 ((looking-at "\\s *)")
-			  (setq cont nil))
-			 ((looking-at "\\s *\\($\\|%\\)")
-			  (forward-line 1))
-			 ((looking-at "\\s *,")
-			  (incf res)
-			  (goto-char (match-end 0)))
-			 (t
-			  (when (zerop res)
-			    (incf res))
-			  (forward-sexp 1))))
-		 res)
-	     (error nil))))))
-
 (defun erl-find-source (module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
 When FUNCTION is specified, the point is moved to its start."
   ;; Add us to the history list
   (ring-insert-at-beginning erl-find-history-ring
 			    (copy-marker (point-marker)))
-  (if (equal (symbol-name module) (erlang-get-module))
+  (if (equal module (erlang-get-module))
       (when function
 	(erl-search-function function arity))
-    (let ((node (erl-read-nodename)))
+    (let ((node (erl-target-node)))
       (erl-spawn
-	(erl-send-rpc node 'distel 'find_source (list module))
+	(erl-send-rpc node 'distel 'find_source (list (intern module)))
 	(erl-receive (function arity)
 	    ((['rex ['ok path]]
 	      (find-file path)
@@ -692,14 +686,14 @@ When FUNCTION is specified, the point is moved to its start."
 (defun erl-search-function (function arity)
   "Goto the definition of FUNCTION/ARITY in the current buffer."
   (let ((origin (point))
-	(str (concat "\n" (symbol-name function) "("))
+	(str (concat "\n" function "("))
 	(searching t))
     (goto-char (point-min))
     (while searching
       (cond ((search-forward str nil t)
 	     (backward-char)
 	     (when (or (null arity)
-		       (eq (erl-get-arity) arity))
+		       (eq (erl-arity-at-point) arity))
 	       (beginning-of-line)
 	       (setq searching nil)))
 	    (t
@@ -716,12 +710,11 @@ When FUNCTION is specified, the point is moved to its start."
 	nil
       (intern s))))
 
-;; ------------------------------------------------------------
-;; Completion of modules and functions
+;;;; Completion
 
 (defun erl-complete (node)
   "Complete the module or remote function name at point."
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-target-node)))
   (let ((end (point))
 	(beg (ignore-errors 
 	       (save-excursion (backward-sexp 1)
@@ -814,7 +807,7 @@ SOLE is a function which is called when a single completion is selected."
 (defun erl-complete-sole-function ()
   (let ((call (erlang-get-function-under-point)))
     (insert "(")
-    (erl-print-arglist call (erl-read-nodename))))
+    (erl-print-arglist call (erl-target-node))))
 
 
 (defun erl-make-completion-alist (list)
@@ -841,8 +834,7 @@ Returns non-nil iff the window was scrolled."
 	    (scroll-up))))
       t)))
 
-;; ------------------------------------------------------------
-;; Refactoring
+;;;; Refactoring
 
 (defun erl-refactor-subfunction (node name start end)
   "Refactor the expression(s) in the region as a function.
@@ -859,7 +851,7 @@ refactoring.
 
 This command requires Erlang syntax_tools package to be available in
 the node, version 1.2 (or perhaps later.)"
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (read-string "Function name: ")
 		     (region-beginning)
 		     (region-end)))
@@ -913,8 +905,7 @@ variables."
       (replace-match "deadmacro"))
     (buffer-string)))
 
-;; ------------------------------------------------------------
-;; fdoc interface
+;;;; fdoc interface
 
 (defface erl-fdoc-name-face
     '((t (:bold t)))
@@ -922,9 +913,9 @@ variables."
   :group 'distel)
 
 (defun erl-fdoc-apropos (node regexp rebuild-db)
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (read-string "Regexp: ")
-		     (integerp current-prefix-arg)))
+		     current-prefix-arg))
   (unless (string= regexp "")
     (erl-spawn
       (erl-send-rpc node 'distel 'apropos (list regexp
@@ -977,9 +968,9 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 
 (defun erl-fdoc-describe (node rebuild-db)
   (interactive
-   (list (erl-read-nodename)
-	 (integerp current-prefix-arg)))
-  (let* ((mfa (erl-get-call-mfa (erlang-get-module)))
+   (list (erl-target-node)
+	 current-prefix-arg))
+  (let* ((mfa (erl-get-call-mfa))
 	 (defaultstr (if (null mfa)
 			 nil
 		       (concat (if (first mfa)  (format "%s:" (first mfa)) "")
@@ -1014,15 +1005,7 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 		 (other
 		  (message "fdoc unexpected result: %S" other))))))))))
 
-
-(defun erl-format-mfa (&optional m f a)
-  (cond ((null m) nil)
-	((null f) (symbol-name m))
-	((null a) (format "%s:%s" m f a))
-	(t        (format "%s:%s/%s" m f a))))
-
-;; ------------------------------------------------------------
-;; argument lists
+;;;; Argument lists
 
 (defun erl-openparen (n node)
   "Insert a '(' character and show arglist information."
@@ -1062,6 +1045,33 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
                                        (mapconcat 'identity arglist ", ")))
                              arglists)
                      " | ")))
+
+;;;; Cross-reference
+
+(defun erl-who-calls (node)
+  (interactive (list (erl-target-node)))
+  (apply #'erl-find-callers
+         (or (erl-read-call-mfa) (error "No call at point."))))
+
+(defun erl-find-callers (mod fun arity)
+  (erl-spawn
+    (erl-send-rpc (erl-target-node) 'distel 'who_calls
+                  (list (intern mod) (intern fun) arity))
+    (message "Request sent..")
+    (erl-receive ()
+        ((['rex calls]
+          (with-current-buffer (get-buffer-create "*Erlang Calls*")
+            (setq buffer-read-only t)
+            (let ((inhibit-read-only t))
+              (erlang-mode)
+              (erase-buffer)
+              (dolist (call calls)
+                (mlet [m f a _line] call
+                  ;; FIXME: Use line number for a hyperlink.
+                  (insert (format "%s:%s/%S\n" m f a)))))
+            (goto-char (point-min))
+            (message "")
+            (pop-to-buffer (current-buffer))))))))
 
 (provide 'erl-service)
 
