@@ -552,7 +552,7 @@ default.)"
 	 (mfa (if (or distel-tags-compliant
 		      (integerp current-prefix-arg)
 		      (null default-mfa))
-		  (erl-prompt-for-tag default-mfa "Find erlang function: ")
+		  (erl-prompt-for-tag default-mfa "Find erlang function:")
 		default-mfa)))
     (apply #'erl-find-source mfa)))
 
