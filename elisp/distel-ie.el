@@ -57,8 +57,7 @@
 
 (defun erl-ie-read-nodename ()
   "Get the node for the session, either from buffer state or from the user."
-  (or erl-ie-node
-      (erl-read-nodename)))
+  (or erl-ie-node (erl-target-node)))
 
 (defun erl-ie-buffer-name (node)
   (format "*ie session <%S>*" node))

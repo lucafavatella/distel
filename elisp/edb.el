@@ -79,7 +79,7 @@ edb."))
 
 (defun edb-toggle-interpret (node module file)
   "Toggle debug-interpreting of the current buffer's module."
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (edb-module)
 		     buffer-file-name))
   (when (edb-ensure-monitoring node)
@@ -102,7 +102,7 @@ edb."))
 
 (defun edb-toggle-breakpoint (node module line)
   "Toggle a breakpoint on the current line."
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (edb-module)
 		     (edb-line-number)))
   (unless (edb-module-interpreted-p module)
@@ -145,7 +145,7 @@ edb."))
 (defun edb-save-dbg-state (node)
   "Save debugger state (modules to interpret and breakpoints).
 Use edb-restore-dbg-state to restore the state to the erlang node."
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-target-node)))
   (let ((do-save nil))
     (when (or (null edb-saved-interpreted-modules)
 	      (y-or-n-p "You already have a saved debugger state, continue? "))
@@ -155,7 +155,7 @@ Use edb-restore-dbg-state to restore the state to the erlang node."
 
 (defun edb-restore-dbg-state (node)
   "Restore debugger state (modules to interpret and breakpoints)."
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-target-node)))
   (if edb-saved-interpreted-modules
       (when (edb-ensure-monitoring node)
 	(erl-spawn
@@ -251,7 +251,7 @@ Available commands:
   (edb-monitor-format "PID" "Initial Call" "Status" "Info"))
 
 (defun edb-monitor (node)
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-target-node)))
   (when (edb-ensure-monitoring node)
     (unless (get-buffer-window edb-monitor-buffer)
       ;; Update the restorable window configuration
@@ -772,7 +772,7 @@ Available commands:
 (defun edb-synch-breakpoints (node module)
   "Synchronizes the breakpoints in the current buffer to erlang.
 I.e. deletes all old breakpoints, and re-applies them at the current line."
-  (interactive (list (erl-read-nodename)
+  (interactive (list (erl-target-node)
 		     (edb-module)))
   (when (edb-ensure-monitoring node)
     (let ((id (lambda (r) r)))

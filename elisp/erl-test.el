@@ -86,7 +86,7 @@
   erl-interactive-test-cases)
 
 (defun erl-interactive-next-test (node)
-  (interactive (list (erl-read-nodename)))
+  (interactive (list (erl-target-node)))
   (when current-prefix-arg
     (setq erl-interactive-remaining-cases erl-interactive-test-cases))
   (funcall (pop erl-interactive-remaining-cases) node))
