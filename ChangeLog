@@ -1,3 +1,8 @@
+2002-04-24  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (fprof): Added a front-end to the 'fprof'
+	profiler. Very minimal so far.
+
 2002-04-22  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl.el (erl-run-process): Uncaught errors in processes

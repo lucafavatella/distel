@@ -11,9 +11,9 @@
 
 -import(lists, [flatten/1]).
 
--export([process_list/0, process_summary/1, process_summary_and_trace/2]).
+-export([process_list/0, process_summary/1, process_summary_and_trace/2, fprof/3]).
 
--export([tracer_init/2]).
+-export([tracer_init/2, null_gl/0]).
 
 %% ----------------------------------------------------------------------
 %% Summarise all processes in the system.
@@ -92,4 +92,81 @@ tracer_loop(Tracer, Tracee) ->
 tracer_format(Msg) ->
     %% Let's steal some code reuse..
     pman_buf_utils:textformat(Msg).
+
+%% ----------------------------------------------------------------------
+%% Profiling
+%% fprof(M, F, A) -> {ok, Preamble, Header, Entry}
+%% Preamble = binary()
+%% Entry = {Tag, MFA, Text, Callers, Callees, Beamfile}
+%% Callers = Callees = [Tag]
+%% MFA = [Module, Function, Arity] | undefined
+%%
+%% Entry example,
+%%   {'foo:bar/2', "foo:bar/2  10 100 200", ['baz:beer/2'], [], "/foo.beam"}
+
+fprof(M, F, A) ->
+    GL = spawn_link(fun null_gl/0),
+    group_leader(GL, self()),
+    fprof:apply(M, F, A),
+    fprof:profile(),
+    fprof:analyse({dest, "/tmp/fprof.analysis"}),
+    GL ! die,
+    {ok, Asys} = file:consult("/tmp/fprof.analysis"),
+    [_Opts, [Totals], _Proc | Fns] = Asys,
+    {ok,
+     fprof_preamble(Totals),
+     fprof_header(),
+     [fprof_entry(F) || F <- Fns]}.
+
+fprof_preamble({totals, Cnt, Acc, Own}) ->
+    fmt("Totals: ~p calls, ~.3f real, ~.3f CPU\n\n", [Cnt, Acc, Own]).
+
+fprof_header() ->
+    fmt("~sCalls\tACC\tOwn\n", [pad(50, "Function")]).
+
+fprof_entry(F) ->
+    {Up, This, Down} = F,
+    {Name, _, _, _} = This,
+    {fprof_tag(Name),
+     fprof_mfa(Name),
+     fprof_text(This),
+     fprof_tags(Up),
+     fprof_tags(Down),
+     fprof_beamfile(Name)}.
+
+fprof_tag({M,F,A}) ->
+    list_to_atom(lists:flatten(io_lib:format("~p:~p/~p", [M,F,A])));
+fprof_tag(Name) when  atom(Name) ->
+    Name.
+
+fprof_mfa({M,F,A}) -> [M,F,A];
+fprof_mfa(_)       -> undefined.
+
+fprof_tag_name(X) -> lists:flatten(io_lib:format("~s", [fprof_tag(X)])).
+
+fprof_text({Name, Cnt, Acc, Own}) ->
+    fmt("~s~p\t~.3f\t~.3f\n",
+	[pad(50, fprof_tag_name(Name)), Cnt, Acc, Own]).
+
+fprof_tags(C) -> [fprof_tag(Name) || {Name,_,_,_} <- C].
+
+fprof_beamfile({M,_,_}) -> l2b(code:which(M));
+fprof_beamfile(_)                  -> undefined.
+
+fmt(X, A) -> l2b(io_lib:format(X, A)).
+
+l2b(X) -> list_to_binary(X).
+
+pad(X, S) when length(S) < X ->
+    S ++ lists:duplicate(X - length(S), $ ).
+
+null_gl() ->
+    receive
+	{io_request, From, ReplyAs, _} ->
+	    From ! { io_reply, ReplyAs, ok},
+	    null_gl();
+	die ->
+	    ok
+    end.
+
 

@@ -8,6 +8,8 @@
 ;; The general implementation strategy is to make RPCs to the "distel"
 ;; erlang module, which does most of the work for us.
 
+(require 'erlang)
+
 (defvar erl-nodename-cache nil
   "The name of the node most recently contacted, for reuse in future
 commands. Using C-u to bypasses the cache.")
@@ -177,6 +179,141 @@ INFO is [tuple PID SUMMARY-STRING]."
 	(goto-char (point-max))
 	(insert text)))
     (erl-process-trace-loop)))
+
+;; ---------------------------------------------------------------------
+;; fprof
+;; Profiler front-end.
+
+(defvar fprof-entries nil
+  "Alist of Tag -> Properties.
+Tag is a symbol like foo:bar/2
+Properties is an alist of:
+  'text     -> String
+  'callers  -> list of Tag
+  'callees  -> list of Tag
+  'beamfile -> String | undefined")
+
+(defvar fprof-header nil
+  "Header listing for fprof text entries.
+This is received from the Erlang module.")
+
+(defun fprof (node m f a)
+  "Profile a function and summarise the results."
+  (interactive (list (erl-read-nodename)
+		     (intern (read-string "Module: "))
+		     (intern (read-string "Function: "))
+		     (eval-minibuffer "Args: ")))
+  (erl-spawn
+    (erl-send-rpc node 'distel 'fprof (list m f a))
+    (message "Waiting for fprof reply...")
+    (erl-receive ()
+	(([tuple rex [tuple ok Preamble Header Entries]]
+	  (message "Got fprof reply, drawing...")
+	  (fprof-display preamble header entries))
+	 (Other (message "Unexpected reply: %S" other))))))
+
+(defun fprof-display (preamble header entries)
+  "Display profiler results in the *fprof* buffer."
+  (setq fprof-entries '())
+  (setq fprof-header header)
+  (with-current-buffer (get-buffer-create "*fprof*")
+    (use-local-map (make-sparse-keymap))
+    (define-key (current-local-map) [return] 'fprof-show-detail)
+    (define-key (current-local-map) [(control m)] 'fprof-show-detail)
+    (define-key (current-local-map) [?f] 'fprof-find-source)
+    (define-key (current-local-map) [?q] 'kill-this-buffer)
+    (erase-buffer)
+    (insert preamble)
+    (insert fprof-header)
+    (mapc #'fprof-add-entry entries)
+    (goto-char (point-min))
+    (select-window (display-buffer (current-buffer)))))
+
+(defun fprof-add-entry (entry)
+  "Add a profiled function entry."
+  (pmatch [tuple Tag MFA Text Callers Callees Beamfile] entry
+    (push `(,tag . ((text 	. ,text)
+		    (mfa 	. ,mfa)
+		    (callers 	. ,callers)
+		    (callees 	. ,callees)
+		    (beamfile 	. ,beamfile)))
+	  fprof-entries)
+    (fprof-insert text tag)))
+
+(defun fprof-insert (text tag)
+  (put-text-property 0 (length text) 'fprof-tag tag text)
+  (insert text))
+
+(defun fprof-show-detail ()
+  "Show more detail about the profiled function at point.
+The extra detail is a list of callers and callees, showing how much
+time the function spent while called from each caller, and how much
+time it spent in subfunctions."
+  (interactive)
+  (let* ((tag     (fprof-tag-at-point))
+	 (props   (cdr (assq tag fprof-entries)))
+	 (text    (cdr (assq 'text    props)))
+	 (callers (cdr (assq 'callers props)))
+	 (callees (cdr (assq 'callees props)))
+	 (buf     (get-buffer-create "*fprof detail*")))
+    (with-current-buffer buf
+      (erase-buffer)
+      (insert fprof-header)
+      (insert text "\n")
+      (insert "Callers:\n")
+      (mapc #'fprof-insert-by-tag callers)
+      (insert "\n")
+      (insert "Callees:\n")
+      (mapc #'fprof-insert-by-tag callees)
+      (goto-char (point-min)))
+    (display-buffer buf)))
+
+(defun fprof-insert-by-tag (tag)
+  (let ((text (fprof-lookup tag 'text)))
+    (put-text-property 0 (length text) 'fprof-tag tag text)
+    (insert text)))
+
+(defun fprof-find-source ()
+  (interactive)
+  (let ((beamfile (fprof-lookup (fprof-tag-at-point) 'beamfile)))
+    (if (eq beamfile 'undefined)
+	(message "Don't know where that's implemented.")
+      (let* ((src (fprof-sourcefile beamfile))
+	     (mfa (fprof-lookup (fprof-tag-at-point) 'mfa))
+	     (arity (caddr mfa))
+	     (orig-window (selected-window)))
+	(when src
+	  (with-current-buffer (find-file-other-window src)
+	    (goto-char (point-min))
+	    ;; Find the right function/arity
+	    (let (found)
+	      (while (and (not found)
+			  (re-search-forward (concat "^" (symbol-name (cadr mfa)))))
+		(beginning-of-line)
+		(if (eq (erlang-get-function-arity) arity)
+		    (setq found t)
+		  (forward-line)))
+	      (if found
+		  (recenter 5))))
+	  (select-window orig-window))))))
+
+(defun fprof-tag-at-point ()
+  (or (get-text-property (point) 'fprof-tag)
+      (error "No function tag at point.")))
+
+(defun fprof-lookup (tag property)
+  (cdr (assq property (cdr (assq tag fprof-entries)))))
+
+(defun fprof-sourcefile (beamfile)
+  (let ((string beamfile))
+    (when (string-match "ebin" string)
+      (setq string (replace-match "src" t t string)))
+    (if (null (string-match "beam" string))
+	nil
+      (setq string (replace-match "erl" t t string))
+      (if (file-exists-p string)
+	  string
+	nil))))
 
 (provide 'erl-service)
 
