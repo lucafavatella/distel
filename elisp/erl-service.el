@@ -522,6 +522,11 @@ look in, with the following algorithm:
 		(setq mfa (erl-get-call-mfa-from-string mfastr))))
     (apply #'erl-find-source mfa)))
 
+(defun erl-find-source-definition ()
+  (interactive)
+  (let ((distel-tags-compliant t))
+    (erl-find-source-under-point)))
+
 (defun erl-get-call-mfa-from-string (str)
   (with-temp-buffer
     (with-syntax-table erlang-mode-syntax-table
@@ -769,6 +774,52 @@ Returns non-nil iff the window was scrolled."
 	    (scroll-up))))
       t)))
 
+;; ------------------------------------------------------------
+;; Refactoring
+
+(defun erl-refactor-subfunction (node name start end)
+  "Refactor the expression(s) in the region as a function.
+
+The expressions are replaced with a call to the new function, and the
+function itself is placed on the kill ring for manual placement. The
+new function's argument list includes all variables that become free
+during refactoring - that is, the local variables needed from the
+original function.
+
+New bindings created by the refactored expressions are *not* exported
+back to the original function. Thus this is not a \"pure\"
+refactoring.
+
+This command requires Erlang syntax_tools package to be available in
+the node, version 1.2 (or perhaps later.)"
+  (interactive (list (erl-read-nodename)
+		     (read-string "Function name: ")
+		     (region-beginning)
+		     (region-end)))
+  (let ((buffer (current-buffer))
+	(text   (buffer-substring start end)))
+    (erl-spawn
+      (erl-send-rpc node 'distel 'free_vars (list text))
+      (erl-receive (name start end buffer text)
+	  ((['badrpc rsn]
+	    (error "Refactor failed: %S" rsn))
+	   (['rex free-vars]
+	    (with-current-buffer buffer
+	      (let ((arglist
+		     (concat "(" (mapconcat 'symbol-name free-vars ", ") ")"))
+		    (body
+		     (buffer-substring start end)))
+		;; rewrite the original as a call
+		(delete-region start end)
+		(insert (format "%s%s" name arglist))
+		(indent-according-to-mode)
+		;; Now generate the function and stick it on the kill ring
+		(kill-new (with-temp-buffer
+			    (insert (format "%s%s ->\n%s\n" name arglist body))
+			    (erlang-mode)
+			    (indent-region (point-min) (point-max))
+			    (buffer-string)))
+		(message "Saved `%s' definition on kill ring." name)))))))))
 
 (provide 'erl-service)
 
