@@ -1,3 +1,63 @@
+2004-03-23  Dave Love  <fx@gnu.org>
+
+	* doc/distel.texi: Fix some @xref usages.
+
+2004-03-10  Dave Love  <fx@gnu.org>
+
+	* elisp/patmatch.el (cl): Require when compiling.
+	(mcase-parse-clauses): Wrap in eval-and-compile.
+	(mlet): Don't use gensym.
+	(pmatch-tail): New.
+	(patmatch): Use it.
+	(pattern): Defvar when compiling.
+
+	* elisp/net-fsm.el (cl): Require when compiling.
+	(with-error-cleanup): Don't use gensym.
+	(fsm-build-message): Use default-enable-multibyte-characters.
+
+	* elisp/erlext.el (xemacs-only, gnu-only): Delete.  Don't use them
+	to signal error on loading.
+	(erlext-binary-to-term, erlext-term-to-binary): Use
+	default-enable-multibyte-characters, with-temp-buffer.
+	(erlext-read1): Define conditionally on fbound char-int.
+
+	* elisp/erl.el: Only require cl when compiling.  Provide erl
+	early.  Doc fixes.
+	(defprocvar): Wrap in eval-when-compile.
+	(erl-remove-if): New.  Change callers of remove-if to use it.
+
+	* elisp/erl-service.el (cl): Require when compiling.
+	(erl): Require.
+
+	* elisp/erl-example.el (cl): Require when compiling.
+	(erl): Require.
+
+	* elisp/epmd.el (cl): Require when compiling.
+	(epmd-port-please): Comment out (unused).
+
+	* elisp/edb.el (cl): Require when compiling.
+	(erlang-extended-mode): Autoload.
+
+	* elisp/distel-ie.el (cl): Require when compiling.
+	(erl): Require.
+	(erl-ie-evaluate, erl-ie-copy-buffer-to-session)
+	(erl-ie-copy-region-to-session): Doc fix.
+
+	* elisp/derl.el (cl): Require when compiling.
+	(derl-alive): Use default-enable-multibyte-characters,
+	with-temp-buffer, erl-tuple-elt.
+	(derl-int32-to-decimal): Maybe use floating point.
+	(derl-hexstring-to-binstring): Renamed from
+	hexstring-to-binstring; callers changed.
+	(derl-merge-halves): Renamed from merge-halves; callers changed.
+	(derl-hexchar-to-int): Renamed from hexchar-to-int; callers
+	changed.
+
+	* elisp/distel.el (distel-erlang-mode-hook): Doc fix.
+	(erlang-extended-mode-hook): Quote lambda in hook.
+	(font-lock): Require when compiling.
+	(report-distel-problem): Require font-lock.
+
 2004-01-09  Luke Gorrie  <luke@bluetail.com>
 
 	* erl/distel.erl (debug_toggle): Call code:ensure_loaded/1 to
