@@ -2,8 +2,8 @@ distel 3.0a -- Distributed Emacs Lisp for Erlang.
 ------------------------------------------------------------
 
 This package provides a library for Emacs<->Erlang communication plus
-a growing suite of tools built on top of it, includig a debugger front
-end.
+a growing suite of tools built on top of it, including a debugger
+front end.
 
 Once you do the INSTALL procedure, you'll automatically use an
 erlang-extended minor mode when you edit files. By typing "C-h m"
