@@ -1,3 +1,9 @@
+2002-11-12  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/derl.el (erl-connect): Now printing an error if we try to
+	connect to an erlang node that has the same nodename as Emacs, to
+	prevent a commonly confusing problem.
+
 2002-11-10  Luke Gorrie  <luke@bluetail.com>
 
 	* Release: 3.1!

@@ -46,6 +46,8 @@ handshake, 4 when connected.")
   "Asynchronously connect to NODE. If the connection succeeds,
 `erl-nodeup-hook' is run. If the connection fails, or goes down
 some time later, `erl-nodedown-hook' is run."
+  (when (eq node erl-node-name)
+    (error "Remote node has the same node name as Emacs: %S" node))
   (let* ((name (derl-node-name node))
 	 (host (derl-node-host node))
 	 (buffer (get-buffer-create (derl-buffer-name node)))
