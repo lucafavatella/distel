@@ -10,10 +10,6 @@ people on non-GNU systems would be especially appreciated.
 - Make all code byte-compile cleanly
 - Autoloads
 
-* Debugger
-- Temporary breakpoints
-- Re-apply breakpoints if the source changes
-
 * Profiler
 - Tree-view, like OptimizeIt for Java
 

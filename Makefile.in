@@ -1,5 +1,5 @@
 PACKAGE := distel
-VERSION := 3.1
+VERSION := 3.2
 
 prefix      = @prefix@
 exec_prefix = @exec_prefix@
@@ -41,8 +41,11 @@ erl: ${ERL_OBJ}
 ########################################
 ## Rules
 
+ebin:
+	mkdir $@
+
 ## Erlang
-ebin/%.beam: erl/%.erl
+ebin/%.beam: erl/%.erl ebin
 	erlc -W -o ebin +debug_info $<
 
 ## Elisp
@@ -109,9 +112,8 @@ info_install: info
 dist: always distclean configure
 	cd .. && ln -sf ${PACKAGE} ${PACKAGE}-${VERSION}
 	cd .. && (find ${PACKAGE}-${VERSION} -follow -type f | \
-		  egrep -v '(^attic/)|/CVS/|\.cvsignore' | \
-		  xargs tar czf ${PACKAGE}-${VERSION}.tar.gz \
-			${PACKAGE}-${VERSION}/ebin)
+		  egrep -v '(^attic/)|/CVS/|\.cvsignore|\.rej|\.orig|\#' | \
+		  xargs tar czf ${PACKAGE}-${VERSION}.tar.gz)
 	rm ../${PACKAGE}-${VERSION}
 
 wc:
