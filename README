@@ -2,7 +2,8 @@ distel -- Distributed Emacs Lisp for Erlang.
 
 Installation steps:
 
-1. Do a "make"
+1. Do a "make" (NOTE: if you use xemacs, edit elisp/Makefile first to
+   use the right compiler.)
 2. Copy "c/dec32" somewhere into your path
 3. Add the "erl/" directory to your erlang code path, by adding a line
    to your ~/.erlang like:
