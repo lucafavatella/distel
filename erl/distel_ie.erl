@@ -16,15 +16,7 @@
 -module(distel_ie).
 
 -export([
-
-	 find_module/2,
-
 	 evaluate/2,
-
-	 parse_expr/1,
-	 parse_form/1,
-
-	 defun/1,
 
 	 test1/0,
 	 test2/0,
@@ -47,12 +39,14 @@
 
 ensure_registered() ->
 
-    case lists:member(distel_ie, registered()) of
-
-	true -> ok ;
+    case whereis(distel_ie) of
 	
-	false -> start()
-
+ 	undefined -> start() ;
+	
+ 	Pid  ->
+	    group_leader(group_leader(), Pid),
+	    ok
+    
     end.
 
 
@@ -136,14 +130,17 @@ evaluate(String, {Defs, Line, Bindings}) ->
 		
 		{ok, Parse} -> 
 
-		    {ok, Name} = get_function_name(Parse),
+		    {ok, Name, Arity} = get_function_name(Parse),
 		    ets:insert(Defs, {Name, Parse}),
 		    FunTrees = lists:flatten(
 				 lists:reverse(ets:match(Defs,{'_', '$1'}))),
 
 		    %% Line isn't really used yet
 		    NewLine = Line,
-		    {{ok, ?FMT(compile_load(FunTrees))}, {NewLine, Bindings}} ;
+		    compile_load(FunTrees),
+		    Def = list_to_binary(atom_to_list(Name) ++ "/" ++ 
+					 integer_to_list(Arity)),
+		    {{ok, Def}, {NewLine, Bindings}} ;
 
 		Error -> {{error, ?FMT({Error, Other})}, {Line, Bindings}}
 
@@ -185,7 +182,7 @@ defun(String) ->
 
     {ok, Tokens, _} = erl_scan:string(String),
     {ok, Parse} = erl_parse:parse_form(Tokens),
-    compile_load(Parse).
+    compile_load([Parse]).
 
 
 %%
@@ -324,14 +321,11 @@ search_modules(Function, Arity, [{M, _} | Ms]) ->
 %%
 %% get_function_name/1
 
-get_function_name({function, _, Name, _, _}) -> 
-    {ok, Name} ;
+get_function_name({function, _, Name, Arity, _}) -> 
+    {ok, Name, Arity} ;
 
 get_function_name(Unknown) ->
     {error, Unknown}.
-
-
-
 
 
 %%% ------------------------------------------------------------------- [tests]
@@ -347,29 +341,30 @@ test1() ->
 %% test2/0
 
 test2() ->
-
-Prefix = [
+    
+    Prefix = [
 	      {attribute,9,module,compile_and_load_me},
 	      {attribute,11,compile,export_all},
 	      {attribute,12,export,[]}
-	 ],
-
+	     ],
+    
     Postfix = [{eof,20}],
-
-    String = "nisse([]) -> [] ;\n\nnisse(W) -> lists:last(W).\n",
-
+    
+    String = "sista([]) -> [] ;\n\nsista(W) -> lists:last(W).\n",
+%    String = "sista([], _) -> [] ;\n\nsista(W, _) -> lists:last(W).\n",
+    
     {ok, Tokens, _} = erl_scan:string(String, 23),
     {ok, Tree} = erl_parse:parse_form(Tokens),
-
+    
     io:format("tree : '~p'\n", [Tree]),
+    
     SyntaxTree = Prefix ++ [Tree] ++ Postfix,
-
-%    io:format("syntaxtree : '~p'\n", [SyntaxTree]),
-
+    
+    io:format("syntaxtree : '~p'\n", [SyntaxTree]),
+    
     {ok, Mod, Binary} = compile:forms(SyntaxTree),
-    code:load_binary(Mod, "thongboy", Binary),
-    compile_and_load_me:nisse([1,2,galapremiere]).
-%    code:load_binary(Mod, "compile_and_load_me.erl", Binary).
+    code:load_binary(Mod, "spam", Binary),
+    compile_and_load_me:sista([1,2,galapremiere]).
 
 
 %%
@@ -377,13 +372,12 @@ Prefix = [
 
 test3() ->
 
-    Nisse = "nisse(W) -> lists:last(W).\n",
-    defun(Nisse),
-    distel_ie_internal:nisse([1,2,galapremiere]),
-    Sune = "sune(W) -> lists:last(W).\n",
-    defun(Sune),
-    distel_ie_internal:sune([1,2,onestepbeyond]).
-%    distel_ie_internal:nisse([3,2,noway]).
+    Sista = "sista(W) -> lists:last(W).\n",
+    defun(Sista),
+    distel_ie_internal:sista([1,2,galapremiere]),
+    NySista = "en_till_sista(W) -> lists:last(W).\n",
+    defun(NySista),
+    distel_ie_internal:en_till_sista([1,2,onestepbeyond]).
 
 
 %%
