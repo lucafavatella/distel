@@ -692,7 +692,7 @@ deletes all old breakpoints, and re-applies them at the current line."
     (let ((k (lambda (r) r)))
       (mapc (lambda (bbp)
 	      (let* ((new-pos (overlay-start (bbp-ov bbp)))
-		     (new-line (+ (count-lines (window-start) new-pos) 1)))
+		     (new-line (+ (count-lines (point-min) new-pos) 1)))
 		(erl-rpc k nil node 'distel 'break_delete
 			 (list (bbp-mod bbp) (bbp-line bbp)))
 		(erl-rpc k nil node 'distel 'break_add
