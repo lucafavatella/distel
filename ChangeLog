@@ -1,3 +1,9 @@
+2002-04-22  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl.el (erl-run-process): Uncaught errors in processes
+	are now caught by the scheduler, which terminates the process and
+	then continues.
+
 2002-04-21  Luke Gorrie  <luke@bluetail.com>
 
 	*  elisp/*.el: XEmacs compatibility fixes.
