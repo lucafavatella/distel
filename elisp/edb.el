@@ -545,7 +545,8 @@ Available commands:
 \\[edb-attach-next]	- Next (over expression)
 \\[edb-attach-up]	- Up to the next stack frame
 \\[edb-attach-down]	- Down to the next stack frame
-\\[edb-attach-continue]	- Continue (until breakpoint)"
+\\[edb-attach-continue]	- Continue (until breakpoint)
+\\[edb-toggle-breakpoint]	- Toggle a breakpoint on the current line."
   nil
   " (attached)"
   '(([? ] . edb-attach-step)
@@ -554,7 +555,8 @@ Available commands:
     ([?u] . edb-attach-up)
     ([?d] . edb-attach-down)
     ([?q] . erl-quit-viewer)
-    ([?h] . edb-attach-help)))
+    ([?h] . edb-attach-help)
+    ([?b] . edb-toggle-breakpoint)))
 
 (defun edb-attach-help ()
   (interactive)
