@@ -356,13 +356,13 @@ debug_subscriber_init(Parent, Pid) ->
 debug_subscriber(Pid) ->
     receive
         {int, {new_status, P, Status, Info}} ->
-            Pid ! [int, [new_status, P, fmt("~w",[Status]), fmt("~w",[Info])]];
+            Pid ! {int, {new_status, P, fmt("~w",[Status]), fmt("~w",[Info])}};
         {int, {new_process, {P, {M,F,A}, Status, Info}}} ->
-            Pid ! [int, [new_process,
+            Pid ! {int, {new_process,
                          [P,
                           fmt("~p:~p/~p", [M,F,length(A)]),
                           fmt("~w", [Status]),
-                          fmt("~w", [Info])]]];
+                          fmt("~w", [Info])]}};
         _ ->
 	    ok
     end,

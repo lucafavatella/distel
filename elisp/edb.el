@@ -138,13 +138,13 @@ Available commands:
 
 (defun &edb-monitor-loop ()
   (erl-receive ()
-      (( (int (new_status Pid Status Info))
+      (([int [new_status Pid Status Info]]
 	 (let ((proc (edb-monitor-lookup pid)))
 	   (if (null proc)
 	       (message "Unknown process: %s" (erl-pid-to-string pid))
 	     (setf (edb-process-status proc) status)
 	     (setf (edb-process-info proc) info))))
-       ( (int (new_process (Pid MFA Status Info)))
+       ([int [new_process (Pid MFA Status Info)]]
 	 (ewoc-enter-last edb-processes
 			  (make-edb-process pid
 					    mfa
@@ -176,13 +176,18 @@ Available commands:
  (defvar edb-variables-buffer nil
    "Buffer showing variable bindings of attached process."))
 
+(defvar edb-attach-with-new-frame nil
+  "When true, attaching to a process opens a new frame.")
+
 ;; Attach setup
 
 (defun edb-attach-command ()
   (interactive)
   (let ((pid (get-text-property (point) 'erl-pid)))
     (if pid
-	(edb-attach pid)
+	(progn (when edb-attach-with-new-frame 
+		 (select-frame (make-frame)))
+	       (edb-attach pid))
       (error "No process at point."))))
 
 (defun edb-attach (pid)

@@ -1,3 +1,9 @@
+2002-08-14  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/edb.el (edb-attach-with-new-frame): Setting this variable
+	to non-nil makes the debugger create new frames to attach to
+	processes.
+
 2002-08-04  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/edb.el: Improved variables window (now you can press
