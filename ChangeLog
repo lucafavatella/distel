@@ -1,3 +1,9 @@
+2002-09-30  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (erl-find-source): Doesn't do the
+	source-file-finding RPC when already in a buffer matching the
+	module name.
+
 2002-08-29  Luke Gorrie  <luke@bluetail.com>
 
 	* Release: 3.0!
