@@ -1,5 +1,8 @@
 2003-03-11  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/derl.el (erl-dec32): Portability fix for Win32, thanks to
+	Nicolas Charpentier.
+
 	* erl/distel.erl: Now converting fdoc result strings into
 	binaries, to avoid the classic string/list encoding problems.
 
