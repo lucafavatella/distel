@@ -1,3 +1,8 @@
+2002-12-08  Martin Bjorklund  <mbj@lvm>
+
+	* elisp/erl-service.el (erl-find-source-under-point): Don't ask
+	for nodename if a local function definition is asked for.
+
 2002-12-06  Martin Bjorklund  <mbj@lvm>
 
 	* elisp/edb.el (edb-synch-breakpoints): Added "synch all

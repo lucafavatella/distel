@@ -484,7 +484,7 @@ time it spent in subfunctions."
 (defvar erl-find-history-ring (make-ring 20)
   "History ring tracing for following functions to their definitions.")
 
-(defun erl-find-source-under-point (node)
+(defun erl-find-source-under-point ()
   "Goto the source code that defines the function being called at point.
 For remote calls, contacts an Erlang node to determine which file to
 look in, with the following algorithm:
@@ -497,7 +497,7 @@ look in, with the following algorithm:
     Directory where source file was originally compiled
 
   Otherwise, report that the file can't be found."
-  (interactive (list (erl-read-nodename)))
+  (interactive)
   (let ((mfa (erl-get-call-mfa)))
     (when (null mfa)
       (error "Couldn't determine MFA of call"))
@@ -513,7 +513,7 @@ look in, with the following algorithm:
 		(read-string (format "Find erlang function: (default %s) " str)
 			     nil nil str)))
 		(setq mfa (erl-get-call-mfa-from-string mfastr))))
-    (apply #'erl-find-source (cons node mfa))))
+    (apply #'erl-find-source mfa)))
 
 (defun erl-get-call-mfa-from-string (str)
   (with-temp-buffer
@@ -607,7 +607,7 @@ Should be called with point directly before the opening `('."
 		 res)
 	     (error nil))))))
 
-(defun erl-find-source (node module &optional function arity)
+(defun erl-find-source (module &optional function arity)
   "Find the source code for MODULE in a buffer, loading it if necessary.
 When FUNCTION is specified, the point is moved to its start."
   ;; Add us to the history list
@@ -616,17 +616,18 @@ When FUNCTION is specified, the point is moved to its start."
   (if (eq module (intern (erlang-get-module)))
       (when function
 	(erl-search-function function arity))
+    (let ((node (erl-read-nodename)))
       (erl-spawn
-	  (erl-send-rpc node 'distel 'find_source (list module))
-	  (erl-receive (function arity)
-	      ((['rex ['ok path]]
-		(find-file path)
-		(when function
-		  (erl-search-function function arity)))
-	       (['rex ['error reason]]
-		;; Remove the history marker, since we didn't go anywhere
-		(ring-remove erl-find-history-ring)
-		(message "Error: %s" reason)))))))
+	(erl-send-rpc node 'distel 'find_source (list module))
+	(erl-receive (function arity)
+	    ((['rex ['ok path]]
+	      (find-file path)
+	      (when function
+		(erl-search-function function arity)))
+	     (['rex ['error reason]]
+	      ;; Remove the history marker, since we didn't go anywhere
+	      (ring-remove erl-find-history-ring)
+	      (message "Error: %s" reason))))))))
 
 (defun erl-search-function (function arity)
   "Goto the definition of FUNCTION/ARITY in the current buffer."
