@@ -1,5 +1,13 @@
 2002-12-16  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/edb.el (edb-make-breakpoint-overlay): Changed
+	`point-at-bol' call to `line-beginning-position', for Emacs20
+	compatibility.
+
+	* elisp/distel.el (erlang-extended-mode): Moved "BODY" part from
+	erlang-extended-mode's define-minor-mode and into a hook, for
+	Emacs20 compatibility.
+
 	* erl/distel.erl (debug_add): Now always reinterpreting modules,
 	even when int:interpreted() says they're already interpreted,
 	since it can give false information if modules are reloaded behind
