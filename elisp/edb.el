@@ -9,10 +9,12 @@
 ;; ----------------------------------------------------------------------
 ;; Configurables
 
-(defvar edb-popup-monitor-on-event t
+(defcustom edb-popup-monitor-on-event t
   "*Automatically popup the monitor on interesting events.
 An interesting event is an unattached process reaching a breakpoint,
-or an attached process exiting.")
+or an attached process exiting."
+  :type 'boolean
+  :group 'distel)
 
 ;; ----------------------------------------------------------------------
 ;; Integration with erlang-extended-mode buffers.
