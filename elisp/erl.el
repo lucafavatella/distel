@@ -22,18 +22,27 @@
 
 ;; Process ID structure.
 ;;
-;; Exactly matches the [erl-pid NODE ID SERIAL CREATION] vector used
+;; Exactly matches the [ERL-TAG erl-pid NODE ID SERIAL CREATION] vector used
 ;; in the `erlext' mapping, so don't change it!
 (defstruct (erl-pid
 	    (:type vector)
 	    :named
+	    (:initial-offset 1)		; make room for erl-tag (TYPE)
 	    (:constructor nil)		; no default constructor
-	    (:constructor make-erl-pid (node id serial creation))
-	    (:constructor make-erl-local-pid (&optional (id (incf erl-pid-counter))
+	    (:constructor %make-erl-local-pid (&optional (id (incf erl-pid-counter))
 							(node erl-node-name)
 							(serial 0)
 							(creation 0))))
   node id serial creation)
+
+(defun make-erl-local-pid (&optional id)
+  "Make a node-local pid."
+  (let ((pid (if id
+		 (%make-erl-local-pid id)
+	       (%make-erl-local-pid))))
+    ;; Tag the first element of the pid
+    (setf (elt pid 0) erl-tag)
+    pid))
 
 ;; Global book keeping state
 
@@ -179,7 +188,7 @@ WHO can be a pid, a registered name (symbol), or a tuple of
 	       (erl-send proc message)
 	     (erl-exit (tuple 'badarg (tuple 'not-registered who))))))
 	((tuplep who)			; [tuple NAME NODE]
-	 (erl-dist-reg-send (elt who 2) (elt who 1) message))
+	 (erl-dist-reg-send (tuple-elt who 2) (tuple-elt who 1) message))
 	(t
 	 (error "Bad pid: %S" who))))
 
@@ -546,7 +555,7 @@ during the next `erl-schedule'."
 
 (defun &erl-group-leader-loop ()
   (erl-receive ()
-      (([tuple put_chars S]
+      (([put_chars S]
 	(goto-char (point-max))
 	(insert s)
 	(when erl-popup-on-output

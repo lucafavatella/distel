@@ -47,7 +47,7 @@ elements of KARGS."
 (defun erl-rpc-receive (k kargs)
   "Receive the reply to an `erl-rpc'."
   (erl-receive (k kargs)
-      (([tuple rex Reply] (apply k (cons reply kargs))))))
+      (([rex Reply] (apply k (cons reply kargs))))))
 
 (defun erpc (node m f a)
   "Make an RPC to an erlang node."
@@ -76,8 +76,8 @@ when ready."
     (process-list-mode)
     (let ((buffer-read-only nil))
       (erase-buffer)
-      (let ((header (elt reply 1))
-	    (infos (elt reply 2)))
+      (let ((header (tuple-elt reply 1))
+	    (infos (tuple-elt reply 2)))
 	(put-text-property 0 (length header) 'face 'bold header)
 	(insert header)
 	(mapc #'erl-insert-process-info infos))
@@ -87,9 +87,9 @@ when ready."
 
 (defun erl-insert-process-info (info)
   "Insert INFO into the buffer.
-INFO is [tuple PID SUMMARY-STRING]."
-  (let ((pid (elt info 1))
-	(text (elt info 2)))
+INFO is [PID SUMMARY-STRING]."
+  (let ((pid (tuple-elt info 1))
+	(text (tuple-elt info 2)))
     (put-text-property 0 (length text) 'erl-pid pid text)
     (insert text)))
 
@@ -158,7 +158,7 @@ Available commands:
 	(erl-send-rpc (erl-pid-node pid)
 		      'distel 'process_info_item (list pid item))
 	(erl-receive (item pid)
-	    (([tuple rex [tuple ok String]]
+	    (([rex [ok String]]
 	      (display-message-or-view string "*pinfo item*"))
 	     (Other
 	      (message "Error from erlang side of process_info:\n  %S"
@@ -231,7 +231,7 @@ will get rid of it."
 
 (defun erl-process-trace-loop ()
   (erl-receive ()
-      (([tuple trace_msg Text]
+      (([trace_msg Text]
 	(goto-char (point-max))
 	(insert text)))
     (erl-process-trace-loop)))
@@ -261,7 +261,7 @@ This is received from the Erlang module.")
     (erl-send-rpc node 'distel 'fprof (list expr))
     (message "Waiting for fprof reply...")
     (erl-receive ()
-	(([tuple rex [tuple ok Preamble Header Entries]]
+	(([rex [ok Preamble Header Entries]]
 	  (message "Got fprof reply, drawing...")
 	  (fprof-display preamble header entries))
 	 (Other (message "Unexpected reply: %S" other))))))
@@ -285,7 +285,7 @@ This is received from the Erlang module.")
 
 (defun fprof-add-entry (entry)
   "Add a profiled function entry."
-  (pmatch [tuple Tag MFA Text Callers Callees Beamfile] entry
+  (pmatch [Tag MFA Text Callers Callees Beamfile] entry
     (push `(,tag . ((text 	. ,text)
 		    (mfa 	. ,mfa)
 		    (callers 	. ,callers)
@@ -380,9 +380,9 @@ time it spent in subfunctions."
 		  'eval_expression
 		  (list string))
     (erl-receive ()
-	(([tuple rex [tuple ok String]]
+	(([rex [ok String]]
 	  (display-message-or-buffer string))
-	 ([tuple rex [tuple error Reason]]
+	 ([rex [error Reason]]
 	  (message "Error: %S" reason))
 	 (Other
 	  (message "Unexpected: %S" other))))))
@@ -486,11 +486,11 @@ When FUNCTION is specified, the point is moved to its start."
   (erl-spawn
     (erl-send-rpc node 'distel 'find_source (list module))
     (erl-receive (function arity)
-	(([tuple rex [tuple ok Path]]
+	(([rex [ok Path]]
 	  (find-file path)
 	  (when function
 	    (erl-search-function function arity)))
-	 ([tuple rex [error Reason]]
+	 ([rex [error Reason]]
 	  (error "%S" reason))))))
 
 (defun erl-search-function (function arity)

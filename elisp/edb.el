@@ -14,11 +14,11 @@
   (erl-spawn
     (erl-send-rpc node 'distel 'debug_toggle (list module))
     (erl-receive (module)
-	(([tuple rex interpreted]
+	(([rex interpreted]
 	  (message "Interpreting: %S" module))
-	 ([tuple rex uninterpreted]
+	 ([rex uninterpreted]
 	  (message "Stopped interpreting: %S" module))
-	 ([tuple rex error]
+	 ([rex error]
 	  (message "Failed!"))))))
 
 (defun edb-module ()
@@ -33,9 +33,9 @@
   (erl-spawn
     (erl-send-rpc node 'distel 'break_toggle (list module line))
     (erl-receive (module line)
-	(([tuple rex enabled]
+	(([rex enabled]
 	  (message "Enabled breakpoint at %S:%S" module line))
-	 ([tuple rex disabled]
+	 ([rex disabled]
 	  (message "Disabled breakpoint at %S:%S" module line))))))
 
 
@@ -121,12 +121,12 @@ Available commands:
     (edb-monitor-mode)
     (erl-send-rpc node 'distel 'debug_subscribe (list erl-self))
     (erl-receive (node)
-	(([tuple rex Snapshot]
+	(([rex Snapshot]
 	  (setq edb-processes
 		(ewoc-create 'edb-monitor-insert-process
 			     (edb-monitor-header)))
 	  (mapc (lambda (item)
-		  (pmatch [tuple Pid MFA Status Info] item
+		  (pmatch [Pid MFA Status Info] item
 		    (ewoc-enter-last edb-processes
 				     (make-edb-process pid
 						       mfa
@@ -209,7 +209,7 @@ Available commands:
      (erl-send-rpc (erl-pid-node pid)
 		   'distel 'debug_attach (list erl-self pid))
      (erl-receive ()
-	 (([tuple rex Pid]
+	 (([rex Pid]
 	   (assert (erl-pid-p pid))
 	   (setq edb-pid pid)
 	   (setq edb-node (erl-pid-node pid))))
@@ -238,7 +238,7 @@ The *Variables* buffer is killed with the current buffer."
 (defun &edb-attach-init ()
   "Handle initial {attached, Module, Line, Trace}, then enter attach loop."
   (erl-receive ()
-      (([tuple meta [tuple attached Mod Line Trace]]
+      (([meta [attached Mod Line Trace]]
 	(if (eq mod 'null)
 	    (&edb-attach-loop)
 	  (&edb-attach-find-source mod line))))))
@@ -246,17 +246,17 @@ The *Variables* buffer is killed with the current buffer."
 (defun &edb-attach-loop ()
   "Attached process loop."
   (erl-receive ()
-      (([tuple meta [tuple break_at Mod Line Trace]]
+      (([meta [break_at Mod Line Trace]]
 	(let ((msg (format "Status: break at %S:%S" mod line)))
 	  (setq header-line-format msg))
 	(&edb-attach-goto-source mod line))
-       ([tuple meta Status]
+       ([meta Status]
 	(unless (memq status '(running idle))
 	  (message "Unrecognised status: %S" status))
 	(setq header-line-format (format "Status: %S" status))
 	(setq overlay-arrow-position nil)
 	(&edb-attach-loop))
-       ([tuple variables Vars]
+       ([variables Vars]
 	;; {variables, [{Name, String}]}
 	(when (buffer-live-p edb-variables-buffer)
 	  (with-current-buffer edb-variables-buffer
@@ -265,7 +265,7 @@ The *Variables* buffer is killed with the current buffer."
 		    (insert (format "%s\n" b)))
 		  vars)))
 	(&edb-attach-loop))
-       ([tuple message Msg]
+       ([message Msg]
 	(message msg)
 	(&edb-attach-loop))
        (Other
@@ -284,7 +284,7 @@ The *Variables* buffer is killed with the current buffer."
 Once loaded, reenters the attach loop."
   (erl-send-rpc edb-node 'distel 'find_source (list module))
   (erl-receive (module line)
-      (([tuple rex [tuple ok Path]]
+      (([rex [ok Path]]
 	(if (file-regular-p path)
 	    (progn (setq edb-module module)
 		   (let ((buffer-read-only nil))
@@ -340,6 +340,6 @@ Available commands:
   (edb-attach-meta-cmd 'continue))
 
 (defun edb-attach-meta-cmd (cmd)
-  (erl-send edb-pid `[tuple emacs meta ,cmd]))
+  (erl-send edb-pid `[emacs meta ,cmd]))
 
 (provide 'edb)

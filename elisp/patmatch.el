@@ -140,14 +140,18 @@ Example: (QUOTE QUOTE)"
 
 (defun pmatch-bind-var (pat object bindings)
   "Add a binding of pattern variable VAR to OBJECT in BINDINGS."
-  (let* ((var (pmatch-unbound-var-symbol pat))
-	 (binding (assoc var bindings)))
-    (cond ((null binding)
-	   (acons var object bindings))
-	  ((equal (cdr binding) object)
-	   bindings)
-	  (t
-	   'fail))))
+  (if (eq object erl-tag)
+      ;; `erl-tag' cannot bind to a variable; this is to prevent pids
+      ;; or ports from matching tuple patterns.
+      'fail
+    (let* ((var (pmatch-unbound-var-symbol pat))
+	   (binding (assoc var bindings)))
+      (cond ((null binding)
+	     (acons var object bindings))
+	    ((equal (cdr binding) object)
+	     bindings)
+	    (t
+	     'fail)))))
 
 (defun pmatch-match-var (var object bindings)
   "Match the value of the Lisp variable VAR with OBJECT."

@@ -209,30 +209,30 @@ gen_digest() function:
 			  (setq ctl (erlext-read-whole-obj))
 			  (when (< (point) (point-max))
 			    (setq req (erlext-read-whole-obj))))
-	(ecase (elt ctl 1)
-	  ((1) ;; link: [tuple 1 FROM TO]
-	   (let ((from (elt ctl 2))
-		 (to   (elt ctl 3)))
+	(ecase (tuple-elt ctl 1)
+	  ((1) ;; link: [1 FROM TO]
+	   (let ((from (tuple-elt ctl 2))
+		 (to   (tuple-elt ctl 3)))
 	     (derl-trace-input "LINK: %S %S" from to)
 	     (erl-add-link to from)))
-	  ((2) ;; send: [tuple 2 COOKIE TO-PID]
-	   (let ((to-pid (elt ctl 3)))
+	  ((2) ;; send: [2 COOKIE TO-PID]
+	   (let ((to-pid (tuple-elt ctl 3)))
 	     (derl-trace-input "SEND: %S %S" to-pid req)
 	     (erl-send to-pid req)))
-	  ((3) ;; exit: [tuple FROM TO REASON]
-	   (let ((from (elt ctl 1))
-		 (to   (elt ctl 2))
-		 (rsn  (elt ctl 3)))
+	  ((3) ;; exit: [FROM TO REASON]
+	   (let ((from (tuple-elt ctl 1))
+		 (to   (tuple-elt ctl 2))
+		 (rsn  (tuple-elt ctl 3)))
 	     (derl-trace-input "EXIT: %S %S %S" from to rsn)
 	     (erl-send-exit from to rsn)))
-	  ((4) ;; unlink: [tuple 4 FROM TO]
-	   (let ((from (elt ctl 2))
-		 (to   (elt ctl 3)))
+	  ((4) ;; unlink: [4 FROM TO]
+	   (let ((from (tuple-elt ctl 2))
+		 (to   (tuple-elt ctl 3)))
 	     (derl-trace-input "UNLINK: %S %S %S" from to)
 	     (erl-remove-link to from)))
-	  ((6) ;; reg_send: [tuple 6 FROM COOKIE NAME]
-	   (let ((from (elt ctl 2))
-		 (name (elt ctl 4)))
+	  ((6) ;; reg_send: [6 FROM COOKIE NAME]
+	   (let ((from (tuple-elt ctl 2))
+		 (name (tuple-elt ctl 4)))
 	     (derl-trace-input "REG_SEND: %S %S %S" from name req)
 	     (condition-case data
 		 (erl-send name req)

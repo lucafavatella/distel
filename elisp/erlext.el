@@ -15,9 +15,9 @@
 ;;   string  -> string
 ;;   integer -> integer
 ;;   list    -> list
-;;   tuple   -> (vector 'tuple ...)
-;;   pid     -> (vector 'pid node id serial creation)
-;;   binary  -> (vector 'binary string)
+;;   tuple   -> (vector ...)
+;;   pid     -> (vector ERL-TAG 'pid node id serial creation)
+;;   binary  -> string
 ;; Not mapped/supported yet:
 ;;   ref, port, float, bignum, function, ...
 ;;
@@ -75,6 +75,11 @@
 (defconst empty-symbol (intern "")
   "The zero-length lisp symbol.")
 
+(defconst erl-tag (make-symbol "TYPE")
+  "Tag placed in the first element of a vector to indicate a non-tuple type.
+This is an uninterned symbol, which is only eq/eqv/equal/equalp to
+itself.")
+
 ;; ------------------------------------------------------------
 ;; Encoding / decoding interface
 ;; ------------------------------------------------------------
@@ -96,21 +101,27 @@
     (erlext-write-obj term)
     (buffer-string)))
 
-;; Tuple datatype: (tuple X Y Z) => [tuple X Y Z]
+;; Tuple datatype: (tuple X Y Z) => [X Y Z]
 
 (defun tuple (&rest elems)
-  (apply #'vector (cons 'tuple elems)))
+  (apply #'vector elems))
 
 (defun tuple-to-list (x)
   (assert (tuplep x))
-  (cdr (mapcar #'identity x)))
+  (mapcar #'identity x))
 
 (defun tuplep (x)
   (and (vectorp x)
-       (eq (elt x 0) 'tuple)))
+       (or (zerop (length x))
+	   (not (eq (elt x 0) erl-tag)))))
 
 (defun tuple-arity (tuple)
   (1- (length tuple)))
+
+(defmacro tuple-elt (tuple index)
+  "Return element INDEX from TUPLE. Index starts from 1."
+  ;; Defined as a macro just so that we get the setf of `elt' for free
+  `(elt ,tuple (1- ,index)))
 
 ;; ------------------------------------------------------------
 ;; Encoding
@@ -124,16 +135,16 @@
         ((symbolp obj)
          (erlext-write-atom obj))
         ((vectorp obj)
-         (let* ((list (mapcar #'identity obj))
-                (tag  (car list))
-                (elts (cdr list)))
-           (ecase tag
-             ((tuple)
-              (erlext-write-tuple elts))
-             ((erl-pid)
-              (apply #'erlext-write-pid elts))
-	     ((erl-port)
-	      (apply #'erlext-write-port elts)))))
+	 (if (tuplep obj)
+	     (erlext-write-tuple (tuple-to-list obj))
+	   (let* ((list (mapcar #'identity obj))
+		  (type (cadr list))
+		  (elts (cddr list)))
+	     (ecase type
+	       ((erl-pid)
+		(apply #'erlext-write-pid elts))
+	       ((erl-port)
+		(apply #'erlext-write-port elts))))))
         ((integerp obj)
          (erlext-write-int obj))
         (t
@@ -253,12 +264,14 @@
       ((string)     (erlext-read-string))
       ((bin)        (erlext-read-binary))
       ((null)       nil)
-      ((pid)        (vector 'erl-pid
+      ((pid)        (vector erl-tag
+			    'erl-pid
 			    (erlext-read-obj) ; node
 			    (erlext-read4) ; id
 			    (erlext-read4) ; serial
 			    (erlext-read1))); creation
-      ((port)       (vector 'erl-port
+      ((port)       (vector erl-tag
+			    'erl-port
 			    (erlext-read-obj) ; node
 			    (erlext-read4) ; id
 			    (erlext-read1))) ; creation
@@ -304,9 +317,8 @@
       ;; erl_ext_dist.txt
       (assert (eq (erlext-get-code 'null) (erlext-read1))))))
 (defun erlext-read-tuple (arity)
-  (apply #'vector (cons 'tuple
-			(loop for x from 1 to arity
-			      collect (erlext-read-obj)))))
+  (apply #'vector (loop for x from 1 to arity
+			collect (erlext-read-obj))))
 
 (defun erlext-read-string ()
   (erlext-readn (erlext-read2)))
@@ -328,9 +340,9 @@
 ;; ------------------------------------------------------------
 
 (defvar erlext-test-cases
-  '(1 foo "bar" [tuple bar baz] [erl-pid someone@somehost 0 0 0] (1 foo ())
-      [erl-port someone@somehost 0 0]
-      (([tuple 1 2]) ([tuple 1 2]))))
+  `(1 foo "bar" [bar baz] [,erl-tag erl-pid someone@somehost 0 0 0] (1 foo ())
+      [,erl-tag erl-port someone@somehost 0 0]
+      (([1 2]) ([1 2]))))
 
 (defun erlext-test ()
   "Test each term in `erlext-test-cases' by encoding it and decoding
