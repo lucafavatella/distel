@@ -160,7 +160,7 @@ behaviour to this default is used.")
 (defun erl-ie-show-session (node)
   "Show the session for NODE, creating if necessary."
   (interactive (list (erl-ie-read-nodename)))
-  (pop-to-buffer (erl-ie-session node)))
+  (switch-to-buffer (erl-ie-session node)))
 
 ;;
 ;; erl-ie-copy-buffer-to-session
@@ -194,7 +194,7 @@ behaviour to this default is used.")
 
 
 (defun erl-ie-popup-buffer (node)
-  (pop-to-buffer (erl-ie-session node)))
+  (switch-to-buffer (erl-ie-session node)))
 
 
 (provide 'distel-ie)
