@@ -123,12 +123,20 @@ INFO is [tuple PID SUMMARY-STRING]."
   (define-key process-list-mode-map [?m] 'erl-show-process-messages))
 
 (defun process-list-mode ()
-  "Major mode for viewing Erlang process listings."
+  "Major mode for viewing Erlang process listings.
+
+Available commands:
+
+\\[erl-quit-viewer]	- Quit the process listing viewer, restoring old window config.
+\\[erl-show-process-info]	- Show process_info for process at point.
+\\[erl-show-process-info-item]	- Show a piece of process_info for process at point.
+\\[erl-show-process-backtrace]	- Show a backtrace for the process at point.
+\\[erl-show-process-messages]	- Show the message queue for the process at point."
   (interactive)
   (kill-all-local-variables)
   (use-local-map process-list-mode-map)
   (setq mode-name "Process List")
-  (setq major-mode 'process-list)
+  (setq major-mode 'process-list-mode)
   (setq erl-old-window-configuration (current-window-configuration))
   (run-hooks 'process-list-mode-hook))
 

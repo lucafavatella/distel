@@ -206,6 +206,7 @@
      (rename-buffer (edb-attach-buffer-name pid))
      (erlang-mode)
      (edb-attach-mode t)
+     (message "Entered debugger. Press 'h' for help.")
      (save-excursion (edb-make-variables-window))
      (setq buffer-read-only t)
      (erl-send-rpc (erl-pid-node pid)
@@ -310,13 +311,26 @@ Once loaded, reenters the attach loop."
 ;; Attach minor mode and commands
 
 (define-minor-mode edb-attach-mode
-  "Minor mode for view of attached process source code."
+  "Minor mode for debugging an Erlang process.
+
+Available commands:
+\\<edb-attach-mode-map>
+\\[edb-attach-help]	- Popup this help text.
+\\[erl-quit-viewer]	- Quit the viewer (doesn't kill the process)
+\\[edb-attach-step]	- Step (into expression)
+\\[edb-attach-next]	- Next (over expression)
+\\[edb-attach-continue]	- Continue (until breakpoint)"
   nil
   " (attached)"
   '(([? ] . edb-attach-step)
     ([?n] . edb-attach-next)
     ([?c] . edb-attach-continue)
-    ([?q] . erl-quit-viewer)))
+    ([?q] . erl-quit-viewer)
+    ([?h] . edb-attach-help)))
+
+(defun edb-attach-help ()
+  (interactive)
+  (describe-function 'edb-attach-mode))
 
 (defun edb-attach-step ()
   (interactive)

@@ -13,7 +13,29 @@ Installation steps:
       (add-to-list 'load-path "/path/to/distel/elisp")
       (require 'erl)
 
-That's all - now "M-x erpc" and "M-x erl-process-list" should work.
+Recommended:
+
+5. You can setup the "extended" erlang mode, which gives you some more
+   commands. You can load this mode with:
+
+    (require 'erlang-mode-ext)
+
+   And then enable it by putting this into your erlang-mode hook:
+
+     (erlang-extended-mode t)
+
+   If you don't already have an erlang-mode hook, the complete code is:
+
+     (add-hook 'erlang-mode-hook 'my-erlang-mode-hook)
+     (defun my-erlang-mode-hook ()
+       (erlang-extended-mode t))
+
+   Then when you edit an erlang file you should see "EXT" in the
+   mode-line to say that you're in the extended mode. Using "C-h m"
+   (describe-mode) you can find the available commands, all of which
+   are prefixed with "C-c C-d".
+
+That's all! Now you can use commands like "M-x erl-process-list".
 
 -- luke@bluetail.com
 
