@@ -1,10 +1,13 @@
 ;;; edb.el --- Erlang debugger front-end
 
-(require 'cl)
+(eval-when-compile (require 'cl))
 (require 'erl)
 (require 'erl-service)
 (require 'erlang)
 (require 'ewoc)
+
+(eval-and-compile
+  (autoload 'erlang-extended-mode "distel"))
 
 (when (featurep 'xemacs)
   (require 'overlay))
@@ -755,7 +758,7 @@ Available commands:
 
 (defun edb-del-breakpoints (bp-f bbp-f &optional mod)
   "Updates all internal structures in all buffers."
-  (setq edb-breakpoints (remove-if bp-f edb-breakpoints))
+  (setq edb-breakpoints (erl-remove-if bp-f edb-breakpoints))
   (mapc
    (lambda (buf)
      (with-current-buffer buf
