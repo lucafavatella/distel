@@ -20,6 +20,7 @@
 
 \\[erl-process-list]	- List all Erlang processes (\"pman\").
 \\[erl-find-source-under-point]	- Jump to the definition of a function call (dynamic TAGS).
+\\[erl-find-source-unwind]	- Go back from the last function definition we jumped to.
 \\[erl-eval-expression]	- Evaluate an erlang expression from the minibuffer.
 \\[fprof]	- Profile (with fprof) an expression from the minibuffer.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
@@ -34,6 +35,11 @@
     ("\C-c\C-d:" . erl-eval-expression)
     ("\C-c\C-dp" . fprof)
     ("\C-c\C-d." . erl-find-source-under-point)
-    ("\C-c\C-dl" . erl-process-list)))
+    ("\C-c\C-d," . erl-find-source-unwind)
+    ("\C-c\C-dl" . erl-process-list)
+    ;; Possibly "controversial" shorter keys
+    ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
+    ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
+    ))
 
 (provide 'erlang-mode-ext)
