@@ -16,7 +16,8 @@
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
          process_summary_and_trace/2, fprof/3, fprof_analyse/1,
-         debug_toggle/2, break_toggle/2, debug_subscribe/1]).
+         debug_toggle/2, break_toggle/2, debug_subscribe/1,
+	 modules/1, functions/2]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
 
@@ -176,8 +177,6 @@ guess_source_file(Beam) ->
             false
     end.
 
-                                    
-
 %% ----------------------------------------------------------------------
 %% Summarise all processes in the system.
 %%
@@ -244,8 +243,13 @@ process_summary(Pid) ->
 %% Tracer is sent messages of:
 %%    {trace_msg, binary()}
 process_summary_and_trace(Tracer, Pid) ->
-    spawn_tracer(Tracer, Pid),
-    process_summary(Pid).
+    case is_process_alive(Pid) of
+	true ->
+	    spawn_tracer(Tracer, Pid),
+	    process_summary(Pid);
+	false ->
+	    {error, fmt("dead process: ~p", [Pid])}
+    end.
 
 spawn_tracer(Tracer, Tracee) ->
     spawn(?MODULE, tracer_init, [Tracer, Tracee]).
@@ -559,4 +563,26 @@ attach_goto(Emacs, Meta, Mod, Line, Pos, Max) ->
 	       {Name,Val} <- Bs],
     Emacs ! {variables, Vars},
     Emacs ! {location, Mod, Line, Pos, Max}.
+
+%% ----------------------------------------------------------------------
+%% Completion support
+%% ----------------------------------------------------------------------
+
+%% Returns: [ModName] of all modules starting with Prefix.
+%% ModName = Prefix = string()
+modules(Prefix) ->
+    Modnames = [atom_to_list(Mod) || {Mod, _Filename} <- code:all_loaded()],
+    {ok, lists:filter(fun(M) -> lists:prefix(Prefix, M) end, Modnames)}.
+
+%% Returns: [FunName] of all exported functions of Mod starting with Prefix.
+%% Mod = atom()
+%% Prefix = string()
+functions(Mod, Prefix) ->
+    case catch Mod:module_info(exports) of
+	{'EXIT', _} ->
+	    {error, fmt("Can't call module_info/1 on ~p", [Mod])};
+	List when list(List) ->
+	    Fns = [atom_to_list(Fun) || {Fun, _Arity} <- List],
+	    {ok, ordsets:to_list(ordsets:from_list(Fns))}
+    end.
 
