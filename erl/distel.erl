@@ -82,7 +82,8 @@ find_source(Mod) ->
             case code:is_loaded(Mod) of
                 {file, preloaded} ->
                     {error, ?L2B("\"preloaded\"")};
-                {file, Name} ->
+                {file, RelName} ->
+		    Name = abs_beamfile_name(RelName),
                     case guess_source_file(Name) of
                         {ok, Fname} ->
                             {ok, Fname};
@@ -95,6 +96,14 @@ find_source(Mod) ->
 	    {error, fmt("Can't find module '~p' on ~p", [Mod, node()])};
         {error, Why} ->
             {error, fmt("~p", [Why])}
+    end.
+
+abs_beamfile_name(RelName) ->
+    case file:get_cwd() of
+	{ok, Cwd} ->
+	    filename:join(Cwd, RelName);
+	_ ->
+	    RelName
     end.
 
 guess_source_file(Beam) ->
