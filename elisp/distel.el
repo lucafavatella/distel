@@ -8,6 +8,17 @@
 
 (defconst distel-version "3.1")
 
+;; Customization
+
+(defgroup distel '()
+  "Distel and erlang-extended-mode development tools."
+  :group 'tools)
+
+(defcustom distel-tags-compliant nil
+  "Tags compliant, i.e. let M-. ask for confirmation."
+  :type 'boolean
+  :group 'distel)
+
 ;; Compatibility with XEmacs
 (unless (fboundp 'define-minor-mode)
   (defalias 'define-minor-mode 'easy-mmode-define-minor-mode))
@@ -37,6 +48,7 @@ use. This name will be cached for future commands. To override the
 cache, give a prefix argument with C-u before using the command.
 \\<erlang-extended-mode-map>
 \\[erl-process-list]	- List all Erlang processes (\"pman\").
+\\[erl-complete]	- Complete a module or remote function name.
 \\[erl-find-source-under-point]		- Jump from a function call to its definition.
 \\[erl-find-source-unwind]		- Jump back from a function definition (multi-level).
 \\[erl-eval-expression]	- Evaluate an erlang expression from the minibuffer.
@@ -46,7 +58,7 @@ cache, give a prefix argument with C-u before using the command.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
 \\[edb-toggle-breakpoint]	- Toggle a debugger breakpoint at the current line.
 \\[edb-monitor]	- Popup the debugger's process monitor buffer.
-\\[erl-ie-session]	- Create an interactive \"session\" buffer.
+\\[erl-ie-show-session]	- Create an interactive \"session\" buffer.
 \\[erl-ie-copy-buffer-to-session]	- Create an interactive \"session\" buffer from current buffer.
 \\[erl-ie-copy-region-to-session]	- Create an interactive \"session\" buffer from region.
 
@@ -70,17 +82,12 @@ sequence. For general information about Emacs' online help, use
     ("\C-c\C-d." . erl-find-source-under-point)
     ("\C-c\C-d," . erl-find-source-unwind)
     ("\C-c\C-dl" . erl-process-list)
-
-    ;; distel-ie keybindings:
+    ("\C-\M-i"   . erl-complete)	; M-TAB
     ("\C-c\C-ds" . erl-ie-show-session)
-    ("\C-c\C-dc" . erl-ie-copy-buffer-to-session)
-    ("\C-c\C-dr" . erl-ie-copy-region-to-session)
-    ("\C-\M-x"   . erl-ie-evaluate)
-
     ;; Possibly "controversial" shorter keys
     ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
     ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
-    ("\M-*"      . erl-find-source-unwind) ; usually `tags-loop-continue'
+    ("\M-*"      . erl-find-source-unwind) ; usually `pop-tag-mark'
     ))
 
 ;; Setup mode-line info for erlang-extended-mode
@@ -152,5 +159,3 @@ sequence. For general information about Emacs' online help, use
     (insert string)
     (indent-rigidly pos (point) level)))
 
-(defvar distel-tags-compliant '()
-  "Tags compliant, i.e. let M-. ask for confirmation.")
