@@ -29,9 +29,14 @@ You can add this to erlang-mode-hook with:
 (define-minor-mode erlang-extended-mode
   "Extensions to erlang-mode for communicating with a running Erlang node.
 
+These commands generally communicate with an Erlang node. The first
+time you use one, you will be prompted for the name of the node to
+use. This name will be cached for future commands. To override the
+cache, give a prefix argument with C-u before using the command.
+\\<erlang-extended-mode-map>
 \\[erl-process-list]	- List all Erlang processes (\"pman\").
-\\[erl-find-source-under-point]	- Jump to the definition of a function call (dynamic TAGS).
-\\[erl-find-source-unwind]	- Go back from the last function definition we jumped to.
+\\[erl-find-source-under-point]		- Jump to the definition of a function call (dynamic TAGS).
+\\[erl-find-source-unwind]		- Jump back from a definition.
 \\[erl-eval-expression]	- Evaluate an erlang expression from the minibuffer.
 \\[fprof]	- Profile (with fprof) an expression from the minibuffer.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
