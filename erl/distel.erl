@@ -111,6 +111,7 @@ guess_source_file(Beam) ->
                             end;
                         _ ->
 			    %% This lets us find Distel's own sourcecode
+			    %% in the source tree layout
 			    case regexp:sub(Src1, "/ebin/", "/erl/") of
 				{ok, Src2, _} ->
 				    case file:read_file_info(Src2) of
@@ -365,15 +366,19 @@ break_toggle(Mod, Line) ->
             enabled
     end.
 
-%% Returns: {Header, [{Pid, Text}]}
+%% Returns: {InterpretedMods, Breakpoints, [{Pid, Text}]}
+%%          InterpretedMods = [Mod]
+%%          Breakpoints     = [{Mod, Line}]
 debug_subscribe(Pid) ->
     spawn_link(?MODULE, debug_subscriber_init, [self(), Pid]),
     receive ready -> ok end,
-    [{Proc,
-      fmt("~p:~p/~p", [M,F,length(A)]),
-      fmt("~w", [Status]),
-      fmt("~w", [Info])}
-     || {Proc, {M,F,A}, Status, Info} <- int:snapshot()].
+    {int:interpreted(),
+     [Break || {Break, _Info} <- int:all_breaks()],
+     [{Proc,
+       fmt("~p:~p/~p", [M,F,length(A)]),
+       fmt("~w", [Status]),
+       fmt("~w", [Info])}
+      || {Proc, {M,F,A}, Status, Info} <- int:snapshot()]}.
 
 debug_subscriber_init(Parent, Pid) ->
     link(Pid),
@@ -391,10 +396,10 @@ debug_subscriber(Pid) ->
                           fmt("~p:~p/~p", [M,F,length(A)]),
                           fmt("~w", [Status]),
                           fmt("~w", [Info])]}};
-        _ ->
-	    ok
+	Msg ->
+	    Pid ! Msg
     end,
-    ?MODULE:debug_subscriber(Pid).
+    debug_subscriber(Pid).
 
 debug_format(Pid, {M,F,A}, Status, Info) ->
     debug_format_row(io_lib:format("~w", [Pid]),

@@ -1,5 +1,12 @@
 2002-08-21  Luke Gorrie  <luke@bluetail.com>
 
+	* elisp/edb.el, distel.erl: Reworked the debugger so that the
+	Monitor process tracks the current set of breakpoints and
+	interpreted modules. This lays the ground work for showing
+	breakpoints in source code, and indicating which modules are
+	interpreted via the mode line -- but that's not implemented
+	yet. Meanwhile, the debugger appears to still work :-)
+
 	* Makefile.in: Moved the documentation onto separate targets:
 	  "info", "info_install", "postscript". Hopefully this will avoid
 	  hittings errors in basic installations on non-GNU systems.

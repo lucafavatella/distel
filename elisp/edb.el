@@ -50,8 +50,20 @@
 ;; ----------------------------------------------------------------------
 ;; Monitor process
 
+(defvar edb-monitor-buffer nil
+  "Monitor process/viewer buffer.")
+
+(defvar edb-monitor-node nil
+  "Node we are debug-monitoring.")
+
 (defvar edb-monitor-mode-map nil
   "Keymap for Erlang debug monitor mode.")
+
+(defvar edb-monitor-interpreted-modules '()
+  "Set of modules being interpreted on the currently monitored node.")
+
+(defvar edb-monitor-breakpoints '()
+  "Set of (MODULE . LINE) breakpoints on the currently monitored node.")
 
 (unless edb-monitor-mode-map
   (setq edb-monitor-mode-map (make-sparse-keymap))
@@ -107,21 +119,42 @@ Available commands:
 
 (defun edb-monitor (node)
   (interactive (list (erl-read-nodename)))
-  (let ((bufname (edb-monitor-buffer-name node)))
-    (if (get-buffer bufname)
-	(display-buffer bufname)
-      (edb-start-monitor node))))
+  (cond ((edb-node-change-p node)
+	 (when (y-or-n-p (format "Attach debugger to %S instead of %S? "
+				 node edb-monitor-node))
+	   ;; Kill existing edb then start again
+	   (kill-buffer edb-monitor-buffer)
+	   (edb-monitor node)))
+	(t
+	 (unless (edb-monitor-live-p)
+	   (edb-start-monitor node))
+	 (select-window (display-buffer edb-monitor-buffer)))))
+
+(defun edb-monitor-node-change-p (node)
+  "Do we have to detach/reattach to debug on NODE?"
+  (and (ed-monitor-live-p)
+       (not (equal node edb-monitor-node))))
+
+(defun edb-monitor-live-p ()
+  "Are we actively debug-monitoring a node?"
+  (and edb-monitor-buffer
+       (buffer-live-p edb-monitor-buffer)))
 
 (defun edb-monitor-buffer-name (node)
   (format "*edb %S*" node))
 
 (defun edb-start-monitor (node)
+  "Start debug-monitoring NODE."
   (erl-spawn
+    (setq edb-monitor-node node)
+    (setq edb-monitor-buffer (current-buffer))
     (rename-buffer (edb-monitor-buffer-name node))
     (edb-monitor-mode)
     (erl-send-rpc node 'distel 'debug_subscribe (list erl-self))
     (erl-receive (node)
-	(([rex Snapshot]
+	(([rex [Interpreted Breaks Snapshot]]
+	  (setq edb-monitor-interpreted-modules interpreted)
+	  (setq edb-monitor-breakpoints breaks)
 	  (setq edb-processes
 		(ewoc-create 'edb-monitor-insert-process
 			     (edb-monitor-header)))
@@ -133,7 +166,6 @@ Available commands:
 						       status
 						       info))))
 		snapshot)
-	  (display-buffer (current-buffer))
 	  (&edb-monitor-loop))))))
 
 (defun &edb-monitor-loop ()
@@ -149,7 +181,22 @@ Available commands:
 			  (make-edb-process pid
 					    mfa
 					    status
-					    info))))
+					    info)))
+       ([int [no_interpret Mod]]
+	(setq edb-monitor-interpreted-modules
+	      (remq mod edb-monitor-interpreted-modules)))
+       ([int [no_break Mod]]
+	(setq edb-monitor-breakpoints
+	      (remove-if (lambda (bp)
+			   (mcase bp
+			     ([,mod _] t)
+			     (_        nil)))
+			 edb-monitor-breakpoints)))
+       ([int [new_break [Pos _Info]]]
+	(push pos edb-monitor-breakpoints))
+       ([int [delete_break Pos]]
+	(setq edb-monitor-breakpoints
+	      (remove pos edb-monitor-breakpoints))))
     (ewoc-refresh edb-processes)    
     (&edb-monitor-loop)))
 
