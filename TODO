@@ -11,7 +11,6 @@ people on non-GNU systems would be especially appreciated.
 - Autoloads
 
 * Debugger
-- Popup monitor when something "interesting" happens
 - Visual breakpoint markers
 
 * Profiler
