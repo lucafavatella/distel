@@ -49,18 +49,28 @@
 (defvar erl-node-name nil		; initialised below
   "Node name for Emacs.")
 
-(defvar erl-pid-counter 0
-  "Counter for PIDs.")
+(defun erl-determine-hostname ()
+  "Figure out the short-names hostname."
+  (let ((fqdn (system-name)))
+    (if (string-match "[^\\.]+" fqdn)
+	(match-string 0 fqdn)
+      (error "erl: Can't determine hostname."))))
 
-(defvar erl-process-buffer-alist nil
-  "Automatically-maintained association list of (PID-ID . BUFFER)
-mappings for local processes.")
+(when (null erl-node-name)
+  (setq erl-node-name (intern (concat "distel@" (erl-determine-hostname)))))
 
 (defconst erl-null-pid (make-erl-local-pid 0)
   "\"Null process\", the /dev/null of erl processes.
 Any messages sent to this process are quietly discarded. When code
 isn't running in the buffer of a particular process, it's running as
 the null process.")
+
+(defvar erl-pid-counter 0
+  "Counter for PIDs.")
+
+(defvar erl-process-buffer-alist nil
+  "Automatically-maintained association list of (PID-ID . BUFFER)
+mappings for local processes.")
 
 (defvar erl-schedulable-processes nil
   "List of processes which can be scheduled to run.")
@@ -322,6 +332,9 @@ is unregistered."
 (defalias 'erl-term-to-binary #'erlext-term-to-binary)
 (defalias 'erl-binary-to-term #'erlext-binary-to-term)
 
+(defun erl-group-leader ()
+  (or erl-group-leader erl-default-group-leader))
+
 ;; Guts
 ;;
 ;; The scheduler works without ever being explicitly called. It runs
@@ -478,9 +491,6 @@ during the next `erl-schedule'."
   (or (cdr (assoc (erl-pid-id pid) erl-process-buffer-alist))
       (error "No buffer for pid %S" pid)))
 
-(defun erl-pid-to-string (pid)
-  (format "<*.%S.0>" (erl-pid-id pid)))
-
 (defun erl-null-pid-p (p)
   (equal p erl-null-pid))
 
@@ -503,9 +513,12 @@ during the next `erl-schedule'."
   (and (erl-pid-p x)
        (not (erl-local-pid-p x))))
 
-(defun erl-pid->string (pid)
+(defun erl-pid-to-string (pid)
   ;; FIXME: number nodes
-  (format "<0.%S.%S>" (erl-pid-serial pid) (erl-pid-id pid)))
+  (let ((n (if (eq (erl-pid-node pid) erl-node-name)
+	       "0" ; local
+	     "?")))
+    (format "<%s.%S.%S>" n (erl-pid-id pid) (erl-pid-serial pid))))
 
 (defun erl-lose-msg (msg)
   "Log and discard a message sent to the null process."
@@ -567,13 +580,6 @@ during the next `erl-schedule'."
 (defun erl-nodedown (node)
   (message "nodedown: %S" node))
 
-(defun erl-determine-hostname ()
-  "Figure out the short-names hostname."
-  (let ((fqdn (system-name)))
-    (if (string-match "[^\\.]+" fqdn)
-	(match-string 0 fqdn)
-      (error "erl: Can't determine hostname."))))
-
 ;; These hooks are defined in derl.el
 (add-hook 'erl-nodeup-hook 'erl-nodeup)
 (add-hook 'erl-nodedown-hook 'erl-nodedown)
@@ -585,10 +591,7 @@ during the next `erl-schedule'."
 (put 'erl-receive 'lisp-indent-function 2)
 (put 'with-bindings 'lisp-indent-function 1)
 
-;; Group leader
-
-(when (null erl-node-name)
-  (setq erl-node-name (intern (concat "distel@" (erl-determine-hostname)))))
+;; Initial processes
 
 (defun &erl-group-leader-loop ()
   (erl-receive ()
