@@ -40,6 +40,7 @@ cache, give a prefix argument with C-u before using the command.
 \\[erl-eval-expression]	- Evaluate an erlang expression from the minibuffer.
 \\[erl-reload-module]	- Reload an Erlang module.
 \\[fprof]	- Profile (with fprof) an expression from the minibuffer.
+\\[fprof-analyse]	- View profiler results from an \"fprof:analyse\" file.
 \\[edb-toggle-interpret]	- Toggle debug interpreting of the module.
 \\[edb-toggle-breakpoint]	- Toggle a debugger breakpoint at the current line.
 \\[edb-monitor]	- Popup the debugger's process monitor buffer.
@@ -63,6 +64,7 @@ sequence. For general information about Emacs' online help, use
     ("\C-c\C-d:" . erl-eval-expression)
     ("\C-c\C-dL" . erl-reload-module)
     ("\C-c\C-dp" . fprof)
+    ("\C-c\C-dP" . fprof-analyse)
     ("\C-c\C-d." . erl-find-source-under-point)
     ("\C-c\C-d," . erl-find-source-unwind)
     ("\C-c\C-dl" . erl-process-list)

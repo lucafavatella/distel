@@ -1,3 +1,8 @@
+2002-11-08  Luke Gorrie  <luke@bluetail.com>
+
+	* elisp/erl-service.el (fprof-analyse): Added new command to view
+	an existing fprof analysis file.
+
 2002-11-05  Luke Gorrie  <luke@bluetail.com>
 
 	* elisp/erl.el (erl-make-ref): Equivalent to make_ref/0 BIF in

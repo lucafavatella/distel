@@ -273,12 +273,24 @@ This is received from the Erlang module.")
 		     (erl-add-terminator (read-string "Expression: "))))
   (erl-spawn
     (erl-send-rpc node 'distel 'fprof (list expr))
-    (message "Waiting for fprof reply...")
-    (erl-receive ()
-	(([rex [ok Preamble Header Entries]]
-	  (message "Got fprof reply, drawing...")
-	  (fprof-display preamble header entries))
-	 (Other (message "Unexpected reply: %S" other))))))
+    (fprof-receive-analysis)))
+
+(defun fprof-analyse (node filename)
+  "View an existing profiler analysis from a file."
+  (interactive (list (erl-read-nodename)
+		     (read-string "Filename: ")))
+  (erl-spawn
+    (erl-send-rpc node 'distel 'fprof_analyse (list filename))
+    (fprof-receive-analysis)))
+
+(defun fprof-receive-analysis ()
+  (message "Waiting for fprof reply...")
+  (erl-receive ()
+      (([rex [ok Preamble Header Entries]]
+	(message "Got fprof reply, drawing...")
+	(fprof-display preamble header entries))
+       (Other (message "Unexpected reply: %S" other)))))
+
 
 (defun fprof-display (preamble header entries)
   "Display profiler results in the *fprof* buffer."

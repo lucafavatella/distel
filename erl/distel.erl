@@ -15,7 +15,7 @@
 
 -export([rpc_entry/3, eval_expression/1, find_source/1,
          process_list/0, process_summary/1,
-         process_summary_and_trace/2, fprof/3,
+         process_summary_and_trace/2, fprof/3, fprof_analyse/1,
          debug_toggle/2, break_toggle/2, debug_subscribe/1]).
 
 -export([gl_proxy/1, tracer_init/2, null_gl/0]).
@@ -301,13 +301,16 @@ fprof_fun(F) ->
     fprof:profile(),
     fprof:analyse({dest, "/tmp/fprof.analysis"}),
     GL ! die,
-    {ok, Asys} = file:consult("/tmp/fprof.analysis"),
+    fprof_analyse("/tmp/fprof.analysis").
+
+fprof_analyse(Filename) ->
+    {ok, Asys} = file:consult(Filename),
     [_Opts, [Totals], _Proc | Fns] = Asys,
     {ok,
      fprof_preamble(Totals),
      fprof_header(),
      [fprof_entry(Entry) || Entry <- Fns]}.
-
+    
 fprof_preamble({totals, Cnt, Acc, Own}) ->
     fmt("Totals: ~p calls, ~.3f real, ~.3f CPU\n\n", [Cnt, Acc, Own]).
 
@@ -339,8 +342,10 @@ fprof_process_info({initial_calls, Calls}) ->
 fprof_process_info(Info) ->
     fmt("  ???: ~p~n", [Info]).
 
-fprof_tag({M,F,A}) ->
+fprof_tag({M,F,A}) when integer(A) ->
     list_to_atom(flatten(io_lib:format("~p:~p/~p", [M,F,A])));
+fprof_tag({M,F,A}) when list(A) ->
+    fprof_tag({M,F,length(A)});
 fprof_tag(Name) when  atom(Name) ->
     Name.
 
