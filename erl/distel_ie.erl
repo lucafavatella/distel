@@ -28,7 +28,8 @@
 
 	 start/0,
 	 start/1,
-	 init/1
+	 init/1,
+	 loop/1
 	]).
 
 -define(FMT(X), list_to_binary(lists:flatten(io_lib:format("~p", [X])))).
