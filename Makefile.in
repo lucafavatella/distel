@@ -33,6 +33,10 @@ PS_OBJ   := doc/distel.ps
 
 OBJECTS := ${ERL_OBJ} ${ELISP_OBJ} ${C_OBJ} ${INFO_OBJ} ${PS_OBJ}
 
+warning:
+	@echo "Distel has moved into the Jungerl!"
+	@echo "See http://jungerl.sf.net/"
+
 base: ${ERL_OBJ} ${ELISP_OBJ} ${C_OBJ}
 info: ${INFO_OBJ}
 postscript: ${PS_OBJ}
