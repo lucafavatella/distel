@@ -13,24 +13,24 @@ Step 2: Edit your PATH environment variable via the System control
         panel: remove the quotes from the path to the Erlang
         installation.
 
-Step 3: Choose a directory to install distel, e.g. C:\distel, and do:
-          ./configure --prefix=c:/distel
+Step 3: Do a "make".
 
-Step 4: Do a "make" and then a "make install".
-
-Step 5: We must now update the ~/.erlang and ~/.emacs files to load
+Step 4: We must now update the ~/.erlang and ~/.emacs files to load
         Distel. However, Erlang and Emacs don't use the same algorithm
         to find the home directory: Emacs uses the %HOME% environment
         variable, and Erlang uses %HOMEDRIVE%\%HOMEPATH%. Both default
         to C:\ (as far as I know..)
 
 	After figuring out or setting these paths, edit your .erlang
-	to include (for example installation directory):
+	to include (substitute real path):
 
-          code:add_pathz("c:/distel/share/distel/ebin").
+          code:add_pathz("c:/jungerl/lib/distel/ebin").
 
-        And add the contents of the config/emacs-init-snippet.el file
-        to your .emacs file.
+        And update your ~/.emacs to contain:
+
+          (add-to-list 'load-path "c:/jungerl/lib/distel/elisp")
+          (require 'distel)
+          (distel-setup)
 
 Distel should now work correctly. If you have problems, please send a
 note to the mailing list.

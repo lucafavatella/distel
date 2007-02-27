@@ -6,8 +6,6 @@
 
 (provide 'distel)
 
-(defconst distel-version "3.3")
-
 ;; Customization
 
 (defgroup distel '()
@@ -36,6 +34,9 @@
 
 (require 'distel-ie)
 
+(defun distel-setup ()
+  (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook))
+
 (defun distel-erlang-mode-hook ()
   "Function to enable the Distel extensions to Erlang mode.
 You can add this to `erlang-mode-hook' with:
@@ -58,6 +59,7 @@ cache, give a prefix argument with C-u before using the command.
 \\[erl-find-source-unwind]		- Jump back from a function definition (multi-level).
 \\[erl-eval-expression]	- Evaluate an erlang expression from the minibuffer.
 \\[erl-reload-module]	- Reload an Erlang module.
+\\[erl-reload-modules]	- Reload all Erlang modules that are out of date.
 \\[fprof]	- Profile (with fprof) an expression from the minibuffer.
 \\[fprof-analyse]	- View profiler results from an \"fprof:analyse\" file.
 \\[erl-fdoc-describe]	- Describe a module or function with fdoc.
@@ -83,42 +85,66 @@ sequence. For general information about Emacs' online help, use
 "
   nil
   nil
-  '(("\C-c\C-di" . edb-toggle-interpret)
-    ("\C-x "     . edb-toggle-breakpoint)
-    ("\C-c\C-db" . edb-toggle-breakpoint)
-    ("\C-c\C-ds" . edb-synch-breakpoints)
-    ("\C-c\C-dS" . edb-save-dbg-state)
-    ("\C-c\C-dR" . edb-restore-dbg-state)
-    ("\C-c\C-dm" . edb-monitor)
-    ("\C-c\C-d:" . erl-eval-expression)
-    ("\C-c\C-dL" . erl-reload-module)
-    ("\C-c\C-dp" . fprof)
-    ("\C-c\C-dP" . fprof-analyse)
-    ("\C-c\C-d." . erl-find-source-under-point)
-    ("\C-c\C-d," . erl-find-source-unwind)
-    ("\C-c\C-dl" . erl-process-list)
-    ("\C-\M-i"   . erl-complete)	; M-TAB
-    ("\M-?"      . erl-complete)	; Some windowmanagers hijack M-TAB..
-    ("\C-c\C-de" . erl-ie-show-session)
-    ("\C-c\C-df" . erl-refactor-subfunction)
-    ("\C-c\C-dd" . erl-fdoc-describe)
-    ("\C-c\C-da" . erl-fdoc-apropos)
-    ("\C-c\C-dw" . erl-who-calls)
-    ("("         . erl-openparen)
+  ;; Fake keybinding list just to get the keymap created.
+  ;;
+  ;; define-minor-mode is very inconvenient for redefining keybindings
+  ;; so we do that by hand, below.
+  '(("\M-." 'undefined)))
+
+(defconst distel-keys
+  '(("\C-c\C-di" edb-toggle-interpret)
+    ("\C-x "     edb-toggle-breakpoint)
+    ("\C-c\C-db" edb-toggle-breakpoint)
+    ("\C-c\C-ds" edb-synch-breakpoints)
+    ("\C-c\C-dS" edb-save-dbg-state)
+    ("\C-c\C-dR" edb-restore-dbg-state)
+    ("\C-c\C-dm" edb-monitor)
+    ("\C-c\C-d:" erl-eval-expression)
+    ("\C-c\C-dL" erl-reload-module)
+    ("\C-c\C-dr" erl-reload-modules)
+    ("\C-c\C-dp" fprof)
+    ("\C-c\C-dP" fprof-analyse)
+    ("\C-c\C-d." erl-find-source-under-point)
+    ("\C-c\C-d," erl-find-source-unwind)
+    ("\C-c\C-dl" erl-process-list)
+    ("\C-\M-i"   erl-complete)	; M-TAB
+    ("\M-?"      erl-complete)	; Some windowmanagers hijack M-TAB..
+    ("\C-c\C-de" erl-ie-show-session)
+    ("\C-c\C-df" erl-refactor-subfunction)
+    ("\C-c\C-dd" erl-fdoc-describe)
+    ("\C-c\C-da" erl-fdoc-apropos)
+    ("\C-c\C-dw" erl-who-calls)
+    ("\C-c\C-dn" erl-choose-nodename)
+    ("("         erl-openparen)
     ;; Possibly "controversial" shorter keys
-    ("\M-."      . erl-find-source-under-point)	; usually `find-tag'
-    ("\M-,"      . erl-find-source-unwind) ; usually `tags-loop-continue'
-    ("\M-*"      . erl-find-source-unwind) ; usually `pop-tag-mark'
-    ))
+    ("\M-."      erl-find-source-under-point)	; usually `find-tag'
+    ("\M-,"      erl-find-source-unwind) ; usually `tags-loop-continue'
+    ("\M-*"      erl-find-source-unwind) ; usually `pop-tag-mark'
+    )
+  "Keys to bind in distel-mode-map.")
+
+(defun distel-bind-keys ()
+  "Bind `distel-keys' in `erlang-extended-mode-map'."
+  (interactive)
+  (dolist (spec distel-keys)
+    (define-key erlang-extended-mode-map (car spec) (cadr spec))))
+
+(distel-bind-keys)
 
 ;; Setup mode-line info for erlang-extended-mode
 ;;
 ;; NB: Would use the LIGHTER argument for define-minor-mode, but it's
 ;; not working portably: my copy of Emacs21 disagrees with emacs20 and
 ;; xemacs on whether it should be quoted.
+
+(defvar distel-modeline-node nil
+  "When non-nil the short name of the currently connected node.")
+
 (add-to-list 'minor-mode-alist
 	     '(erlang-extended-mode
-	       (" EXT" (edb-module-interpreted ":interpreted" ""))))
+	       (" EXT"
+                (distel-modeline-node (":" distel-modeline-node) "")
+                (edb-module-interpreted "<interpreted>" ""))))
 
 (add-hook 'erlang-extended-mode-hook
 	  '(lambda ()
@@ -157,7 +183,7 @@ sequence. For general information about Emacs' online help, use
       nil
       ("Create an interactive erlang session buffer" erl-ie-show-session)
       nil
-      ("Specify which node to connect to" erl-get-nodename)
+      ("Specify which node to connect to" erl-choose-nodename)
       )))
   "*Description of the Distel menu used by Erlang Extended mode.
 

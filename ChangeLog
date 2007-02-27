@@ -1,3 +1,137 @@
+2006-09-25  Mats Cronqvist  <locmacr@mwlx084>
+
+	* src/distel.erl: added erl-reload-modules. reloads all modules
+	that are out of date. compares time of compilation for the loaded
+	code and the code in the corresponding beam file.
+	* elisp/distel.el: bound erl-reload-modules to C-c C-d r.
+	
+2006-09-04  Mats Cronqvist  <locmacr@mwlx084>
+
+	* src/distel.erl (Module): reload_module/2; 1st arg assumed to be
+	sting, could be atom or string.  resolved by creating to_atom/1
+	and to_bin/1. got rid of l2a/1 and l2b/1.
+
+2006-08-03  Mats Cronqvist  <locmacr@mwlx084>
+
+	* src/distel.erl (Module): had problems in guess_source_file/2;
+	1st arg was assumed to be atom, but could be atom or list.
+	wound up creating 3 functions;
+	
+	l2a/1 - list_to_atom
+	l2b/1 - list_to_binary
+	to_list - *_to_list
+
+	and use them consistently.
+	
+2006-05-15  Mats Cronqvist  <locmacr@mwlx084>
+
+	* src/distel.erl (Module): behaviour of int:meta changed in R10B-10.
+	edb now understands the new, and (hopefully) the old as well.
+
+	new feature; you can attach to a process that exited in
+	interpreted code and inspect the stack (just as if you're in a
+	break)
+
+	fixed bug when trying to do c:l/1 on a string
+	
+2005-06-07  Mats Cronqvist  <locmacr@mwlx084>
+
+	* elisp/derl.el (derl-cookie): made derl-cookie writable
+
+2005-06-03  Mats Cronqvist  <locmacr@mwlx084>
+
+	* elisp/erl-service.el (erl-openparent): inserts a "(" and the
+	argument list from erl-openparen.
+	
+	(erl-reload-dwim): Do What I Mean to erl-reload-module. when
+	reloading beam files; if erl-reload-dwim is non-nil, and the
+	erlang module cannot be found in the load path, we attempt to find
+	the correct directory. I.e. if we're editing PATH/Mod.erl we look
+	for PATH/Mod.beam orelse PATH/../ebin/Mod.beam. if found we add
+	the dir to the load path and retry the load.  We also don't prompt
+	for the module name. this is your basic bloat.
+
+	* elisp/distel.el (Module): bound M-( to erl-openparent
+
+2005-06-02  Mats Cronqvist  <locmacr@mwlx084>
+
+	* src/distel.erl (reload_module/2): runs c:l/1, if it fails it looks
+	for the beam file in in srcdir and srcdir/../ebin (srcdir is where
+	the .erl file that you're editing lives, it's sent from emacs). if
+	it finds the beam file it adds the appropriate dir to the load
+	path and reruns c:l/1.
+	(stack_pos/2): debugger wouldn't show the variable
+	bindings in the top level function. now it does! 
+	(refresh_dir/1): fixed typo 
+	(Module): imported some functions from filename, renamed some
+	unused vars...
+
+2005-03-25  Mats Cronqvist  <mats.cronqvist@ericsson.com>
+
+	* elisp/derl.el (derl-int32-to-decimal): Rewrote the test for
+	enough precision in floating-point. the test is pretty lame, even
+	if it succeeds we cannot be sure it'll work for all int32's.
+	alas, i'm too ignorant to write a good test. the previous version
+	of the test was nicer, but FSFmacs-specific :<
+
+2005-02-20  Luke Gorrie  <luke@synap.se>
+
+	* doc/distel.texi (Conventions): Added a note that you need to
+	start the Erlang node yourself, to make Joe happy.
+
+2005-01-30  Luke Gorrie  <luke@synap.se>
+
+	* elisp/erl-service.el (erl-goto-end-of-call-name): Rewrote to
+	hopefully suck less badly.
+
+2004-10-27  Luke Gorrie  <luke@synap.se>
+
+	* elisp/erl-service.el (erl-refactor-subfunction): Strip text
+	properties from refactored text.
+
+	* elisp/erl.el (&erl-group-leader-loop): Make *erl-output* a plain
+	Emacs buffer created on demand. Previously it was actually the
+	Distel group leader process and so it was bad to kill it (now it's
+	fine).
+
+2004-10-26  Martin Bjorklund  <mbj@bluetail.com>
+
+	* elisp/distel.el (distel-menu-items): Use erl-choose-nodename in
+	the menu.
+
+2004-10-25  Luke Gorrie  <luke@synap.se>
+
+	* elisp/derl.el (derl-send-name): Lie to Erlang by saying that we
+	support extended PIDs. This way we can establish distribution with
+	R10B-0, which doesn't seem to actually send extended pids
+	initially. (This is a lame workaround but I'm in a hurry and the
+	extended-pid format is not documented.)
+
+	* doc/distel.texi: Updated to describe `erl-choose-nodename' and
+	the fact that `C-u' is now a regular prefix argument instead of a
+	new-node-chooser.
+
+	* README, INSTALL: Updated to describe simplified installation
+	instructions.
+
+2004-10-23  Luke Gorrie  <luke@synap.se>
+
+	* elisp/erl-service.el (erl-choose-nodename): Update
+	distel-modeline-node.
+
+	* elisp/distel.el (distel-keys, distel-bind-keys): Bind keys
+	manually instead of with define-minor-mode. The latter makes it
+	hard to change the bindings without restarting Emacs.
+	(distel-modeline-node): Variable containing the (possibly
+	abbreviated) name of the current Erlang node. This is displayed in
+	the modeline so the user can see which node is in use.
+
+2004-10-16  Luke Gorrie  <luke@synap.se>
+
+	* elisp/derl.el (derl-int32-to-decimal): No longer try to use the
+	'dec32' helper program: rely solely on floating point. This way we
+	can remove that C program entirely.
+
 2004-08-26  Luke Gorrie  <luke@bluetail.com>
 
 	* erl/distel.erl: Added who_calls/3 front-end to cross

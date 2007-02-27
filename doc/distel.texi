@@ -4,15 +4,20 @@
 @settitle Distel User Manual
 @c %**end of header
 
-@set EDITION Distel 3.3
-@set UPDATED March 2003
-@set VERSION 3.3
+@set EDITION Distel Jungerl
+@set UPDATED $Date: 2005/02/20 22:10:15 $
+@set VERSION Jungerl
 
 @titlepage
 @title Distel User Manual
 @subtitle @value{EDITION}, updated @value{UPDATED}
 @author Luke Gorrie
 @end titlepage
+
+@dircategory Emacs
+@direntry
+* Distel: (distel).             Erlang development environment.
+@end direntry
 
 @c @setchapternewpage off
 
@@ -24,7 +29,7 @@
 @noindent
 
 @ifinfo
-This is the user manual for Distel version @value{VERSION}.
+This is the user manual for Distel.
 @end ifinfo
 
 @menu
@@ -111,28 +116,25 @@ affect Distel's operation. More on this in the relevant sections.
 @node Conventions,  , Principles, Introduction
 @section Conventions of Use
 
-Most Distel commands need to know which Erlang node to talk to. The
-first command you use will prompt in the minibuffer for the name of
-the node to use. You can answer with either a @code{name@@host} node
-name, or with just the @code{name} part as an abbreviation for a node
-on the local machine.
+Most Distel commands need to know which Erlang node to talk to.
+(Distel doesn't start an Erlang node, you have to do that yourself.)
+The first command you use will prompt in the minibuffer for the name
+of the node to use. You can answer with either a @code{name@@host}
+node name, or with just the @code{name} part as an abbreviation for a
+node on the local machine.
 
 As a convenience, the node name you enter is cached and then reused in
-future commands. If you later want to talk to a different node, you
-can bypass the cache by prefixing a command's key sequence with the
-Emacs ``universal prefix argument,'' @kbd{C-u}. All commands accept
-this prefix argument to mean ``forget the cached node name and prompt
-for a new one.'' For example, @kbd{M-.} is the command to lookup a
-function definition, so @kbd{C-u M-.} will do the same thing but
-prompt for the node to use.
+future commands. If you later want to talk to a different node you can
+use the command @code{erl-choose-nodename} (@kbd{C-c C-d n}) to select
+a new node to talk to. The currently cached node name is always shown
+in the modeline.
 
-Some commands also accept a numeric prefix argument to alter their
-behaviour in some specific way. You can give a numeric prefix by
-holding either Control or Meta and pressing a number, followed by the
-command itself. For example, @kbd{M-1 M-.} tells the @kbd{M-.}
-command to prompt for the function to lookup, instead choosing one by
-looking at the source text in the buffer. The effect, if any, of a
-numeric prefix on a command is included in the command's
+Some commands accept a prefix argument to alter their behaviour in
+some specific way. You can give a prefix with @kbd{C-u} followed by
+the command you want to call. For example, @kbd{C-u M-.} tells the
+@kbd{M-.} command to prompt for the function to lookup, instead
+choosing one by looking at the source text in the buffer. The effect,
+if any, of a prefix on a command is included in the command's
 documentation.
 
 @node Programming Aids, Applications, Introduction, Top
@@ -188,8 +190,8 @@ that has the matching code in its code path.
 @item M-.
 Jump from a function call to the definition of the function
 (@code{erl-find-source-under-point}). If the variable
-@code{distel-tags-compliant} is non-nil, or a numeric prefix argument
-is given, this command prompts for the function name to lookup.
+@code{distel-tags-compliant} is non-nil, or a prefix argument is
+given, this command prompts for the function name to lookup.
 
 @item M-,
 Jump back from a function definition
@@ -365,7 +367,7 @@ expression. All functions whose names or comments match the regexp are
 displayed. (@code{erl-fdoc-apropos})
 @end table
 
-With a numeric prefix argument, these commands rebuild the @code{fdoc}
+With a prefix argument, these commands rebuild the @code{fdoc}
 database before searching. This is useful after (re)loading a lot of
 modules, since @code{fdoc} only scans the currently loaded modules for
 documentation when it builds the database.

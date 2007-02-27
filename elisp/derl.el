@@ -13,12 +13,6 @@
 (eval-when-compile
   (require 'cl))
 
-(defvar erl-dec32
-  (if (eq system-type 'windows-nt)
-      "dec32.exe"
-      "dec32")
-  "The name of the helper program that formats decimal numbers.")
-
 (defvar erl-nodeup-hook nil
   "Called with two args, NODE and FSM. NODE is a string of the form
 \"mynode@cockatoo\", FSM is the net-fsm process of the connection.")
@@ -32,7 +26,7 @@
   :group 'distel)
 
 (defvar derl-cookie nil
-  "Cookie to use in distributed erlang connections, or NIL.
+  "*Cookie to use in distributed erlang connections, or NIL.
 When NIL, we read ~/.erlang.cookie.")
 
 ;; Local variables
@@ -62,6 +56,17 @@ handshake, 4 when connected."))
  (defvar derl-remote-links '()
   "List of (LOCAL-PID . REMOTE-PID) for all distributed links (per-node.)
 Used for sending exit signals when the node goes down."))
+
+;; Optional feature flags
+(defconst derl-flag-published           #x01)
+(defconst derl-flag-atom-cache          #x02)
+(defconst derl-flag-extended-references #x04)
+(defconst derl-flag-dist-monitor        #x08)
+(defconst derl-flag-fun-tags            #x10)
+(defconst derl-flag-dist-monitor-name   #x20)
+(defconst derl-flag-hidden-atom-cache   #x40)
+(defconst derl-flag-new-fun-tags        #x80)
+(defconst derl-flag-extended-pids-ports #x100)
 
 ;; ------------------------------------------------------------
 ;; External API
@@ -189,7 +194,8 @@ complete and we become live."
    (fsm-build-message
      (fsm-encode1 110)			; tag (n)
      (fsm-encode2 5)			; version
-     (fsm-encode4 4)			; flagss: extended references
+     (fsm-encode4 (logior derl-flag-extended-references
+                          derl-flag-extended-pids-ports))
      (fsm-insert (symbol-name erl-node-name)))))
 
 (defun derl-send-challenge-reply (challenge)
@@ -209,6 +215,8 @@ gen_digest() function:
   (or derl-cookie
       (with-temp-buffer
 	(insert-file-contents (concat (getenv "HOME") "/.erlang.cookie"))
+	(while (search-forward "\n" nil t)
+	  (replace-match ""))
 	(buffer-string))))
 
 ;; ------------------------------------------------------------
@@ -431,36 +439,21 @@ buffer.")
   (run-hook-with-args 'erl-nodeup-hook node fsm-process))
 
 (eval-and-compile
-  ;; Try to establish whether we have IEEE floating point.  In that
-  ;; case we can rely on exact floating point operations with enough
-  ;; of precision from the doubles used in Emacs floats.  Actually, we
-  ;; probably don't have non-IEEE FP on any platform, but I'm not sure
-  ;; what can happen if the systems's FP is set up to signal on
-  ;; divide-by-zero.  Note that `float_arith_driver' in data.c tests
-  ;; IEEE_FLOATING_POINT before dividing by zero, and signals an error
-  ;; in the non-IEEE case.
-  (cond ((string= "1.0e+INF" (format "%S" (condition-case ()
-					      (/ 1.0 0)
-					    (error nil))))
-	 (defun derl-int32-to-decimal (s)
-	   "Converts a 32-bit number (represented as a 4-byte string) into its
+  (defun derl-int32-to-decimal (s)
+    "Converts a 32-bit number (represented as a 4-byte string) into its
 decimal printed representation."
-	   (format "%.0f" (+ (+ (aref s 3) (* 256 (aref s 2)))
-			     (* (+ 0.0 (aref s 1) (* 256 (aref s 0)))
-				65536)))))
-	((executable-find "dec32")
-	 (defun derl-int32-to-decimal (s)
-	   "Converts a 32-bit number (represented as a 4-byte string) into its
-decimal printed representation."
-	   ;; This is a very hacky implementation that calls a custom C program
-	   ;; to do the work. It would be great to replace this with some
-	   ;; pure-elisp, but it would have to be clever to work around the
-	   ;; lack of real 32-bit integers.
-	   (let ((command (apply #'format
-				 (cons (concat erl-dec32 " %d %d %d %d")
-				       (string-to-list s)))))
-	     (shell-command-to-string command))))
-	(t (error "dec32 helper program not found in PATH"))))
+    (format "%.0f" (+ (+ (aref s 3) (* 256 (aref s 2)))
+		      (* (+ 0.0 (aref s 1) (* 256 (aref s 0)))
+			 65536)))))
+
+;; Try to establish whether we have enough precision in floating-point
+;; The test is pretty lame, even if it succeeds we cannot be sure
+;; it'll work for all int32's
+;; alas, i'm too ignorant to write a good test
+;; the previous version of the test was nicer, but FSFmacs-specific :<
+
+(unless (string= "1819634533" (derl-int32-to-decimal "luke"))
+  (error "Can't use Emacs's floating-point for `derl-int32-to-decimal'."))
 
 (defun derl-hexstring-to-binstring (s)
   "Convert the hexidecimal string S into a binary number represented

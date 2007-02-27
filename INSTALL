@@ -1,41 +1,26 @@
 Installation
 ------------
 
-1. Build and install the software in the usual way:
-     ./configure && make && [sudo] make install
+First compile Distel's Erlang modules with 'make'.
 
-   If you checked out from CVS, you'll have to run 'autoconf' first,
-   to create 'configure'.
+Next add these modules to your code-path by adding a line to
+~/.erlang (substitute correct path):
 
-   If you use XEmacs but the configure script detects 'emacs', you
-   should do "make emacs=xemacs" for both the compile and install
-   steps.
+  code:add_pathz("/home/me/jungerl/lib/distel/ebin").
 
-2. Optionally build an Info version of the Distel programming manual,
-   with "make info" and "make info_install"
+Then add these lines to your ~/.emacs (again substitute correct path):
 
-   You can also build a Postscript version with "make postscript"
+  (add-to-list 'load-path "/home/me/jungerl/lib/distel/elisp")
+  (require 'distel)
+  (distel-setup)
 
-[The following two steps can be done manually, or you can just do
-"make config_install" instead. It will append these lines to your
-~/.emacs and ~/.erlang (but only if they aren't already there). I
-ain't touchin' yer dotfiles without permission.]
+You can also build the documentation in doc/ with 'make postscript'
+for a printable manual and 'make install' to install the info manual.
 
-3. To have Distel's erlang support libraries available in all your
-   nodes, add this line to your ~/.erlang:
-
-     code:add_pathz("/usr/local/share/distel/ebin").
-
-  (If you used an install prefix other than /usr/local, change that
-  line appropriately.)
-
-4. To automatically enable the erlang-extended-mode for editing Erlang
-   files, add this to your ~/.emacs:
-
-     (require 'distel)
-     (add-hook 'erlang-mode-hook 'distel-erlang-mode-hook)
-
-And you should be all set! README says how to get started.
+You should now be in the air! If so you should see "Erlang EXT" in the
+Emacs modeline when you open an Erlang source file (meaning you're in
+the EXTended erlang mode). Check out the manual in doc/ to find out
+what you can do!
 
 ============================================================
 

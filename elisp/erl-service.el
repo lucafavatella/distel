@@ -28,12 +28,15 @@ commands. Using C-u to bypasses the cache.")
 (defun erl-choose-nodename ()
   "Prompt the user for the nodename to connect to in future."
   (interactive)
-  (setq erl-nodename-cache
-        (let ((name-string (read-string "Node: ")))
-          (intern (if (string-match "@" name-string)
-                      name-string
-                    (concat name-string
-                            "@" (erl-determine-hostname)))))))
+  (let* ((name-string (read-string "Node: "))
+         (name (intern (if (string-match "@" name-string)
+                           name-string
+                         (concat name-string
+                                 "@" (erl-determine-hostname))))))
+    (setq erl-nodename-cache name)
+    (setq distel-modeline-node name-string)
+    (force-mode-line-update))
+  erl-nodename-cache)
 
 ;;;;; Call MFA lookup
 
@@ -587,18 +590,39 @@ time it spent in subfunctions."
       s
     (concat s ".")))
 
+(defun erl-reload-modules (node)
+  "reload all out-of-date modules"
+  (interactive (list (erl-target-node)))
+  (erl-rpc (lambda (result) (message "load: %s" result)) nil 
+           node 'distel 'reload_modules ()))
+
+
+(defvar erl-reload-dwim nil
+  "Do What I Mean when reloading beam files. If erl-reload-dwim is non-nil, 
+and the module cannot be found in the load path, we attempt to find the correct
+directory, add it to the load path and retry the load.
+We also don't prompt for the module name.")
+
 (defun erl-reload-module (node module)
   "Reload a module."
   (interactive (list (erl-target-node)
-		     (let* ((module (erlang-get-module))
-			    (prompt (if module
-					(format "Module (default %s): " module)
+		     (if erl-reload-dwim 
+			 (erlang-get-module)
+		       (let* ((module (erlang-get-module))
+			      (prompt (if module
+					  (format "Module (default %s): " module)
 					"Module: ")))
-		       (intern (read-string prompt nil nil module)))))
+			 (intern (read-string prompt nil nil module))))))
   (if (and (eq node edb-monitor-node)
 	   (assq module edb-interpreted-modules))
       (erl-reinterpret-module node module)
-    (erl-eval-expression node (format "c:l('%s')." module))))
+    ;;    (erl-eval-expression node (format "c:l('%s')." module))))
+    (erl-do-reload node module)))
+
+(defun erl-do-reload (node module)
+  (let ((fname (if erl-reload-dwim (buffer-file-name) nil)))
+    (erl-rpc (lambda (result) (message "load: %s" result)) nil 
+	     node 'distel 'reload_module (list module fname))))
 
 (defun erl-reinterpret-module (node module)
   ;; int:i(SourcePath).
@@ -630,6 +654,23 @@ default.)"
   (interactive)
   (apply #'erl-find-source
          (or (erl-read-call-mfa) (error "No call at point."))))
+
+(defun erl-find-mod (modstr)
+  "goto source code of mfa. mfa can be m, m:f or m:f/a.
+Similar to erl-find-source-under-point, but prompts user for mfa."
+  (interactive (list (read-string "Module: ")))
+  (let* ((mcolon (split-string modstr ":"))
+         (mslash (case (length mcolon)
+                   (1 nil)
+                   (2 (split-string (cadr mcolon) "/"))))
+         (mod (car mcolon))
+         (fun (if mslash 
+                  (car mslash)
+                nil))
+         (ari (if (eq 2 (length mslash))
+                  (string-to-number (cadr mslash))
+                nil)))
+    (apply #'erl-find-source (list mod fun ari))))
 
 (defun erl-find-source-unwind ()
   "Unwind back from uses of `erl-find-source-under-point'."
@@ -867,7 +908,7 @@ the node, version 1.2 (or perhaps later.)"
               (point)))
   (let ((buffer (current-buffer))
 	(text   (erl-refactor-strip-macros
-                 (buffer-substring start end))))
+                 (buffer-substring-no-properties start end))))
     (erl-spawn
       (erl-send-rpc node 'distel 'free_vars (list text))
       (erl-receive (name start end buffer text)
@@ -880,7 +921,7 @@ the node, version 1.2 (or perhaps later.)"
 	      (let ((arglist
 		     (concat "(" (mapconcat 'symbol-name free-vars ", ") ")"))
 		    (body
-		     (buffer-substring start end)))
+		     (buffer-substring-no-properties start end)))
 		;; rewrite the original as a call
 		(delete-region start end)
                 (goto-char start)
@@ -902,7 +943,7 @@ variables."
   (with-temp-buffer
     (save-excursion (insert text))
     (while (re-search-forward "\\?[A-Za-z_]+" nil t)
-      (replace-match "deadmacro"))
+      (replace-match "deadmacro" t))
     (buffer-string)))
 
 ;;;; fdoc interface
@@ -970,7 +1011,7 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
   (interactive
    (list (erl-target-node)
 	 current-prefix-arg))
-  (let* ((mfa (erl-get-call-mfa))
+  (let* ((mfa (erl-read-call-mfa))
 	 (defaultstr (if (null mfa)
 			 nil
 		       (concat (if (first mfa)  (format "%s:" (first mfa)) "")
@@ -1007,15 +1048,20 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 
 ;;;; Argument lists
 
-(defun erl-openparen (n node)
-  "Insert a '(' character and show arglist information."
-  (interactive (list (prefix-numeric-value current-prefix-arg)
-                     erl-nodename-cache))
+(defun erl-openparent ()
+  "Insert a '(' character and arglist."
+  (interactive)
   (let ((call (erlang-get-function-under-point)))
-    (self-insert-command n)
+    (erl-print-arglist call erl-nodename-cache (current-buffer))))
+
+(defun erl-openparen (node)
+  "Insert a '(' character and show arglist information."
+  (interactive (list erl-nodename-cache))
+  (let ((call (erlang-get-function-under-point)))
+    (insert "(")
     (erl-print-arglist call node)))
 
-(defun erl-print-arglist (call node)
+(defun erl-print-arglist (call node &optional ins-buffer)
   (when (and node (member node erl-nodes))
     ;; Don't print arglists when we're defining a function (when the
     ;; "call" is at the start of the line)
@@ -1029,16 +1075,17 @@ The match positions are erl-mfa-regexp-{module,function,arity}-match.")
 	  (erl-spawn
 	    (erl-send-rpc node 'distel 'get_arglists
 			  (list mod fun))
-	    (erl-receive (call-mod fun)
+	    (erl-receive (call-mod fun ins-buffer)
 		((['rex 'error])
 		 (['rex arglists]
-		  (message (erl-format-arglists call-mod fun arglists)))))))))))
+		  (let ((argss (erl-format-arglists arglists)))
+		    (if ins-buffer
+			(with-current-buffer ins-buffer (insert argss))
+		      (message "%s:%s%s"  call-mod fun argss))))))))))))
 
-(defun erl-format-arglists (module function arglists)
+(defun erl-format-arglists (arglists)
   (setq arglists (sort* arglists '< :key 'length))
-  (format "%s%s%s"
-          (if module (concat module ":") "")
-          function
+  (format "%s"
           (mapconcat 'identity
                      (mapcar (lambda (arglist)
                                (format "(%s)"

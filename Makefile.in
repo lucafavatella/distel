@@ -16,26 +16,17 @@ ERL_SRC_DIR = ${datadir}/distel/src
 ########################################
 ## Main part
 
-CC = @CC@
-
 ERL_SRC := $(wildcard erl/*.erl)
 ERL_OBJ := $(patsubst erl/%.erl,ebin/%.beam,${ERL_SRC})
 
 ELISP_SRC := elisp/erlext.el
 ELISP_OBJ := $(patsubst %.el,%.elc,${ELISP_SRC})
 
-C_SRC := c/dec32.c
-C_OBJ := c/dec32
-
 DOC_SRC  := doc/distel.texi
 INFO_OBJ := doc/distel.info
 PS_OBJ   := doc/distel.ps
 
 OBJECTS := ${ERL_OBJ} ${ELISP_OBJ} ${C_OBJ} ${INFO_OBJ} ${PS_OBJ}
-
-warning:
-	@echo "Distel has moved into the Jungerl!"
-	@echo "See http://jungerl.sf.net/"
 
 base: ${ERL_OBJ} ${ELISP_OBJ} ${C_OBJ}
 info: ${INFO_OBJ}
@@ -66,19 +57,12 @@ doc/distel.ps: doc/distel.dvi
 doc/distel.dvi: ${DOC_SRC}
 	(cd doc; texi2dvi distel.texi)
 
-## C
-c/dec32: c/dec32.c
-	${CC} -g -o $@ $<
-
 ########################################
 
 configure: configure.in Makefile.in
 	autoconf
 
 Makefile: Makefile.in config.status
-	./config.status
-
-config/emacs-init-snippet.el: config/emacs-init-snippet.el.in config.status
 	./config.status
 
 config.status: configure
@@ -91,9 +75,6 @@ distclean: clean
 	-rm -f config.* configure.scan Makefile *~ */*~ 2>/dev/null
 
 install: base
-	@echo "* Installing C helper"
-	install -m 775 c/dec32 ${bindir}/dec32
-	@echo
 	@echo "* Installing Emacs Lisp Library"
 	install -m 775 -d ${ELISP_DIR} ${EBIN_DIR} ${ERL_SRC_DIR}
 	install -m 775 elisp/*.el elisp/*.elc ${ELISP_DIR}
@@ -127,24 +108,5 @@ wc:
 	@echo "* C"
 	@wc -l */*.c | sort -nr
 
-########################################
-# Targets to automatically update ~/.emacs and ~/.erlang
-#
-# This code is pretty ugly right now, but since it only appends
-# there's not much room for harm.
-
-config_install: dot_erlang dot_emacs
-
-dot_emacs: base
-	(grep distel-erlang-mode-hook ${HOME}/.emacs || \
-		cat config/emacs-init-snippet.el >> ${HOME}/.emacs) \
-	>/dev/null
-
-dot_erlang: base
-	(grep 'code:add_pathz("'${EBIN_DIR}'").' ${HOME}/.erlang || \
-		echo -e "\n%% The following line was automatically added by Distel config_install:\n"'code:add_pathz("'${EBIN_DIR}'").' >> ${HOME}/.erlang) \
-	>/dev/null
-
 .INTERMEDIATE: doc/distel.dvi
 .PHONY: always
-

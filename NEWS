@@ -1,3 +1,23 @@
+Jungerl version:
+
+	When you type the opening '(' for a function call Distel will
+	try to show the function's argument list(s) in the echo area.
+	(Very nice feature by Martin Björklund.)
+
+	If you want to choose a new node to talk to then use
+	`erl-choose-nodename' (C-c C-d n). Now C-u is just a regular
+	prefix argument and not a node-chooser.
+
+	The default remote node name is now displayed in the modeline.
+
+	The 'dec32' helper C program no longer exists! Thanks Dave
+	Love for reimplementing it in Elisp using floats (and doing a
+	whole slew of cleanups besides).
+
+	Distel now tricks R10B-0 into thinking that it can support
+	extended pids. This allows distribution to be established. Of
+	course it would be better to really support them :-)
+
 Version 3.3:
 
 	A User Manual is now available from the homepage,
