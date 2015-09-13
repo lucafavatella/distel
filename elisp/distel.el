@@ -43,6 +43,7 @@ You can add this to `erlang-mode-hook' with:
 
 ;; Extended feature key bindings (C-c C-d prefix)
 
+;;;###autoload
 (define-minor-mode erlang-extended-mode
   "Extensions to erlang-mode for communicating with a running Erlang node.
 
@@ -166,12 +167,14 @@ about Emacs' online help, use \"\\[help-for-help]\".
 (defvar distel-modeline-node nil
   "When non-nil the short name of the currently connected node.")
 
+;;;###autoload
 (add-to-list 'minor-mode-alist
              '(erlang-extended-mode
                (" EXT"
                 (distel-modeline-node (":" distel-modeline-node) "")
                 (edb-module-interpreted "<interpreted>" ""))))
 
+;;;###autoload
 (add-hook 'erlang-extended-mode-hook
           '(lambda ()
              (if erlang-extended-mode
